@@ -28,7 +28,7 @@ const SCRIPTS_DIR = __dirname;
 const STEP_TIMEOUT = parseInt(process.env.SYNC_TIMEOUT_MS) || 600000; // 10 min default
 
 // Steps in execution order
-const ALL_STEPS = ['districts', 'fec', 'openstates', 'congress', 'bills'];
+const ALL_STEPS = ['districts', 'fec', 'openstates', 'congress', 'bills', 'congress-legislators', 'wikidata', 'votesmart'];
 
 function getStepsToRun() {
   const envSteps = process.env.SYNC_STEPS;
@@ -53,6 +53,12 @@ function buildCommand(step) {
       return ['sync-congress-gov.js', '--members', ...(state ? [`--state=${state}`] : [])];
     case 'bills':
       return ['sync-open-states-bills.js', ...(state ? [state] : []), '--recent'];
+    case 'congress-legislators':
+      return ['sync-congress-legislators.js'];
+    case 'wikidata':
+      return ['sync-wikidata.js'];
+    case 'votesmart':
+      return ['sync-votesmart.js', ...(state ? [`--state=${state}`] : [])];
     default:
       return null;
   }

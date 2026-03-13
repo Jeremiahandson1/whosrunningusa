@@ -114,6 +114,8 @@ services:
         sync: false
       - key: CONGRESS_GOV_API_KEY
         sync: false
+      - key: VOTE_SMART_API_KEY
+        sync: false
       - key: SYNC_FEC_CYCLE
         value: "2026"
 

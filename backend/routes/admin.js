@@ -96,6 +96,80 @@ router.post('/ingestion/sync/openstates', adminAuth, async (req, res, next) => {
 });
 
 /**
+ * POST /api/admin/ingestion/sync/congress-legislators
+ */
+router.post('/ingestion/sync/congress-legislators', adminAuth, async (req, res, next) => {
+  try {
+    if (activeSyncs.has('congress_legislators')) {
+      return res.status(409).json({ error: 'Sync already in progress', source: 'congress_legislators' });
+    }
+    activeSyncs.add('congress_legislators');
+
+    ingestionService.syncCongressLegislators()
+      .then(stats => console.log('Congress-legislators sync completed:', stats))
+      .catch(err => console.error('Congress-legislators sync error:', err))
+      .finally(() => activeSyncs.delete('congress_legislators'));
+
+    res.json({
+      message: 'Congress-legislators sync started',
+      note: 'Enriches federal legislators with social media, contact info, and cross-reference IDs from public domain dataset'
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/admin/ingestion/sync/wikidata
+ */
+router.post('/ingestion/sync/wikidata', adminAuth, async (req, res, next) => {
+  try {
+    if (activeSyncs.has('wikidata')) {
+      return res.status(409).json({ error: 'Sync already in progress', source: 'wikidata' });
+    }
+    activeSyncs.add('wikidata');
+
+    ingestionService.syncWikidata()
+      .then(stats => console.log('Wikidata sync completed:', stats))
+      .catch(err => console.error('Wikidata sync error:', err))
+      .finally(() => activeSyncs.delete('wikidata'));
+
+    res.json({
+      message: 'Wikidata enrichment started',
+      note: 'Adds education history and photos from Wikidata for federal legislators'
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/admin/ingestion/sync/votesmart
+ */
+router.post('/ingestion/sync/votesmart', adminAuth, async (req, res, next) => {
+  try {
+    if (activeSyncs.has('vote_smart')) {
+      return res.status(409).json({ error: 'Sync already in progress', source: 'vote_smart' });
+    }
+    const { state } = req.body;
+    activeSyncs.add('vote_smart');
+
+    ingestionService.syncVoteSmart(state)
+      .then(stats => console.log('VoteSmart sync completed:', stats))
+      .catch(err => console.error('VoteSmart sync error:', err))
+      .finally(() => activeSyncs.delete('vote_smart'));
+
+    res.json({
+      message: 'VoteSmart sync started',
+      state: state || 'all states',
+      note: 'This enriches existing candidates with bio, ratings, and voting data'
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * POST /api/admin/ingestion/verify/:candidateId
  */
 router.post('/ingestion/verify/:candidateId', adminAuth, async (req, res, next) => {

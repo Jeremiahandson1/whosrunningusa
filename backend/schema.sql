@@ -107,6 +107,11 @@ CREATE TABLE candidate_profiles (
     verification_last_checked TIMESTAMP,
     fec_candidate_id VARCHAR(20),
     open_states_id VARCHAR(100),
+    vote_smart_candidate_id VARCHAR(50),
+    congress_gov_id VARCHAR(20),
+    govtrack_id VARCHAR(20),
+    wikipedia_id VARCHAR(200),
+    wikidata_id VARCHAR(20),
 
     -- Status
     is_active BOOLEAN DEFAULT TRUE,
@@ -127,6 +132,9 @@ CREATE INDEX IF NOT EXISTS idx_candidate_profiles_fec_office ON candidate_profil
 CREATE INDEX idx_candidate_profiles_shadow ON candidate_profiles(is_shadow_profile);
 CREATE INDEX idx_candidate_profiles_fec ON candidate_profiles(fec_candidate_id);
 CREATE INDEX idx_candidate_profiles_open_states ON candidate_profiles(open_states_id);
+CREATE INDEX idx_cp_vote_smart ON candidate_profiles(vote_smart_candidate_id);
+CREATE INDEX idx_cp_congress_gov ON candidate_profiles(congress_gov_id);
+
 
 -- =====================================================
 -- ELECTIONS & RACES
