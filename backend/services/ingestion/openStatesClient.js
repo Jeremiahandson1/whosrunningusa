@@ -170,11 +170,12 @@ class OpenStatesClient {
 
   /**
    * Get all current officials for all 50 states + DC + PR
-   * With daily budget awareness — syncs up to maxRequests API calls worth of states
+   * Rotates through states day by day — picks up where the last run stopped.
    * @param {function} progressCallback
    * @param {number} maxRequests - Max API requests to use (default 200, leaves buffer for bills)
+   * @param {string|null} lastSyncedState - Last state that was successfully synced (to resume from next)
    */
-  async getAllStateLegislators(progressCallback = null, maxRequests = 200) {
+  async getAllStateLegislators(progressCallback = null, maxRequests = 200, lastSyncedState = null) {
     const states = [
       'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
       'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
@@ -184,25 +185,38 @@ class OpenStatesClient {
       'DC', 'PR'
     ];
 
-    this.requestCount = 0;
+    // Find where to start: after the last synced state, wrapping around
+    let startIdx = 0;
+    if (lastSyncedState) {
+      const lastIdx = states.indexOf(lastSyncedState.toUpperCase());
+      if (lastIdx >= 0) {
+        startIdx = (lastIdx + 1) % states.length;
+        console.log(`Resuming from ${states[startIdx]} (last synced: ${lastSyncedState})`);
+      }
+    }
 
+    this.requestCount = 0;
     const allResults = [];
-    
-    for (let i = 0; i < states.length; i++) {
+    let lastSuccessfulState = null;
+    let statesSynced = 0;
+
+    for (let n = 0; n < states.length; n++) {
+      const i = (startIdx + n) % states.length;
       const state = states[i];
-      
+
       if (progressCallback) {
         progressCallback({
           state,
-          current: i + 1,
+          current: n + 1,
           total: states.length,
-          percent: Math.round(((i + 1) / states.length) * 100)
+          percent: Math.round(((n + 1) / states.length) * 100)
         });
       }
 
       // Check if we're approaching the daily budget
       if (this.requestCount >= maxRequests) {
-        console.log(`\nReached daily API budget (${maxRequests} requests). Stopping. ${states.length - i - 1} states remaining for next run.`);
+        console.log(`\nReached daily API budget (${maxRequests} requests). Synced ${statesSynced} states this run.`);
+        console.log(`Will resume from ${states[(i) % states.length]} next run.`);
         break;
       }
 
@@ -213,6 +227,8 @@ class OpenStatesClient {
           legislators,
           count: legislators.length
         });
+        lastSuccessfulState = state;
+        statesSynced++;
         console.log(`Fetched ${legislators.length} legislators from ${state} (${this.requestCount} API calls used)`);
       } catch (err) {
         if (err.message.includes('429')) {
@@ -229,7 +245,9 @@ class OpenStatesClient {
       }
     }
 
-    console.log(`Total API requests used: ${this.requestCount}`);
+    console.log(`Total API requests used: ${this.requestCount}. States synced this run: ${statesSynced}`);
+    // Attach the last successful state so caller can persist it
+    allResults.lastSyncedState = lastSuccessfulState;
     return allResults;
   }
 

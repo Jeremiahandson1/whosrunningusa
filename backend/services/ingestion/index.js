@@ -434,20 +434,30 @@ class IngestionService {
           }
         }
       } else {
-        // Sync all states
+        // Sync all states with rotation — pick up where last run stopped
+        // Read last synced state from a simple tracking table
+        await db.query(`CREATE TABLE IF NOT EXISTS _sync_state (key VARCHAR(100) PRIMARY KEY, value TEXT, updated_at TIMESTAMP DEFAULT NOW())`);
+        let lastSyncedState = null;
+        try {
+          const row = await db.query(`SELECT value FROM _sync_state WHERE key = 'openstates_last_state'`);
+          if (row.rows.length > 0) lastSyncedState = row.rows[0].value;
+        } catch (_e) { /* first run */ }
+
+        console.log(`Last synced state: ${lastSyncedState || 'none (starting from AL)'}`);
+
         const allResults = await this.openStates.getAllStateLegislators((progress) => {
           console.log(`Progress: ${progress.state} (${progress.current}/${progress.total}) - ${progress.percent}%`);
-        });
-        
+        }, 200, lastSyncedState);
+
         for (const stateResult of allResults) {
           stats.fetched += stateResult.count;
-          
+
           if (stateResult.error) {
             stats.errors++;
             stats.errorLog += `Error fetching ${stateResult.state}: ${stateResult.error}\n`;
             continue;
           }
-          
+
           for (const person of stateResult.legislators) {
             try {
               const result = await this.upsertOpenStatesPerson(person, dataSourceId);
@@ -457,6 +467,16 @@ class IngestionService {
               stats.errorLog += `Error processing ${person.id}: ${err.message}\n`;
             }
           }
+        }
+
+        // Save last synced state so next run picks up where we left off
+        if (allResults.lastSyncedState) {
+          await db.query(
+            `INSERT INTO _sync_state (key, value, updated_at) VALUES ('openstates_last_state', $1, NOW())
+             ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+            [allResults.lastSyncedState]
+          );
+          console.log(`Saved resume point: next run will start after ${allResults.lastSyncedState}`);
         }
       }
       
