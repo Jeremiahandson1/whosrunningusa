@@ -3,12 +3,12 @@
 
 databases:
   - name: whosrunningusa-db
-    plan: starter
+    plan: free
     databaseName: whosrunningusa
     postgresMajorVersion: 16
 
   - name: whosrunningusa-staging-db
-    plan: starter
+    plan: free
     databaseName: whosrunningusa_staging
     postgresMajorVersion: 16
 
