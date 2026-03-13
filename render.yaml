@@ -7,10 +7,6 @@ databases:
     databaseName: whosrunningusa
     postgresMajorVersion: 16
 
-  - name: whosrunningusa-staging-db
-    plan: free
-    databaseName: whosrunningusa_staging
-    postgresMajorVersion: 16
 
 services:
   # Backend API
@@ -93,51 +89,60 @@ services:
         value: https://whosrunningusa-api.onrender.com/api
 
   # =========================================
-  # STAGING ENVIRONMENT
+  # CRON JOBS
   # =========================================
 
-  # Staging Backend API
-  - type: web
-    name: whosrunningusa-staging-api
+  # Daily Data Sync — runs all ingestion scripts at 2 AM UTC
+  - type: cron
+    name: whosrunningusa-sync
     runtime: node
     plan: starter
     rootDir: backend
     buildCommand: npm install
-    startCommand: node scripts/migrate.js && node server.js
-    healthCheckPath: /api/health
+    schedule: "0 2 * * *"
+    startCommand: node scripts/migrate.js && node scripts/sync-scheduler.js
     envVars:
       - key: NODE_ENV
-        value: staging
+        value: production
       - key: DATABASE_URL
         fromDatabase:
-          name: whosrunningusa-staging-db
+          name: whosrunningusa-db
           property: connectionString
-      - key: JWT_SECRET
-        generateValue: true
-      - key: JWT_EXPIRES_IN
-        value: 7d
-      - key: FRONTEND_URL
-        value: https://whosrunningusa-staging.onrender.com
-      - key: FROM_EMAIL
-        value: noreply@whosrunningusa.com
+      - key: FEC_API_KEY
+        sync: false
+      - key: OPEN_STATES_API_KEY
+        sync: false
+      - key: CONGRESS_GOV_API_KEY
+        sync: false
+      - key: SYNC_FEC_CYCLE
+        value: "2026"
 
-  # Staging Frontend
-  - type: web
-    name: whosrunningusa-staging
-    runtime: static
-    buildCommand: npm install && VITE_API_URL=$VITE_API_URL npm run build
-    staticPublishPath: dist
-    headers:
-      - path: /*
-        name: X-Frame-Options
-        value: DENY
-      - path: /*
-        name: X-Content-Type-Options
-        value: nosniff
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
+  # Daily Database Backup — runs at 4 AM UTC
+  - type: cron
+    name: whosrunningusa-backup
+    runtime: node
+    plan: starter
+    rootDir: backend
+    buildCommand: npm install
+    schedule: "0 4 * * *"
+    startCommand: node scripts/migrate.js && node scripts/backup.js
     envVars:
-      - key: VITE_API_URL
-        value: https://whosrunningusa-staging-api.onrender.com/api
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: whosrunningusa-db
+          property: connectionString
+      - key: BACKUP_RETAIN_COUNT
+        value: "7"
+      - key: BACKUP_S3_ENABLED
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_REGION
+        value: us-east-1
+
