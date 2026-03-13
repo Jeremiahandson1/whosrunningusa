@@ -468,27 +468,6 @@ CREATE INDEX idx_promises_candidate ON promises(candidate_id);
 CREATE INDEX idx_promises_status ON promises(status);
 
 -- =====================================================
--- VOTING RECORDS
--- =====================================================
-
-CREATE TABLE voting_records (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    candidate_id UUID NOT NULL REFERENCES candidate_profiles(id) ON DELETE CASCADE,
-    vote_event_id UUID NOT NULL REFERENCES vote_events(id) ON DELETE CASCADE,
-    bill_id UUID REFERENCES bills(id) ON DELETE CASCADE,
-    vote VARCHAR(20) NOT NULL,
-    source VARCHAR(50) NOT NULL,
-    source_url TEXT,
-    external_voter_id VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(candidate_id, vote_event_id)
-);
-
-CREATE INDEX idx_voting_records_candidate ON voting_records(candidate_id);
-CREATE INDEX idx_voting_records_bill ON voting_records(bill_id);
-CREATE INDEX idx_voting_records_vote ON voting_records(vote);
-
--- =====================================================
 -- BILLS & SPONSORSHIPS
 -- =====================================================
 
@@ -556,6 +535,27 @@ CREATE TABLE vote_events (
 
 CREATE INDEX idx_vote_events_bill ON vote_events(bill_id);
 CREATE INDEX idx_vote_events_date ON vote_events(vote_date);
+
+-- =====================================================
+-- VOTING RECORDS
+-- =====================================================
+
+CREATE TABLE voting_records (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    candidate_id UUID NOT NULL REFERENCES candidate_profiles(id) ON DELETE CASCADE,
+    vote_event_id UUID NOT NULL REFERENCES vote_events(id) ON DELETE CASCADE,
+    bill_id UUID REFERENCES bills(id) ON DELETE CASCADE,
+    vote VARCHAR(20) NOT NULL,
+    source VARCHAR(50) NOT NULL,
+    source_url TEXT,
+    external_voter_id VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(candidate_id, vote_event_id)
+);
+
+CREATE INDEX idx_voting_records_candidate ON voting_records(candidate_id);
+CREATE INDEX idx_voting_records_bill ON voting_records(bill_id);
+CREATE INDEX idx_voting_records_vote ON voting_records(vote);
 
 -- =====================================================
 -- ENDORSEMENTS (Candidate to Candidate only)
