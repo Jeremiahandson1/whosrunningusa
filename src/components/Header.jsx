@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Menu, X, User, LogOut, ChevronDown, Shield, Bell, Search } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
-import ThemeToggle from './ThemeToggle'
+
 
 function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -332,7 +332,6 @@ function Header() {
         </nav>
 
         <div className="nav-actions desktop-nav">
-          <ThemeToggle />
           {user ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <div style={{ position: 'relative' }}>
