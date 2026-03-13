@@ -88,6 +88,15 @@ router.post('/', authenticate, requireVerifiedEmail, async (req, res, next) => {
       return res.status(404).json({ error: 'Candidate not found' });
     }
 
+    // Rate limit: max 10 questions per hour per user
+    const recentQuestions = await db.query(
+      "SELECT COUNT(*) FROM questions WHERE asked_by_user_id = $1 AND created_at > NOW() - INTERVAL '1 hour'",
+      [req.user.id]
+    );
+    if (parseInt(recentQuestions.rows[0].count) >= 10) {
+      return res.status(429).json({ error: 'Too many questions. Please wait before asking more.' });
+    }
+
     const result = await db.query(
       `INSERT INTO questions (candidate_id, asked_by_user_id, question_text)
        VALUES ($1, $2, $3)
@@ -182,18 +191,18 @@ router.post('/:id/answer', authenticate, requireCandidate, async (req, res, next
     
     // Verify question is for this candidate
     const questionResult = await db.query(
-      'SELECT candidate_id FROM questions WHERE id = $1',
+      'SELECT candidate_id, status FROM questions WHERE id = $1',
       [id]
     );
-    
+
     if (questionResult.rows.length === 0) {
       return res.status(404).json({ error: 'Question not found' });
     }
-    
+
     if (questionResult.rows[0].candidate_id !== candidateId) {
       return res.status(403).json({ error: 'This question is not for you' });
     }
-    
+
     // Create or update answer
     const result = await db.query(
       `INSERT INTO answers (question_id, candidate_id, answer_text)
@@ -203,20 +212,22 @@ router.post('/:id/answer', authenticate, requireCandidate, async (req, res, next
       [id, candidateId, answerText]
     );
     
-    // Update question status
+    // Update question status and only increment stats if this is a new answer (not a re-answer)
+    const wasAnswered = questionResult.rows[0].status === 'answered';
     await db.query(
       `UPDATE questions SET status = 'answered', answered_at = NOW() WHERE id = $1`,
       [id]
     );
-    
-    // Update candidate stats
-    await db.query(
-      `UPDATE candidate_profiles 
-       SET total_questions_answered = total_questions_answered + 1,
-           qa_response_rate = (total_questions_answered + 1)::decimal / NULLIF(total_questions_received, 0) * 100
-       WHERE id = $1`,
-      [candidateId]
-    );
+
+    if (!wasAnswered) {
+      await db.query(
+        `UPDATE candidate_profiles
+         SET total_questions_answered = total_questions_answered + 1,
+             qa_response_rate = (total_questions_answered + 1)::decimal / NULLIF(total_questions_received, 0) * 100
+         WHERE id = $1`,
+        [candidateId]
+      );
+    }
     
     // Send notification to question asker
     const candidateNameResult = await db.query('SELECT display_name FROM candidate_profiles WHERE id = $1', [candidateId]);
@@ -226,6 +237,129 @@ router.post('/:id/answer', authenticate, requireCandidate, async (req, res, next
     });
 
     res.json(result.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Update an answer (candidate only)
+router.put('/:id/answer', authenticate, requireCandidate, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { answerText } = req.body;
+
+    if (!answerText) {
+      return res.status(400).json({ error: 'answerText is required' });
+    }
+
+    // Get candidate profile
+    const profileResult = await db.query(
+      'SELECT id FROM candidate_profiles WHERE user_id = $1',
+      [req.user.id]
+    );
+
+    if (profileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Candidate profile not found' });
+    }
+
+    const candidateId = profileResult.rows[0].id;
+
+    // Verify question is for this candidate
+    const questionResult = await db.query(
+      'SELECT candidate_id FROM questions WHERE id = $1',
+      [id]
+    );
+
+    if (questionResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Question not found' });
+    }
+
+    if (questionResult.rows[0].candidate_id !== candidateId) {
+      return res.status(403).json({ error: 'This question is not for you' });
+    }
+
+    // Verify answer exists
+    const answerResult = await db.query(
+      'SELECT id FROM answers WHERE question_id = $1',
+      [id]
+    );
+
+    if (answerResult.rows.length === 0) {
+      return res.status(404).json({ error: 'No answer found for this question' });
+    }
+
+    // Update the answer text
+    const result = await db.query(
+      'UPDATE answers SET answer_text = $1, updated_at = NOW() WHERE question_id = $2 RETURNING *',
+      [answerText, id]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Delete an answer (candidate only)
+router.delete('/:id/answer', authenticate, requireCandidate, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Get candidate profile
+    const profileResult = await db.query(
+      'SELECT id FROM candidate_profiles WHERE user_id = $1',
+      [req.user.id]
+    );
+
+    if (profileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Candidate profile not found' });
+    }
+
+    const candidateId = profileResult.rows[0].id;
+
+    // Verify question is for this candidate
+    const questionResult = await db.query(
+      'SELECT candidate_id, status FROM questions WHERE id = $1',
+      [id]
+    );
+
+    if (questionResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Question not found' });
+    }
+
+    if (questionResult.rows[0].candidate_id !== candidateId) {
+      return res.status(403).json({ error: 'This question is not for you' });
+    }
+
+    // Verify answer exists
+    const answerResult = await db.query(
+      'SELECT id FROM answers WHERE question_id = $1',
+      [id]
+    );
+
+    if (answerResult.rows.length === 0) {
+      return res.status(404).json({ error: 'No answer found for this question' });
+    }
+
+    // Delete the answer
+    await db.query('DELETE FROM answers WHERE question_id = $1', [id]);
+
+    // Reset question status back to pending
+    await db.query(
+      "UPDATE questions SET status = 'pending', answered_at = NULL WHERE id = $1",
+      [id]
+    );
+
+    // Decrement candidate stats
+    await db.query(
+      `UPDATE candidate_profiles
+       SET total_questions_answered = GREATEST(total_questions_answered - 1, 0),
+           qa_response_rate = GREATEST(total_questions_answered - 1, 0)::decimal / NULLIF(total_questions_received, 0) * 100
+       WHERE id = $1`,
+      [candidateId]
+    );
+
+    res.json({ message: 'Answer deleted' });
   } catch (error) {
     next(error);
   }

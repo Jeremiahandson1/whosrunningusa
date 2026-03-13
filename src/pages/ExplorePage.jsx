@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   Search, Filter, ChevronDown, CheckCircle,
-  Grid, List, X
+  Grid, List, X, Map, Loader
 } from 'lucide-react'
 import api from '../utils/api'
 import USMap from '../components/USMap'
+import { SkeletonCard } from '../components/Skeleton'
+import useDebounce from '../hooks/useDebounce'
 
 const levels = [
   { value: 'all', label: 'All Levels' },
@@ -13,6 +15,14 @@ const levels = [
   { value: 'state', label: 'State' },
   { value: 'county', label: 'County' },
   { value: 'local', label: 'Local' },
+]
+
+const sortOptions = [
+  { value: 'response_rate', label: 'Most Responsive' },
+  { value: 'questions_answered', label: 'Most Active' },
+  { value: 'recently_joined', label: 'Recently Joined' },
+  { value: 'alphabetical', label: 'Alphabetical' },
+  { value: 'most_followed', label: 'Most Followed' },
 ]
 
 const issueFilters = [
@@ -33,80 +43,153 @@ const STATE_NAMES = {
 }
 
 function ExplorePage() {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [viewMode, setViewMode] = useState('grid')
-  const [levelFilter, setLevelFilter] = useState('all')
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
   const [showFilters, setShowFilters] = useState(false)
-  const [selectedState, setSelectedState] = useState(null)
   const [candidates, setCandidates] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activeIssues, setActiveIssues] = useState([])
+  const [searching, setSearching] = useState(false)
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [mapVisible, setMapVisible] = useState(true)
   const PAGE_SIZE = 40
 
-  const buildParams = (offset = 0) => {
+  // Restore state from URL params
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
+  const [levelFilter, setLevelFilter] = useState(searchParams.get('level') || 'all')
+  const [selectedState, setSelectedState] = useState(searchParams.get('state') || null)
+  const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'response_rate')
+  const [activeIssues, setActiveIssues] = useState(() => {
+    const issues = searchParams.get('issues')
+    return issues ? issues.split(',') : []
+  })
+  const [currentOffset, setCurrentOffset] = useState(() => {
+    const o = searchParams.get('offset')
+    return o ? parseInt(o, 10) : 0
+  })
+
+  const debouncedSearch = useDebounce(searchQuery, 300)
+  const searchInputRef = useRef(null)
+
+  // Sync state to URL params
+  const syncParams = useCallback((overrides = {}) => {
+    const next = new URLSearchParams()
+    const q = overrides.q !== undefined ? overrides.q : searchQuery
+    const lvl = overrides.level !== undefined ? overrides.level : levelFilter
+    const st = overrides.state !== undefined ? overrides.state : selectedState
+    const sort = overrides.sort !== undefined ? overrides.sort : sortBy
+    const issues = overrides.issues !== undefined ? overrides.issues : activeIssues
+    const off = overrides.offset !== undefined ? overrides.offset : currentOffset
+
+    if (q) next.set('q', q)
+    if (lvl !== 'all') next.set('level', lvl)
+    if (st) next.set('state', st)
+    if (sort !== 'response_rate') next.set('sort', sort)
+    if (issues.length > 0) next.set('issues', issues.join(','))
+    if (off > 0) next.set('offset', String(off))
+
+    setSearchParams(next, { replace: true })
+  }, [searchQuery, levelFilter, selectedState, sortBy, activeIssues, currentOffset, setSearchParams])
+
+  const buildApiParams = useCallback((query, offset = 0) => {
     const params = new URLSearchParams()
-    if (searchQuery) params.set('q', searchQuery)
+    if (query) params.set('q', query)
     if (levelFilter !== 'all') params.set('level', levelFilter)
     if (selectedState) params.set('state', selectedState)
     if (activeIssues.length > 0) params.set('issues', activeIssues.join(','))
+    if (sortBy) params.set('sort', sortBy)
     params.set('limit', String(PAGE_SIZE))
     if (offset) params.set('offset', String(offset))
     return params
-  }
+  }, [levelFilter, selectedState, activeIssues, sortBy])
 
-  const getEndpoint = (params) => {
-    return searchQuery
+  const getEndpoint = useCallback((query, params) => {
+    return query
       ? `/search?${params.toString()}`
       : selectedState
         ? `/search/candidates/by-location?${params.toString()}`
         : `/candidates?${params.toString()}`
-  }
+  }, [selectedState])
 
-  useEffect(() => {
+  const fetchCandidates = useCallback((query) => {
     setLoading(true)
-    const params = buildParams()
-    api.get(getEndpoint(params))
+    setSearching(true)
+    const params = buildApiParams(query)
+    api.get(getEndpoint(query, params))
       .then(data => {
         const results = data.candidates || []
         setCandidates(results)
         setHasMore(results.length >= PAGE_SIZE)
       })
       .catch(() => setCandidates([]))
-      .finally(() => setLoading(false))
-  }, [levelFilter, selectedState, activeIssues])
+      .finally(() => {
+        setLoading(false)
+        setSearching(false)
+      })
+    setCurrentOffset(0)
+  }, [buildApiParams, getEndpoint])
+
+  // Main data fetch -- triggers on debounced search and all filters
+  useEffect(() => {
+    fetchCandidates(debouncedSearch)
+    syncParams({ q: debouncedSearch, offset: 0 })
+  }, [debouncedSearch, levelFilter, selectedState, activeIssues, sortBy])
 
   const handleSearch = () => {
-    setLoading(true)
-    const params = buildParams()
-    api.get(getEndpoint(params))
-      .then(data => {
-        const results = data.candidates || []
-        setCandidates(results)
-        setHasMore(results.length >= PAGE_SIZE)
-      })
-      .catch(() => setCandidates([]))
-      .finally(() => setLoading(false))
+    fetchCandidates(searchQuery)
   }
 
   const loadMore = () => {
     setLoadingMore(true)
-    const params = buildParams(candidates.length)
-    api.get(getEndpoint(params))
+    const newOffset = candidates.length
+    const params = buildApiParams(debouncedSearch, newOffset)
+    api.get(getEndpoint(debouncedSearch, params))
       .then(data => {
         const results = data.candidates || []
         setCandidates(prev => [...prev, ...results])
         setHasMore(results.length >= PAGE_SIZE)
+        setCurrentOffset(newOffset)
+        syncParams({ offset: newOffset })
       })
       .catch(() => {})
       .finally(() => setLoadingMore(false))
   }
 
   const handleStateClick = (abbr) => {
-    setSelectedState(prev => prev === abbr ? null : abbr)
+    const next = selectedState === abbr ? null : abbr
+    setSelectedState(next)
+    syncParams({ state: next })
   }
+
+  const handleLevelChange = (value) => {
+    setLevelFilter(value)
+    syncParams({ level: value })
+  }
+
+  const handleSortChange = (value) => {
+    setSortBy(value)
+    syncParams({ sort: value })
+  }
+
+  const toggleIssue = (issue) => {
+    setActiveIssues(prev => {
+      const next = prev.includes(issue) ? prev.filter(i => i !== issue) : [...prev, issue]
+      syncParams({ issues: next })
+      return next
+    })
+  }
+
+  const clearAllFilters = () => {
+    setSearchQuery('')
+    setLevelFilter('all')
+    setSelectedState(null)
+    setSortBy('response_rate')
+    setActiveIssues([])
+    setCurrentOffset(0)
+    setSearchParams({}, { replace: true })
+  }
+
+  const hasActiveFilters = searchQuery || levelFilter !== 'all' || selectedState || activeIssues.length > 0
 
   return (
     <div>
@@ -121,33 +204,58 @@ function ExplorePage() {
 
       {/* Map Section */}
       <div className="container" style={{ paddingTop: '2rem' }}>
-        <div style={{
-          background: 'white',
-          borderRadius: '12px',
-          border: '1px solid var(--slate-200)',
-          padding: '1.5rem',
-          marginBottom: '2rem',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '1rem' }}>
-            <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--navy-700)' }}>
-              {selectedState
-                ? <>Showing candidates in <strong>{STATE_NAMES[selectedState] || selectedState}</strong></>
-                : 'Click a state to filter candidates'}
-            </h3>
-            {selectedState && (
-              <button
-                onClick={() => setSelectedState(null)}
-                className="btn btn-secondary"
-                style={{ padding: '0.25rem 0.75rem', fontSize: '0.8125rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}
-              >
-                <X size={14} /> Clear
-              </button>
-            )}
+        <button
+          className="btn btn-secondary explore-map-toggle"
+          onClick={() => setMapVisible(!mapVisible)}
+          style={{ gap: '0.5rem' }}
+        >
+          <Map size={18} />
+          {mapVisible ? 'Hide Map' : 'Select State on Map'}
+        </button>
+
+        <div className={`explore-map-section${mapVisible ? '' : ' collapsed'}`}>
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            border: '1px solid var(--slate-200)',
+            padding: '1.5rem',
+            marginBottom: '2rem',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--navy-700)' }}>
+                {selectedState
+                  ? <>Showing candidates in <strong>{STATE_NAMES[selectedState] || selectedState}</strong></>
+                  : 'Click a state to filter candidates'}
+              </h3>
+              {selectedState && (
+                <button
+                  onClick={() => setSelectedState(null)}
+                  className="btn btn-secondary"
+                  style={{ padding: '0.25rem 0.75rem', fontSize: '0.8125rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+                >
+                  <X size={14} /> Clear
+                </button>
+              )}
+            </div>
+            <USMap onStateClick={handleStateClick} selectedState={selectedState} />
           </div>
-          <USMap onStateClick={handleStateClick} selectedState={selectedState} />
+        </div>
+
+        {/* State dropdown - visible on mobile as alternative to map */}
+        <div className="explore-mobile-state-select" style={{ marginBottom: '1rem' }}>
+          <select
+            value={selectedState || ''}
+            onChange={(e) => { const v = e.target.value || null; setSelectedState(v); syncParams({ state: v }) }}
+            style={{ width: '100%' }}
+          >
+            <option value="">All States</option>
+            {Object.entries(STATE_NAMES).sort((a, b) => a[1].localeCompare(b[1])).map(([abbr, name]) => (
+              <option key={abbr} value={abbr}>{name}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -155,25 +263,61 @@ function ExplorePage() {
       <div className="container">
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ flex: 1, minWidth: '250px', position: 'relative' }}>
+            <label htmlFor="explore-search" className="sr-only">Search candidates or races</label>
             <Search size={20} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-500)' }} />
             <input
+              ref={searchInputRef}
+              id="explore-search"
               type="text"
               placeholder="Search candidates or races..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              style={{ paddingLeft: '3rem' }}
+              style={{ paddingLeft: '3rem', paddingRight: searchQuery ? '4.5rem' : '1rem' }}
             />
+            {/* Inline spinner + clear button */}
+            <div style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+              {searching && searchQuery && (
+                <Loader size={16} style={{ color: 'var(--slate-400)', animation: 'spin 1s linear infinite' }} />
+              )}
+              {searchQuery && (
+                <button
+                  onClick={() => { setSearchQuery(''); searchInputRef.current?.focus() }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.125rem', color: 'var(--slate-400)', display: 'flex', alignItems: 'center' }}
+                  aria-label="Clear search"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
           </div>
 
           <div style={{ position: 'relative' }}>
+            <label htmlFor="level-filter" className="sr-only">Filter by level of government</label>
             <select
+              id="level-filter"
               value={levelFilter}
-              onChange={(e) => setLevelFilter(e.target.value)}
+              onChange={(e) => handleLevelChange(e.target.value)}
               style={{ appearance: 'none', paddingRight: '2.5rem', minWidth: '150px', cursor: 'pointer' }}
             >
               {levels.map(level => (
                 <option key={level.value} value={level.value}>{level.label}</option>
+              ))}
+            </select>
+            <ChevronDown size={18} style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--slate-500)' }} />
+          </div>
+
+          {/* Sort dropdown */}
+          <div style={{ position: 'relative' }}>
+            <label htmlFor="sort-filter" className="sr-only">Sort candidates</label>
+            <select
+              id="sort-filter"
+              value={sortBy}
+              onChange={(e) => handleSortChange(e.target.value)}
+              style={{ appearance: 'none', paddingRight: '2.5rem', minWidth: '170px', cursor: 'pointer' }}
+            >
+              {sortOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
             <ChevronDown size={18} style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--slate-500)' }} />
@@ -190,12 +334,16 @@ function ExplorePage() {
           <div style={{ display: 'flex', border: '1px solid var(--slate-300)', borderRadius: '6px', overflow: 'hidden' }}>
             <button
               onClick={() => setViewMode('grid')}
+              aria-label="Grid view"
+              aria-pressed={viewMode === 'grid'}
               style={{ padding: '0.5rem 0.75rem', background: viewMode === 'grid' ? 'var(--navy-700)' : 'white', color: viewMode === 'grid' ? 'white' : 'var(--slate-600)', border: 'none', cursor: 'pointer' }}
             >
               <Grid size={18} />
             </button>
             <button
               onClick={() => setViewMode('list')}
+              aria-label="List view"
+              aria-pressed={viewMode === 'list'}
               style={{ padding: '0.5rem 0.75rem', background: viewMode === 'list' ? 'var(--navy-700)' : 'white', color: viewMode === 'list' ? 'white' : 'var(--slate-600)', border: 'none', borderLeft: '1px solid var(--slate-300)', cursor: 'pointer' }}
             >
               <List size={18} />
@@ -219,9 +367,7 @@ function ExplorePage() {
                     background: activeIssues.includes(issue) ? 'var(--navy-700)' : undefined,
                     color: activeIssues.includes(issue) ? 'white' : undefined,
                   }}
-                  onClick={() => setActiveIssues(prev =>
-                    prev.includes(issue) ? prev.filter(i => i !== issue) : [...prev, issue]
-                  )}
+                  onClick={() => toggleIssue(issue)}
                 >
                   {issue}
                   {activeIssues.includes(issue) && <X size={14} style={{ marginLeft: '0.25rem' }} />}
@@ -231,12 +377,105 @@ function ExplorePage() {
           </div>
         )}
 
-        <div style={{ marginBottom: '1rem', color: 'var(--slate-600)' }}>
-          {loading ? 'Loading...' : <>Showing <strong>{candidates.length}</strong> candidates</>}
-        </div>
+        {/* Active filter summary bar */}
+        {hasActiveFilters && (
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: '0.5rem',
+            marginBottom: '1rem',
+            padding: '0.75rem 1rem',
+            background: 'var(--slate-50)',
+            borderRadius: '8px',
+            border: '1px solid var(--slate-200)',
+          }} aria-live="polite">
+            <span style={{ fontSize: '0.875rem', color: 'var(--slate-600)', marginRight: '0.25rem' }}>
+              {loading ? 'Searching...' : <>Showing <strong>{candidates.length}</strong> candidates</>}
+            </span>
+
+            {searchQuery && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                padding: '0.25rem 0.5rem', background: 'var(--navy-50)', borderRadius: '9999px',
+                fontSize: '0.8125rem', color: 'var(--navy-700)',
+              }}>
+                &quot;{searchQuery}&quot;
+                <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--navy-600)', display: 'flex' }}>
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+
+            {levelFilter !== 'all' && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                padding: '0.25rem 0.5rem', background: 'var(--navy-50)', borderRadius: '9999px',
+                fontSize: '0.8125rem', color: 'var(--navy-700)',
+              }}>
+                {levels.find(l => l.value === levelFilter)?.label}
+                <button onClick={() => handleLevelChange('all')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--navy-600)', display: 'flex' }}>
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+
+            {selectedState && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                padding: '0.25rem 0.5rem', background: 'var(--navy-50)', borderRadius: '9999px',
+                fontSize: '0.8125rem', color: 'var(--navy-700)',
+              }}>
+                {STATE_NAMES[selectedState] || selectedState}
+                <button onClick={() => handleStateClick(selectedState)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--navy-600)', display: 'flex' }}>
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+
+            {activeIssues.map(issue => (
+              <span key={issue} style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                padding: '0.25rem 0.5rem', background: 'var(--navy-50)', borderRadius: '9999px',
+                fontSize: '0.8125rem', color: 'var(--navy-700)',
+              }}>
+                {issue}
+                <button onClick={() => toggleIssue(issue)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--navy-600)', display: 'flex' }}>
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+
+            <button
+              onClick={clearAllFilters}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: '0.8125rem', color: 'var(--error)', fontWeight: 600,
+                marginLeft: 'auto',
+              }}
+            >
+              Clear All
+            </button>
+          </div>
+        )}
+
+        {!hasActiveFilters && (
+          <div style={{ marginBottom: '1rem', color: 'var(--slate-600)' }} aria-live="polite">
+            {loading ? 'Searching...' : <>Showing <strong>{candidates.length}</strong> candidates</>}
+          </div>
+        )}
+
+        {/* Skeleton loading grid */}
+        {loading && (
+          <div className="candidate-grid" style={{ marginBottom: '3rem' }}>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        )}
 
         {/* Candidate Grid */}
-        <div className={viewMode === 'grid' ? 'candidate-grid' : ''} style={{ marginBottom: '3rem' }}>
+        <div className={viewMode === 'grid' ? 'candidate-grid' : ''} style={{ marginBottom: '3rem', display: loading ? 'none' : undefined }}>
           {candidates.map(candidate => (
             <Link
               to={`/candidate/${candidate.id}`}
@@ -273,7 +512,12 @@ function ExplorePage() {
                   }}>
                     {candidate.qa_response_rate || 0}%
                   </div>
-                  <div className="stat-label">Response Rate</div>
+                  <div className="stat-label">
+                    Response Rate{' '}
+                    <span style={{ fontWeight: 600 }}>
+                      ({(candidate.qa_response_rate || 0) >= 80 ? 'High' : (candidate.qa_response_rate || 0) >= 50 ? 'Medium' : 'Low'})
+                    </span>
+                  </div>
                 </div>
                 <div className="stat">
                   <div className="stat-value">{candidate.total_questions_received || 0}</div>

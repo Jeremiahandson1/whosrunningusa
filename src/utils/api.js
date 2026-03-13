@@ -17,10 +17,18 @@ async function request(endpoint, options = {}) {
   if (body) config.body = JSON.stringify(body)
 
   const res = await fetch(`${API_BASE}${endpoint}`, config)
-  const data = await res.json()
+
+  let data
+  const contentType = res.headers.get('content-type')
+  if (contentType && contentType.includes('application/json')) {
+    data = await res.json()
+  } else {
+    const text = await res.text()
+    data = { message: text }
+  }
 
   if (!res.ok) {
-    const error = new Error(data.error || 'Request failed')
+    const error = new Error(data.error || data.message || 'Request failed')
     error.status = res.status
     error.data = data
     throw error

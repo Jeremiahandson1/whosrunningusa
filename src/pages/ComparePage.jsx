@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
-import { Search, CheckCircle, X, ArrowRight } from 'lucide-react'
+import { Search, CheckCircle, X, ArrowRight, Printer, Loader } from 'lucide-react'
 import api from '../utils/api'
+import useDebounce from '../hooks/useDebounce'
+import Breadcrumbs from '../components/Breadcrumbs'
 
 function ComparePage() {
   const [searchParams] = useSearchParams()
@@ -12,6 +14,7 @@ function ComparePage() {
   const [loading, setLoading] = useState(false)
 
   const raceId = searchParams.get('race')
+  const debouncedSearch = useDebounce(searchQuery, 300)
 
   useEffect(() => {
     if (raceId) {
@@ -22,6 +25,19 @@ function ComparePage() {
       setComparison(null)
     }
   }, [raceId])
+
+  // Debounced search-as-you-type
+  useEffect(() => {
+    if (!debouncedSearch.trim()) {
+      setSearchResults([])
+      return
+    }
+    setLoading(true)
+    api.get(`/search?q=${encodeURIComponent(debouncedSearch)}&type=candidates`)
+      .then(data => setSearchResults(data.candidates || []))
+      .catch(() => setSearchResults([]))
+      .finally(() => setLoading(false))
+  }, [debouncedSearch])
 
   const handleSearch = () => {
     if (!searchQuery.trim()) return
@@ -78,18 +94,62 @@ function ComparePage() {
     }
   }
 
+  const handleExport = () => {
+    window.print()
+  }
+
+  const hasComparison = comparison?.candidates || manualComparison
+
   return (
     <div>
+      <div className="print-header">WhosRunningUSA Candidate Comparison</div>
       <div className="page-header">
         <div className="container">
-          <h1>Compare Candidates</h1>
-          <p className="page-subtitle">
-            See where candidates stand side-by-side on the issues that matter to you.
-          </p>
+          <Breadcrumbs items={[{ label: 'Home', path: '/' }, { label: 'Compare Candidates' }]} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h1>Compare Candidates</h1>
+              <p className="page-subtitle">
+                See where candidates stand side-by-side on the issues that matter to you.
+              </p>
+            </div>
+            {hasComparison && (
+              <button
+                className="btn btn-secondary compare-export-btn"
+                onClick={handleExport}
+                style={{ padding: '0.5rem 1rem', flexShrink: 0 }}
+              >
+                <Printer size={16} /> Export / Print
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       <div className="container" style={{ paddingTop: '2rem', paddingBottom: '3rem' }}>
+        {/* Color Legend */}
+        {(comparison?.candidates || manualComparison) && (
+          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginBottom: '1.5rem', padding: '0.75rem 1rem', background: 'var(--slate-50)', borderRadius: '8px', fontSize: '0.875rem', alignItems: 'center' }}>
+            <span style={{ fontWeight: 600, color: 'var(--slate-700)' }}>Position Legend:</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+              <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--success)', display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ color: 'var(--success)', fontWeight: 500 }}>Supports</span>
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+              <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--error)', display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ color: 'var(--error)', fontWeight: 500 }}>Opposes</span>
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+              <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--warning)', display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ color: 'var(--warning)', fontWeight: 500 }}>Complex/Nuanced</span>
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+              <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--slate-400)', display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ color: 'var(--slate-400)', fontWeight: 500 }}>No Position</span>
+            </span>
+          </div>
+        )}
+
         {/* If we have a race comparison from API */}
         {comparison && comparison.candidates && (
           <div style={{ marginBottom: '3rem' }}>
@@ -157,8 +217,22 @@ function ComparePage() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                     placeholder="Search by name..."
-                    style={{ paddingLeft: '3rem' }}
+                    style={{ paddingLeft: '3rem', paddingRight: searchQuery ? '4.5rem' : '1rem' }}
                   />
+                  <div style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                    {loading && searchQuery && (
+                      <Loader size={16} style={{ color: 'var(--slate-400)', animation: 'spin 1s linear infinite' }} />
+                    )}
+                    {searchQuery && (
+                      <button
+                        onClick={() => { setSearchQuery(''); setSearchResults([]) }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.125rem', color: 'var(--slate-400)', display: 'flex', alignItems: 'center' }}
+                        aria-label="Clear search"
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <button className="btn btn-primary" onClick={handleSearch}>Search</button>
               </div>
@@ -275,6 +349,9 @@ function ComparePage() {
             )}
           </div>
         )}
+      </div>
+      <div className="print-footer">
+        Generated from WhosRunningUSA &mdash; {window.location.href}
       </div>
     </div>
   )

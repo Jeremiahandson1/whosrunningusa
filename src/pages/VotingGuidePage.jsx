@@ -1,8 +1,17 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { FileText, CheckCircle, HelpCircle, ArrowRight, Share2, Printer, X } from 'lucide-react'
+import { FileText, CheckCircle, HelpCircle, ArrowRight, Share2, Printer, X, Users } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
+import useFocusTrap from '../hooks/useFocusTrap'
+import Breadcrumbs from '../components/Breadcrumbs'
+import OnboardingModal from '../components/OnboardingModal'
+
+const votingGuideOnboardingSteps = [
+  { title: 'Build Your Voting Guide', description: 'Create a personalized ballot for upcoming elections. Research candidates and make informed choices before heading to the polls.', icon: <FileText size={28} /> },
+  { title: 'Pick Candidates for Each Race', description: 'Browse through each race, compare candidates side-by-side, and select your preferred candidate or mark yourself as undecided.', icon: <CheckCircle size={28} /> },
+  { title: 'Share With Friends', description: 'Print your voting guide or share it with friends and family to help them make informed decisions too.', icon: <Users size={28} /> },
+]
 
 function VotingGuidePage() {
   const { user } = useAuth()
@@ -14,6 +23,9 @@ function VotingGuidePage() {
   const [pickingRace, setPickingRace] = useState(null)
   const [raceCandidates, setRaceCandidates] = useState([])
   const [saving, setSaving] = useState(false)
+
+  const closePicker = useCallback(() => setPickingRace(null), [])
+  const { trapRef } = useFocusTrap(!!pickingRace, closePicker)
 
   useEffect(() => {
     if (!user) {
@@ -108,6 +120,7 @@ function VotingGuidePage() {
       <div>
         <div className="page-header">
           <div className="container">
+            <Breadcrumbs items={[{ label: 'Home', path: '/' }, { label: 'Voting Guide' }]} />
             <h1>Voting Guide Builder</h1>
             <p className="page-subtitle">Create your personalized ballot and take it to the polls.</p>
           </div>
@@ -129,16 +142,22 @@ function VotingGuidePage() {
 
   return (
     <div>
+      <OnboardingModal pageKey="voting_guide" steps={votingGuideOnboardingSteps} />
+
       <div className="page-header">
         <div className="container">
+          <Breadcrumbs items={[{ label: 'Home', path: '/' }, { label: 'Voting Guide' }]} />
           <h1>Your Voting Guide</h1>
           <p className="page-subtitle">Your personalized ballot for upcoming elections.</p>
         </div>
       </div>
 
       <div className="container" style={{ paddingTop: '2rem', paddingBottom: '3rem' }}>
+        {/* Print-only title */}
+        <div className="voting-guide-print-title">My Voting Guide</div>
+
         {elections.length > 1 && (
-          <div style={{ marginBottom: '2rem' }}>
+          <div className="voting-guide-election-select" style={{ marginBottom: '2rem' }}>
             <select
               value={selectedElection || ''}
               onChange={(e) => setSelectedElection(e.target.value)}
@@ -151,7 +170,7 @@ function VotingGuidePage() {
           </div>
         )}
 
-        {loading && <div className="loading-state">Loading your voting guide...</div>}
+        {loading && <div className="loading-state" aria-live="polite">Loading your voting guide...</div>}
 
         {!loading && (
           <div>
@@ -166,7 +185,7 @@ function VotingGuidePage() {
 
             {/* Existing picks */}
             {guide && guide.picks && guide.picks.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
+              <div className="voting-guide-picks" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
                 {guide.picks.map((pick, idx) => (
                   <div key={idx} className="card" style={{ padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
@@ -200,7 +219,7 @@ function VotingGuidePage() {
 
             {/* Available races to add picks for */}
             {races.length > 0 && (
-              <div>
+              <div className="voting-guide-add-races">
                 <h3 style={{ marginBottom: '1rem' }}>
                   {guide?.picks?.length > 0 ? 'Add More Races' : 'Choose Your Candidates'}
                 </h3>
@@ -242,10 +261,10 @@ function VotingGuidePage() {
         {/* Candidate picker modal */}
         {pickingRace && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setPickingRace(null)}>
-            <div className="card" style={{ maxWidth: 500, width: '100%', maxHeight: '80vh', overflow: 'auto', padding: '1.5rem' }} onClick={e => e.stopPropagation()}>
+            <div ref={trapRef} role="dialog" aria-modal="true" aria-label="Choose a candidate" className="card" style={{ maxWidth: 500, width: '100%', maxHeight: '80vh', overflow: 'auto', padding: '1.5rem' }} onClick={e => e.stopPropagation()}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <h3 style={{ margin: 0 }}>Choose a Candidate</h3>
-                <button onClick={() => setPickingRace(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--slate-500)' }}>
+                <button onClick={() => setPickingRace(null)} aria-label="Close dialog" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--slate-500)' }}>
                   <X size={20} />
                 </button>
               </div>

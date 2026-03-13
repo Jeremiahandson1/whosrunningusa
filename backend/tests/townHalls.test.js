@@ -177,3 +177,146 @@ describe('POST /api/town-halls/:id/rsvp', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('GET /api/town-halls/:id', () => {
+  test('returns a single town hall with questions', async () => {
+    // Town hall query
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 'th1', title: 'Healthcare Forum', candidate_name: 'Alice Smith', scheduled_at: '2026-04-15T18:00:00Z' }]
+    });
+    // Questions query
+    db.query.mockResolvedValueOnce({
+      rows: [
+        { id: 'q1', question_text: 'What about Medicare?', asked_by_username: 'voter1', upvote_count: 5 },
+        { id: 'q2', question_text: 'Thoughts on ACA?', asked_by_username: 'voter2', upvote_count: 2 },
+      ]
+    });
+
+    const res = await request(app).get('/api/town-halls/th1');
+    expect(res.status).toBe(200);
+    expect(res.body.title).toBe('Healthcare Forum');
+    expect(res.body.questions).toHaveLength(2);
+    expect(res.body.questions[0].upvote_count).toBe(5);
+  });
+
+  test('returns 404 for non-existent town hall', async () => {
+    db.query.mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(app).get('/api/town-halls/nonexistent');
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Town hall not found');
+  });
+});
+
+describe('POST /api/town-halls/:id/questions', () => {
+  test('submits a question successfully', async () => {
+    const headers = authHeaders('user-1', 'voter');
+    mockAuthUser('user-1', 'voter');
+    // requireVerifiedEmail check
+    db.query.mockResolvedValueOnce({ rows: [{ email_verified: true }] });
+    // Town hall exists
+    db.query.mockResolvedValueOnce({ rows: [{ id: 'th1' }] });
+    // Insert question
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 'q1', town_hall_id: 'th1', question_text: 'What is your stance on taxes?', is_presubmitted: false }]
+    });
+
+    const res = await request(app)
+      .post('/api/town-halls/th1/questions')
+      .set(headers)
+      .send({ questionText: 'What is your stance on taxes?' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.question_text).toBe('What is your stance on taxes?');
+  });
+
+  test('rejects question without text', async () => {
+    const headers = authHeaders('user-1', 'voter');
+    mockAuthUser('user-1', 'voter');
+    db.query.mockResolvedValueOnce({ rows: [{ email_verified: true }] });
+
+    const res = await request(app)
+      .post('/api/town-halls/th1/questions')
+      .set(headers)
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('questionText is required');
+  });
+
+  test('returns 404 for non-existent town hall', async () => {
+    const headers = authHeaders('user-1', 'voter');
+    mockAuthUser('user-1', 'voter');
+    db.query.mockResolvedValueOnce({ rows: [{ email_verified: true }] });
+    db.query.mockResolvedValueOnce({ rows: [] }); // town hall not found
+
+    const res = await request(app)
+      .post('/api/town-halls/nonexistent/questions')
+      .set(headers)
+      .send({ questionText: 'A question' });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Town hall not found');
+  });
+
+  test('rejects unauthenticated request', async () => {
+    const res = await request(app)
+      .post('/api/town-halls/th1/questions')
+      .send({ questionText: 'A question' });
+
+    expect(res.status).toBe(401);
+  });
+
+  test('rejects user with unverified email', async () => {
+    const headers = authHeaders('user-1', 'voter');
+    mockAuthUser('user-1', 'voter');
+    db.query.mockResolvedValueOnce({ rows: [{ email_verified: false }] });
+
+    const res = await request(app)
+      .post('/api/town-halls/th1/questions')
+      .set(headers)
+      .send({ questionText: 'A question' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('Email verification required');
+  });
+});
+
+describe('POST /api/town-halls/:id/questions/:questionId/upvote', () => {
+  test('upvotes a question successfully', async () => {
+    const headers = authHeaders('user-1', 'voter');
+    mockAuthUser('user-1', 'voter');
+    // Insert upvote (ON CONFLICT DO NOTHING RETURNING id — returns row on success)
+    db.query.mockResolvedValueOnce({ rows: [{ id: 'upvote-1' }] });
+    // Update count
+    db.query.mockResolvedValueOnce({ rows: [] });
+    // Get updated count
+    db.query.mockResolvedValueOnce({ rows: [{ upvote_count: 6 }] });
+
+    const res = await request(app)
+      .post('/api/town-halls/th1/questions/q1/upvote')
+      .set(headers);
+
+    expect(res.status).toBe(200);
+    expect(res.body.upvoteCount).toBe(6);
+  });
+
+  test('rejects duplicate upvote', async () => {
+    const headers = authHeaders('user-1', 'voter');
+    mockAuthUser('user-1', 'voter');
+    // Insert upvote (ON CONFLICT DO NOTHING — returns empty rows on duplicate)
+    db.query.mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(app)
+      .post('/api/town-halls/th1/questions/q1/upvote')
+      .set(headers);
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('Already upvoted');
+  });
+
+  test('rejects unauthenticated upvote', async () => {
+    const res = await request(app).post('/api/town-halls/th1/questions/q1/upvote');
+    expect(res.status).toBe(401);
+  });
+});

@@ -61,6 +61,30 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// Get user's watched races (must be before /:id to avoid route conflict)
+router.get('/watching/list', authenticate, async (req, res, next) => {
+  try {
+    const result = await db.query(
+      `SELECT r.*, o.name as office_name, o.office_level,
+              e.election_date, e.name as election_name,
+              COUNT(c.id) as candidate_count,
+              rw.created_at as watched_at
+       FROM race_watchers rw
+       JOIN races r ON rw.race_id = r.id
+       JOIN offices o ON r.office_id = o.id
+       JOIN elections e ON r.election_id = e.id
+       LEFT JOIN candidacies c ON r.id = c.race_id
+       WHERE rw.user_id = $1
+       GROUP BY r.id, o.id, e.id, rw.created_at
+       ORDER BY e.election_date, o.sort_order`,
+      [req.user.id]
+    );
+    res.json({ races: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get single race with candidates
 router.get('/:id', async (req, res, next) => {
   try {
@@ -248,6 +272,43 @@ router.get('/:id/compare', async (req, res, next) => {
       candidates,
       issues: Array.from(issueMap.values()),
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Toggle watching a race
+router.post('/:id/watch', authenticate, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Check race exists
+    const raceResult = await db.query('SELECT id FROM races WHERE id = $1', [id]);
+    if (raceResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Race not found' });
+    }
+
+    // Check if already watching
+    const existing = await db.query(
+      'SELECT id FROM race_watchers WHERE user_id = $1 AND race_id = $2',
+      [req.user.id, id]
+    );
+
+    if (existing.rows.length > 0) {
+      // Remove watch
+      await db.query(
+        'DELETE FROM race_watchers WHERE user_id = $1 AND race_id = $2',
+        [req.user.id, id]
+      );
+      res.json({ watching: false });
+    } else {
+      // Add watch
+      await db.query(
+        'INSERT INTO race_watchers (user_id, race_id) VALUES ($1, $2)',
+        [req.user.id, id]
+      );
+      res.json({ watching: true });
+    }
   } catch (error) {
     next(error);
   }

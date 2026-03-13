@@ -103,6 +103,61 @@ describe('CandidatePage', () => {
     })
   })
 
+  it('renders criminal records section when records exist', async () => {
+    api.get.mockImplementation((endpoint) => {
+      if (endpoint.includes('/candidates/')) {
+        return Promise.resolve({
+          candidate: {
+            id: 1,
+            display_name: 'Jane Doe',
+            positions: [],
+            criminalRecords: [
+              { id: 'r1', offense: 'DUI', year: 2019, disposition: 'convicted', source: 'self_reported', jurisdiction: 'Cook County', jurisdiction_level: 'county', candidate_statement: 'I take responsibility.' },
+              { id: 'r2', offense: 'Tax Fraud', year: 2021, disposition: 'acquitted', source: 'system_pulled' },
+            ],
+          },
+        })
+      }
+      if (endpoint.includes('/questions/')) return Promise.resolve({ questions: [] })
+      if (endpoint.includes('/town-halls/')) return Promise.resolve({ townHalls: [] })
+      return Promise.resolve({})
+    })
+
+    renderWithRoute()
+    await waitFor(() => {
+      expect(screen.getByText('Criminal Record')).toBeInTheDocument()
+      expect(screen.getByText('DUI')).toBeInTheDocument()
+      expect(screen.getByText('Tax Fraud')).toBeInTheDocument()
+      expect(screen.getByText('Self-Reported')).toBeInTheDocument()
+      expect(screen.getByText('Public Record')).toBeInTheDocument()
+      expect(screen.getByText('I take responsibility.')).toBeInTheDocument()
+    })
+  })
+
+  it('hides criminal records section when no records', async () => {
+    api.get.mockImplementation((endpoint) => {
+      if (endpoint.includes('/candidates/')) {
+        return Promise.resolve({
+          candidate: {
+            id: 1,
+            display_name: 'Clean Candidate',
+            positions: [],
+            criminalRecords: [],
+          },
+        })
+      }
+      if (endpoint.includes('/questions/')) return Promise.resolve({ questions: [] })
+      if (endpoint.includes('/town-halls/')) return Promise.resolve({ townHalls: [] })
+      return Promise.resolve({})
+    })
+
+    renderWithRoute()
+    await waitFor(() => {
+      expect(screen.getByText('Clean Candidate')).toBeInTheDocument()
+      expect(screen.queryByText('Criminal Record')).not.toBeInTheDocument()
+    })
+  })
+
   it('calls the correct API endpoints', async () => {
     api.get.mockImplementation((endpoint) => {
       if (endpoint.includes('/candidates/')) {

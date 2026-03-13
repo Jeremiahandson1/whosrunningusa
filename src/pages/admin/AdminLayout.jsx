@@ -1,6 +1,6 @@
 import { Link, useLocation, Navigate } from 'react-router-dom'
 import {
-  LayoutDashboard, Users, Shield, Vote, UserCog, RefreshCw
+  LayoutDashboard, Users, Shield, Vote, UserCog, RefreshCw, FileText
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
@@ -8,6 +8,7 @@ const navItems = [
   { path: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
   { path: '/admin/candidates', label: 'Candidates', icon: Users },
   { path: '/admin/moderation', label: 'Moderation', icon: Shield },
+  { path: '/admin/criminal-records', label: 'Criminal Records', icon: FileText },
   { path: '/admin/elections', label: 'Elections & Races', icon: Vote },
   { path: '/admin/users', label: 'Users', icon: UserCog },
   { path: '/admin/sync-logs', label: 'Sync Logs', icon: RefreshCw },

@@ -25,6 +25,14 @@ export default [
         URLSearchParams: 'readonly',
         prompt: 'readonly',
         URL: 'readonly',
+        atob: 'readonly',
+        btoa: 'readonly',
+        FormData: 'readonly',
+        clearTimeout: 'readonly',
+        AbortController: 'readonly',
+        Headers: 'readonly',
+        Request: 'readonly',
+        Response: 'readonly',
       }
     },
     rules: {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import {
   RefreshCw, CheckCircle, XCircle, Clock, Database,
-  Users, Vote, Building, AlertTriangle, Play
+  Users, Vote, Building, AlertTriangle, Play, FileText
 } from 'lucide-react'
 import api from '../../utils/api'
 import AdminLayout from './AdminLayout'
@@ -108,6 +108,13 @@ export default function DashboardPage() {
                 <div className="admin-stat-value">{parseInt(stats.total_users || 0).toLocaleString()}</div>
                 <div className="admin-stat-label">Users</div>
               </div>
+              {parseInt(stats.pending_criminal_records || 0) > 0 && (
+                <div className="admin-stat-card">
+                  <FileText size={24} style={{ color: 'var(--error)' }} />
+                  <div className="admin-stat-value">{parseInt(stats.pending_criminal_records).toLocaleString()}</div>
+                  <div className="admin-stat-label">Pending Records</div>
+                </div>
+              )}
             </div>
           )}
 

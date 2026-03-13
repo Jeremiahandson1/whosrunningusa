@@ -85,12 +85,15 @@ describe('GET /api/candidates/:id', () => {
     db.query.mockResolvedValueOnce({ rows: [] });
     // Endorsements received
     db.query.mockResolvedValueOnce({ rows: [] });
+    // Criminal records
+    db.query.mockResolvedValueOnce({ rows: [] });
 
     const res = await request(app).get('/api/candidates/c1');
     expect(res.status).toBe(200);
     expect(res.body.candidate.display_name).toBe('Alice Smith');
     expect(res.body.candidate.positions).toHaveLength(1);
     expect(res.body.candidate.candidacies).toHaveLength(1);
+    expect(res.body.candidate.criminalRecords).toEqual([]);
     expect(res.body.candidate.isFollowing).toBe(false);
   });
 
@@ -117,6 +120,8 @@ describe('GET /api/candidates/:id', () => {
     // Endorsements given
     db.query.mockResolvedValueOnce({ rows: [] });
     // Endorsements received
+    db.query.mockResolvedValueOnce({ rows: [] });
+    // Criminal records
     db.query.mockResolvedValueOnce({ rows: [] });
     // Follow check
     db.query.mockResolvedValueOnce({ rows: [{ id: 'follow-1' }] });

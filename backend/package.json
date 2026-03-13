@@ -20,6 +20,9 @@
     "sync:finance": "node scripts/sync-finance.js",
     "ingest": "node scripts/ingest-all.js",
     "ingest:dry": "node scripts/ingest-all.js --dry-run",
+    "sync:scheduled": "node scripts/sync-scheduler.js",
+    "backup": "node scripts/backup.js",
+    "backup:s3": "node scripts/backup.js --s3-only",
     "setup": "node scripts/migrate.js && node scripts/seed-all.js",
     "test": "jest --forceExit --detectOpenHandles"
   },

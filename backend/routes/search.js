@@ -185,9 +185,9 @@ router.get('/candidates/by-location', async (req, res, next) => {
                 SELECT cd.district_number
                 FROM district_county_mappings dcm
                 JOIN congressional_districts cd ON dcm.district_id = cd.id
-                JOIN counties c ON dcm.county_id = c.id
-                WHERE c.state = $${paramIndex + 1}
-                  AND LOWER(c.name) = LOWER($${paramIndex + 2})
+                JOIN counties c ON dcm.county_geoid = c.county_geoid
+                WHERE c.state_abbr = $${paramIndex + 1}
+                  AND LOWER(c.county_name) = LOWER($${paramIndex + 2})
               )
             )
             OR

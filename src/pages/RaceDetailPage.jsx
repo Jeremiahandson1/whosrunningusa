@@ -1,21 +1,40 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Users, Calendar, CheckCircle, ArrowRight, ChevronRight } from 'lucide-react'
+import { Users, Calendar, CheckCircle, ArrowRight, ChevronRight, Bookmark } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
+import { formatDate } from '../utils/dateFormat'
 
 function RaceDetailPage() {
   const { id } = useParams()
+  const { user } = useAuth()
   const [race, setRace] = useState(null)
   const [candidates, setCandidates] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [watching, setWatching] = useState(false)
+  const [watchLoading, setWatchLoading] = useState(false)
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([
+    const fetches = [
       api.get(`/races/${id}`).catch(() => null),
       api.get(`/candidates?raceId=${id}`).catch(() => ({ candidates: [] })),
-    ])
+    ]
+
+    // Check if user is watching this race
+    if (user) {
+      fetches.push(
+        api.get('/races/watching/list', true)
+          .then(data => {
+            const watchedIds = (data.races || []).map(r => r.id)
+            setWatching(watchedIds.includes(id))
+          })
+          .catch(() => {})
+      )
+    }
+
+    Promise.all(fetches)
       .then(([raceData, candidatesData]) => {
         if (!raceData) {
           setError('Race not found')
@@ -26,7 +45,20 @@ function RaceDetailPage() {
       })
       .catch(() => setError('Failed to load race details'))
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, user])
+
+  const handleToggleWatch = async () => {
+    if (!user) return
+    setWatchLoading(true)
+    try {
+      const data = await api.post(`/races/${id}/watch`, {}, true)
+      setWatching(data.watching)
+    } catch {
+      // silently fail
+    } finally {
+      setWatchLoading(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -58,12 +90,38 @@ function RaceDetailPage() {
             <ChevronRight size={14} />
             <span>{race.name}</span>
           </div>
-          <h1>{race.name}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <h1 style={{ margin: 0 }}>{race.name}</h1>
+            {user && (
+              <button
+                onClick={handleToggleWatch}
+                disabled={watchLoading}
+                style={{
+                  background: watching ? 'var(--navy-600)' : 'rgba(255,255,255,0.15)',
+                  color: 'white',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  borderRadius: '6px',
+                  padding: '0.375rem 0.75rem',
+                  cursor: watchLoading ? 'wait' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.375rem',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  transition: 'background 0.2s',
+                }}
+                title={watching ? 'Stop watching this race' : 'Watch this race for updates'}
+              >
+                <Bookmark size={16} fill={watching ? 'currentColor' : 'none'} />
+                {watching ? 'Watching' : 'Watch Race'}
+              </button>
+            )}
+          </div>
           <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
             {race.election_name && (
               <span className="page-subtitle" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', margin: 0 }}>
                 <Calendar size={16} /> {race.election_name}
-                {race.election_date && <> &mdash; {new Date(race.election_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</>}
+                {race.election_date && <> &mdash; {formatDate(race.election_date)}</>}
               </span>
             )}
           </div>
@@ -157,7 +215,7 @@ function RaceDetailPage() {
               {race.filing_deadline && (
                 <div>
                   <div style={{ fontSize: '0.8125rem', color: 'var(--slate-500)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Filing Deadline</div>
-                  <div style={{ fontWeight: 600, fontSize: '1.125rem' }}>{new Date(race.filing_deadline).toLocaleDateString()}</div>
+                  <div style={{ fontWeight: 600, fontSize: '1.125rem' }}>{formatDate(race.filing_deadline)}</div>
                 </div>
               )}
               {race.is_special_election && (

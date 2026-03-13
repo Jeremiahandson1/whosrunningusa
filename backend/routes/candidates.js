@@ -3,6 +3,65 @@ const router = express.Router();
 const db = require('../db');
 const { authenticate, optionalAuth, requireCandidate } = require('../middleware/auth');
 
+// Get all endorsements (browseable list)
+router.get('/endorsements/list', async (req, res, next) => {
+  try {
+    const { candidate_id, search, page = 1 } = req.query;
+    const limit = 20;
+    const offset = (Math.max(1, parseInt(page)) - 1) * limit;
+
+    let query = `
+      SELECT e.id, e.endorsement_text, e.created_at,
+             endorser.id as endorser_id, endorser.display_name as endorser_name,
+             endorser.party_affiliation as endorser_party,
+             endorser.official_title as endorser_title,
+             endorsed.id as endorsed_id, endorsed.display_name as endorsed_name,
+             endorsed.party_affiliation as endorsed_party,
+             endorsed.official_title as endorsed_title
+      FROM endorsements e
+      JOIN candidate_profiles endorser ON e.endorser_id = endorser.id
+      JOIN candidate_profiles endorsed ON e.endorsed_id = endorsed.id
+      WHERE 1=1
+    `;
+    const params = [];
+    let paramIndex = 1;
+
+    if (candidate_id) {
+      query += ` AND (e.endorser_id = $${paramIndex} OR e.endorsed_id = $${paramIndex})`;
+      params.push(candidate_id);
+      paramIndex++;
+    }
+
+    if (search) {
+      query += ` AND (endorser.display_name ILIKE $${paramIndex} OR endorsed.display_name ILIKE $${paramIndex})`;
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    // Count total
+    const countQuery = query.replace(
+      /SELECT e\.id.*?FROM endorsements/s,
+      'SELECT COUNT(*) as total FROM endorsements'
+    );
+    const countResult = await db.query(countQuery, params);
+    const total = parseInt(countResult.rows[0].total);
+
+    query += ` ORDER BY e.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(limit, offset);
+
+    const result = await db.query(query, params);
+
+    res.json({
+      endorsements: result.rows,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / limit)
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get all candidates with filters
 router.get('/', optionalAuth, async (req, res, next) => {
   try {
@@ -69,6 +128,7 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
     
     const result = await db.query(
       `SELECT cp.*, u.username, u.first_name, u.last_name, u.email_verified,
+              u.profile_pic_url,
               COUNT(DISTINCT f.id) as follower_count
        FROM candidate_profiles cp
        LEFT JOIN users u ON cp.user_id = u.id
@@ -125,6 +185,16 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
       [id]
     );
     
+    // Get public criminal records
+    const criminalRecordsResult = await db.query(
+      `SELECT id, offense, year, jurisdiction, jurisdiction_level,
+              disposition, sentence, source, candidate_statement, created_at
+       FROM candidate_criminal_records
+       WHERE candidate_id = $1 AND is_public = TRUE AND moderation_status = 'approved'
+       ORDER BY year DESC NULLS LAST, created_at DESC`,
+      [id]
+    );
+
     // Check if current user follows
     let isFollowing = false;
     if (req.user) {
@@ -134,7 +204,7 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
       );
       isFollowing = followResult.rows.length > 0;
     }
-    
+
     res.json({
       candidate: {
         ...candidate,
@@ -146,6 +216,7 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
           name: e.endorser_name,
         })),
         endorsementsGiven: endorsementsGivenResult.rows,
+        criminalRecords: criminalRecordsResult.rows,
         isFollowing
       }
     });
@@ -395,6 +466,39 @@ router.delete('/endorse/:endorsedId', authenticate, requireCandidate, async (req
   }
 });
 
+// Get candidate's campaign finance summary
+router.get('/:id/finance', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await db.query(
+      `SELECT * FROM campaign_finance_summaries WHERE candidate_id = $1 ORDER BY election_cycle DESC LIMIT 5`,
+      [id]
+    );
+    res.json({ finance: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get candidate's interest group ratings
+router.get('/:id/ratings', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await db.query(
+      `SELECT r.*, ig.name as group_name, ig.short_name, ig.political_lean
+       FROM interest_group_ratings r
+       LEFT JOIN interest_groups ig ON r.interest_group_id = ig.id
+       WHERE r.candidate_id = $1
+       ORDER BY r.rating_year DESC, ig.name
+       LIMIT 50`,
+      [id]
+    );
+    res.json({ ratings: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get candidate's promises
 router.get('/:id/promises', async (req, res, next) => {
   try {
@@ -597,7 +701,7 @@ router.get('/:id/voting-record', async (req, res, next) => {
         COUNT(*) as total_votes,
         COUNT(*) FILTER (WHERE vote = 'yes') as yes_votes,
         COUNT(*) FILTER (WHERE vote = 'no') as no_votes,
-        COUNT(*) FILTER (WHERE vote IN ('not voting', 'absent')) as missed_votes
+        COUNT(*) FILTER (WHERE vote IN ('not_voting', 'not voting', 'absent', 'present')) as missed_votes
        FROM voting_records
        WHERE candidate_id = $1`,
       [id]
@@ -698,7 +802,7 @@ router.get('/:id/transparency', async (req, res, next) => {
         COUNT(*) as total_votes,
         COUNT(*) FILTER (WHERE vote = 'yes') as yes_votes,
         COUNT(*) FILTER (WHERE vote = 'no') as no_votes,
-        COUNT(*) FILTER (WHERE vote IN ('not voting', 'absent')) as missed_votes
+        COUNT(*) FILTER (WHERE vote IN ('not_voting', 'not voting', 'absent', 'present')) as missed_votes
        FROM voting_records
        WHERE candidate_id = $1`,
       [id]

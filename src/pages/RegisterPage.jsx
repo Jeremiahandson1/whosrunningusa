@@ -3,6 +3,29 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Mail, Lock, ArrowRight, CheckCircle, Users, Award, AlertCircle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
+function getPasswordStrength(password) {
+  if (!password || password.length < 8) return { level: 'weak', label: 'Weak', color: '#c53030', width: '25%' }
+  const hasLetters = /[a-zA-Z]/.test(password)
+  const hasNumbers = /[0-9]/.test(password)
+  const hasSpecial = /[^a-zA-Z0-9]/.test(password)
+  if (hasLetters && hasNumbers && hasSpecial) return { level: 'strong', label: 'Strong', color: '#276749', width: '100%' }
+  if (hasLetters && hasNumbers) return { level: 'good', label: 'Good', color: '#38a169', width: '75%' }
+  return { level: 'fair', label: 'Fair', color: '#dd6b20', width: '50%' }
+}
+
+function PasswordStrength({ password }) {
+  if (!password) return null
+  const { label, color, width } = getPasswordStrength(password)
+  return (
+    <div style={{ marginTop: '0.5rem' }}>
+      <div style={{ height: 4, borderRadius: 2, background: 'var(--slate-200)', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width, background: color, borderRadius: 2, transition: 'width 0.3s, background 0.3s' }} />
+      </div>
+      <div style={{ fontSize: '0.75rem', color, marginTop: '0.25rem', fontWeight: 500 }}>{label}</div>
+    </div>
+  )
+}
+
 function RegisterPage() {
   const [step, setStep] = useState(1)
   const [accountType, setAccountType] = useState(null)
@@ -15,6 +38,8 @@ function RegisterPage() {
     state: '',
     username: ''
   })
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [termsError, setTermsError] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { register } = useAuth()
@@ -27,6 +52,11 @@ function RegisterPage() {
       return
     }
     if (step === 2) {
+      if (!agreedToTerms) {
+        setTermsError('You must agree to the Terms of Service and Privacy Policy')
+        return
+      }
+      setTermsError('')
       setError('')
       setLoading(true)
       try {
@@ -65,7 +95,7 @@ function RegisterPage() {
 
         <div className="card" style={{ padding: '2rem' }}>
           {error && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: 'rgba(197,48,48,0.08)', borderRadius: '6px', marginBottom: '1.25rem', color: 'var(--error)', fontSize: '0.875rem' }}>
+            <div role="alert" aria-live="assertive" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: 'rgba(197,48,48,0.08)', borderRadius: '6px', marginBottom: '1.25rem', color: 'var(--error)', fontSize: '0.875rem' }}>
               <AlertCircle size={16} /> {error}
             </div>
           )}
@@ -114,51 +144,52 @@ function RegisterPage() {
             <form onSubmit={handleSubmit}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>First Name</label>
-                  <input type="text" value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} placeholder="First" required />
+                  <label htmlFor="reg-first-name" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>First Name</label>
+                  <input id="reg-first-name" type="text" value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} placeholder="First" required />
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Last Name</label>
-                  <input type="text" value={formData.last_name} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} placeholder="Last" required />
+                  <label htmlFor="reg-last-name" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Last Name</label>
+                  <input id="reg-last-name" type="text" value={formData.last_name} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} placeholder="Last" required />
                 </div>
               </div>
 
               {accountType === 'voter' && (
                 <div style={{ marginBottom: '1.25rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Username</label>
+                  <label htmlFor="reg-username" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Username</label>
                   <div style={{ position: 'relative' }}>
                     <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-500)', fontWeight: 500 }}>@</span>
-                    <input type="text" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} placeholder="username" style={{ paddingLeft: '2.5rem' }} required />
+                    <input id="reg-username" type="text" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} placeholder="username" style={{ paddingLeft: '2.5rem' }} required />
                   </div>
                   <p style={{ fontSize: '0.8125rem', color: 'var(--slate-500)', marginTop: '0.375rem' }}>This is how you'll appear in Q&A and discussions</p>
                 </div>
               )}
 
               <div style={{ marginBottom: '1.25rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Email Address</label>
+                <label htmlFor="reg-email" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Email Address</label>
                 <div style={{ position: 'relative' }}>
                   <Mail size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-500)' }} />
-                  <input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="you@example.com" style={{ paddingLeft: '3rem' }} required />
+                  <input id="reg-email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="you@example.com" style={{ paddingLeft: '3rem' }} required />
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>City</label>
-                  <input type="text" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} placeholder="Eau Claire" required />
+                  <label htmlFor="reg-city" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>City</label>
+                  <input id="reg-city" type="text" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} placeholder="Eau Claire" required />
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>State</label>
-                  <input type="text" value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value.toUpperCase().slice(0, 2) })} placeholder="WI" maxLength={2} required />
+                  <label htmlFor="reg-state" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>State</label>
+                  <input id="reg-state" type="text" value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value.toUpperCase().slice(0, 2) })} placeholder="WI" maxLength={2} required />
                 </div>
               </div>
 
               <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Password</label>
+                <label htmlFor="reg-password" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Password</label>
                 <div style={{ position: 'relative' }}>
                   <Lock size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-500)' }} />
-                  <input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="At least 8 characters" style={{ paddingLeft: '3rem' }} required minLength={8} />
+                  <input id="reg-password" type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="At least 8 characters" style={{ paddingLeft: '3rem' }} required minLength={8} />
                 </div>
+                <PasswordStrength password={formData.password} />
               </div>
 
               {accountType === 'candidate' && (
@@ -166,6 +197,28 @@ function RegisterPage() {
                   <strong style={{ color: 'var(--navy-800)' }}>Next step:</strong> After creating your account, you'll complete identity verification to activate your candidate profile.
                 </div>
               )}
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--slate-700)' }}>
+                  <input
+                    type="checkbox"
+                    checked={agreedToTerms}
+                    onChange={(e) => { setAgreedToTerms(e.target.checked); if (e.target.checked) setTermsError('') }}
+                    style={{ marginTop: '0.125rem', width: '1.125rem', height: '1.125rem', flexShrink: 0, accentColor: 'var(--navy-700)' }}
+                  />
+                  <span>
+                    I agree to the{' '}
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ fontWeight: 600, color: 'var(--navy-700)' }}>Terms of Service</a>
+                    {' '}and{' '}
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ fontWeight: 600, color: 'var(--navy-700)' }}>Privacy Policy</a>
+                  </span>
+                </label>
+                {termsError && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '0.5rem', color: 'var(--error)', fontSize: '0.8125rem' }}>
+                    <AlertCircle size={14} /> {termsError}
+                  </div>
+                )}
+              </div>
 
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <button type="button" onClick={() => setStep(1)} className="btn btn-secondary" style={{ flex: 1 }}>Back</button>
@@ -185,12 +238,6 @@ function RegisterPage() {
           </div>
         </div>
 
-        <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.8125rem', color: 'var(--slate-500)' }}>
-          By creating an account, you agree to our{' '}
-          <Link to="/terms" style={{ color: 'var(--slate-600)' }}>Terms of Service</Link>
-          {' '}and{' '}
-          <Link to="/privacy" style={{ color: 'var(--slate-600)' }}>Privacy Policy</Link>
-        </p>
       </div>
     </div>
   )

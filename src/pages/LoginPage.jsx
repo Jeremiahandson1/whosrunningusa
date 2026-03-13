@@ -43,34 +43,34 @@ function LoginPage() {
         <div className="card" style={{ padding: '2rem' }}>
           <form onSubmit={handleSubmit}>
             {successMessage && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: 'rgba(47,133,90,0.08)', borderRadius: '6px', marginBottom: '1.25rem', color: 'var(--success)', fontSize: '0.875rem' }}>
+              <div role="status" aria-live="polite" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: 'rgba(47,133,90,0.08)', borderRadius: '6px', marginBottom: '1.25rem', color: 'var(--success)', fontSize: '0.875rem' }}>
                 <CheckCircle size={16} /> {successMessage}
               </div>
             )}
             {error && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: 'rgba(197,48,48,0.08)', borderRadius: '6px', marginBottom: '1.25rem', color: 'var(--error)', fontSize: '0.875rem' }}>
+              <div role="alert" aria-live="assertive" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: 'rgba(197,48,48,0.08)', borderRadius: '6px', marginBottom: '1.25rem', color: 'var(--error)', fontSize: '0.875rem' }}>
                 <AlertCircle size={16} /> {error}
               </div>
             )}
 
             <div style={{ marginBottom: '1.25rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>
+              <label htmlFor="login-email" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>
                 Email Address
               </label>
               <div style={{ position: 'relative' }}>
                 <Mail size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-500)' }} />
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" style={{ paddingLeft: '3rem' }} required />
+                <input id="login-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" style={{ paddingLeft: '3rem' }} required />
               </div>
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                <label style={{ fontWeight: 500, fontSize: '0.875rem' }}>Password</label>
+                <label htmlFor="login-password" style={{ fontWeight: 500, fontSize: '0.875rem' }}>Password</label>
                 <Link to="/forgot-password" style={{ fontSize: '0.875rem', color: 'var(--burgundy-600)' }}>Forgot password?</Link>
               </div>
               <div style={{ position: 'relative' }}>
                 <Lock size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-500)' }} />
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" style={{ paddingLeft: '3rem' }} required />
+                <input id="login-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" style={{ paddingLeft: '3rem' }} required />
               </div>
             </div>
 

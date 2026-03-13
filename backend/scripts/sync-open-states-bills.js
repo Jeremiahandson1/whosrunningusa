@@ -15,7 +15,7 @@ const OpenStatesClient = require('../services/ingestion/openStatesClient');
 
 // Database connection
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/whosrunningusa'
+  connectionString: process.env.DATABASE_URL
 });
 
 const client = new OpenStatesClient();

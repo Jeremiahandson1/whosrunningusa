@@ -10,6 +10,7 @@ import HomePage from './pages/HomePage'
 // Lazy load all other pages
 const ExplorePage = lazy(() => import('./pages/ExplorePage'))
 const CandidatePage = lazy(() => import('./pages/CandidatePage'))
+const CandidateDashboardPage = lazy(() => import('./pages/CandidateDashboardPage'))
 const CandidateEditPage = lazy(() => import('./pages/CandidateEditPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/RegisterPage'))
@@ -34,10 +35,15 @@ const AdminModeration = lazy(() => import('./pages/admin/ModerationPage'))
 const AdminElections = lazy(() => import('./pages/admin/ElectionsPage'))
 const AdminUsers = lazy(() => import('./pages/admin/UsersPage'))
 const AdminSyncLogs = lazy(() => import('./pages/admin/SyncLogsPage'))
+const AdminCriminalRecords = lazy(() => import('./pages/admin/CriminalRecordsPage'))
+const EndorsementsPage = lazy(() => import('./pages/EndorsementsPage'))
+const ConnectionsPage = lazy(() => import('./pages/ConnectionsPage'))
+const PostFeedPage = lazy(() => import('./pages/PostFeedPage'))
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
 function PageLoader() {
   return (
-    <div className="loading-state" style={{ padding: '4rem 0', textAlign: 'center' }}>
+    <div className="loading-state" aria-live="polite" role="status" style={{ padding: '4rem 0', textAlign: 'center' }}>
       <div className="loading-spinner" />
       Loading...
     </div>
@@ -47,19 +53,42 @@ function PageLoader() {
 function App() {
   return (
     <div className="app">
+      <a
+        href="#main-content"
+        className="skip-to-content"
+        style={{
+          position: 'absolute',
+          left: '-9999px',
+          top: '0',
+          zIndex: 9999,
+          padding: '0.75rem 1.5rem',
+          background: 'var(--navy-800)',
+          color: 'white',
+          fontWeight: 600,
+          fontSize: '0.875rem',
+          textDecoration: 'none',
+          borderRadius: '0 0 8px 0',
+        }}
+      >
+        Skip to main content
+      </a>
       <ScrollToTop />
       <Header />
-      <main>
+      <main id="main-content">
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/explore" element={<ExplorePage />} />
+            <Route path="/dashboard" element={<CandidateDashboardPage />} />
             <Route path="/candidate/edit" element={<CandidateEditPage />} />
             <Route path="/candidate/:id" element={<CandidatePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/races" element={<RacesPage />} />
             <Route path="/races/:id" element={<RaceDetailPage />} />
+            <Route path="/endorsements" element={<EndorsementsPage />} />
+            <Route path="/connections" element={<ConnectionsPage />} />
+            <Route path="/feed" element={<PostFeedPage />} />
             <Route path="/town-halls" element={<TownHallsPage />} />
             <Route path="/how-it-works" element={<HowItWorksPage />} />
             <Route path="/run" element={<RunForOfficePage />} />
@@ -82,7 +111,11 @@ function App() {
             <Route path="/admin/moderation" element={<AdminModeration />} />
             <Route path="/admin/elections" element={<AdminElections />} />
             <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin/criminal-records" element={<AdminCriminalRecords />} />
             <Route path="/admin/sync-logs" element={<AdminSyncLogs />} />
+
+            {/* 404 catch-all */}
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Suspense>
       </main>

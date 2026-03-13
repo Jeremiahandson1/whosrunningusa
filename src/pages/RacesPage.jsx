@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { Calendar, MapPin, Users, ChevronRight, ChevronDown } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { Calendar, MapPin, Users, ChevronRight, ChevronDown, Search, X, Loader } from 'lucide-react'
 import api from '../utils/api'
+import { formatDate } from '../utils/dateFormat'
+import { SkeletonCard } from '../components/Skeleton'
+import useDebounce from '../hooks/useDebounce'
 
 const scopeLevels = [
   { value: 'all', label: 'All Levels' },
@@ -12,19 +15,34 @@ const scopeLevels = [
 ]
 
 function RacesPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [races, setRaces] = useState([])
   const [elections, setElections] = useState([])
   const [loading, setLoading] = useState(true)
-  const [scopeFilter, setScopeFilter] = useState('all')
+  const [searching, setSearching] = useState(false)
+  const [scopeFilter, setScopeFilter] = useState(searchParams.get('scope') || 'all')
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
   const [error, setError] = useState(null)
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const PAGE_SIZE = 40
 
+  const debouncedSearch = useDebounce(searchQuery, 300)
+
+  // Sync URL params
+  useEffect(() => {
+    const next = new URLSearchParams()
+    if (scopeFilter !== 'all') next.set('scope', scopeFilter)
+    if (debouncedSearch) next.set('q', debouncedSearch)
+    setSearchParams(next, { replace: true })
+  }, [scopeFilter, debouncedSearch, setSearchParams])
+
   useEffect(() => {
     setLoading(true)
+    setSearching(true)
     const params = new URLSearchParams()
     if (scopeFilter !== 'all') params.set('scope', scopeFilter)
+    if (debouncedSearch) params.set('q', debouncedSearch)
     params.set('limit', String(PAGE_SIZE))
     Promise.all([
       api.get(`/races?${params.toString()}`).catch(() => ({ races: [] })),
@@ -37,13 +55,14 @@ function RacesPage() {
         setElections(electionsData.elections || [])
       })
       .catch(() => setError('Failed to load races'))
-      .finally(() => setLoading(false))
-  }, [scopeFilter])
+      .finally(() => { setLoading(false); setSearching(false) })
+  }, [scopeFilter, debouncedSearch])
 
   const loadMore = () => {
     setLoadingMore(true)
     const params = new URLSearchParams()
     if (scopeFilter !== 'all') params.set('scope', scopeFilter)
+    if (debouncedSearch) params.set('q', debouncedSearch)
     params.set('limit', String(PAGE_SIZE))
     params.set('offset', String(races.length))
     api.get(`/races?${params.toString()}`)
@@ -69,6 +88,31 @@ function RacesPage() {
 
       <div className="container" style={{ paddingTop: '2rem' }}>
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ flex: 1, minWidth: '220px', maxWidth: '400px', position: 'relative' }}>
+            <Search size={18} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-500)' }} />
+            <input
+              type="text"
+              placeholder="Search races..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ paddingLeft: '2.5rem', paddingRight: searchQuery ? '4rem' : '1rem', width: '100%' }}
+            />
+            <div style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+              {searching && searchQuery && (
+                <Loader size={16} style={{ color: 'var(--slate-400)', animation: 'spin 1s linear infinite' }} />
+              )}
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.125rem', color: 'var(--slate-400)', display: 'flex', alignItems: 'center' }}
+                  aria-label="Clear search"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+
           <div style={{ position: 'relative' }}>
             <select
               value={scopeFilter}
@@ -83,7 +127,13 @@ function RacesPage() {
           </div>
         </div>
 
-        {loading && <div className="loading-state">Loading races...</div>}
+        {loading && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonCard key={i} height={100} />
+            ))}
+          </div>
+        )}
         {error && <div className="error-state">{error}</div>}
 
         {!loading && elections.length > 0 && (
@@ -95,7 +145,7 @@ function RacesPage() {
                   <h4 style={{ marginBottom: '0.5rem' }}>{election.name}</h4>
                   <div style={{ display: 'flex', gap: '1rem', fontSize: '0.875rem', color: 'var(--slate-600)' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <Calendar size={14} /> {new Date(election.election_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                      <Calendar size={14} /> {formatDate(election.election_date)}
                     </span>
                     {election.state && (
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -105,7 +155,7 @@ function RacesPage() {
                   </div>
                   {election.registration_deadline && (
                     <p style={{ fontSize: '0.8125rem', color: 'var(--warning)', marginTop: '0.5rem', marginBottom: 0 }}>
-                      Registration deadline: {new Date(election.registration_deadline).toLocaleDateString()}
+                      Registration deadline: {formatDate(election.registration_deadline)}
                     </p>
                   )}
                 </div>

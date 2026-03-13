@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Search, MapPin, ChevronRight, Building2,
   Calendar, CheckCircle,
-  ArrowRight, PlayCircle
+  ArrowRight, PlayCircle, Globe, MessageCircle, FileText
 } from 'lucide-react'
 import api from '../utils/api'
+import { useAuth } from '../context/AuthContext'
+import OnboardingModal from '../components/OnboardingModal'
 
 function useCountdown(targetDate) {
   const [timeLeft, setTimeLeft] = useState(getTimeLeft(targetDate))
@@ -25,7 +27,16 @@ function useCountdown(targetDate) {
   return timeLeft
 }
 
+const homeOnboardingSteps = [
+  { title: 'Welcome to WhosRunningUSA', description: 'Your one-stop platform for civic engagement. Find candidates, ask questions, and make informed voting decisions.', icon: <Globe size={28} /> },
+  { title: 'Find Candidates in Your Area', description: 'Search by name, office, or location to discover who is running in your local, state, and federal races.', icon: <Search size={28} /> },
+  { title: 'Ask Questions Directly', description: 'Submit questions to candidates and see their responses. Upvote the questions that matter most to you.', icon: <MessageCircle size={28} /> },
+  { title: 'Build Your Voting Guide', description: 'Pick your preferred candidates for each race and create a personalized ballot to take with you to the polls.', icon: <FileText size={28} /> },
+]
+
 function HomePage() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
   const [candidates, setCandidates] = useState([])
   const [nextElection, setNextElection] = useState(null)
   const [townHalls, setTownHalls] = useState([])
@@ -49,10 +60,14 @@ function HomePage() {
       .catch(onFail)
   }, [])
 
-  const countdown = useCountdown(nextElection?.election_date || '2026-04-01')
+  const countdown = useCountdown(nextElection?.election_date)
 
   return (
     <div>
+      {!user && (
+        <OnboardingModal pageKey="home" steps={homeOnboardingSteps} />
+      )}
+
       {/* Hero Section */}
       <section className="hero">
         <div className="container">
@@ -113,7 +128,7 @@ function HomePage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && searchQuery.trim()) {
-                    window.location.href = `/explore?q=${encodeURIComponent(searchQuery)}`
+                    navigate(`/explore?q=${encodeURIComponent(searchQuery)}`)
                   }
                 }}
               />
@@ -125,27 +140,29 @@ function HomePage() {
 
       {/* Main Content */}
       <div className="container">
-        {/* Election Countdown */}
-        <section className="section" style={{ paddingBottom: 0 }}>
-          <div className="election-countdown animate-fade-in-up animate-delay-1">
-            <div className="countdown-label">Next Election</div>
-            <h3 className="countdown-title">{nextElection?.name || 'Upcoming Election'}</h3>
-            <div className="countdown-numbers">
-              <div className="countdown-item">
-                <span className="countdown-value">{countdown.days}</span>
-                <span className="countdown-unit">Days</span>
-              </div>
-              <div className="countdown-item">
-                <span className="countdown-value">{countdown.hours}</span>
-                <span className="countdown-unit">Hours</span>
-              </div>
-              <div className="countdown-item">
-                <span className="countdown-value">{countdown.minutes}</span>
-                <span className="countdown-unit">Minutes</span>
+        {/* Election Countdown — only shown when there's an upcoming election */}
+        {nextElection && (
+          <section className="section" style={{ paddingBottom: 0 }}>
+            <div className="election-countdown animate-fade-in-up animate-delay-1">
+              <div className="countdown-label">Next Election</div>
+              <h3 className="countdown-title">{nextElection.name}</h3>
+              <div className="countdown-numbers">
+                <div className="countdown-item">
+                  <span className="countdown-value">{countdown.days}</span>
+                  <span className="countdown-unit">Days</span>
+                </div>
+                <div className="countdown-item">
+                  <span className="countdown-value">{countdown.hours}</span>
+                  <span className="countdown-unit">Hours</span>
+                </div>
+                <div className="countdown-item">
+                  <span className="countdown-value">{countdown.minutes}</span>
+                  <span className="countdown-unit">Minutes</span>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* Featured Candidates */}
         {candidates.length > 0 && (

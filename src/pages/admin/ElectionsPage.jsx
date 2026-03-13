@@ -14,7 +14,7 @@ export default function ElectionsPage() {
   const [showRaceForm, setShowRaceForm] = useState(null)
   const [electionForm, setElectionForm] = useState({ name: '', electionDate: '', electionType: 'general', scope: 'state', state: '' })
   const [raceForm, setRaceForm] = useState({ officeId: '', name: '', description: '' })
-  const [addCandidateId, setAddCandidateId] = useState('')
+  const [addCandidateIds, setAddCandidateIds] = useState({})
 
   const load = () => {
     setLoading(true)
@@ -59,8 +59,7 @@ export default function ElectionsPage() {
       await api.post('/admin/races', { electionId, ...raceForm }, true)
       setShowRaceForm(null)
       setRaceForm({ officeId: '', name: '', description: '' })
-      loadRaces(null)
-      setTimeout(() => loadRaces(electionId), 100)
+      await loadRaces(electionId, true)
     } catch (err) { alert(err.message) }
   }
 
@@ -73,10 +72,10 @@ export default function ElectionsPage() {
   }
 
   const addCandidateToRace = async (raceId) => {
-    if (!addCandidateId) return
+    if (!addCandidateIds[raceId]) return
     try {
-      await api.post(`/admin/races/${raceId}/candidates`, { candidateId: addCandidateId }, true)
-      setAddCandidateId('')
+      await api.post(`/admin/races/${raceId}/candidates`, { candidateId: addCandidateIds[raceId] }, true)
+      setAddCandidateIds(prev => ({ ...prev, [raceId]: '' }))
       await loadRaces(expandedElection, true)
     } catch (err) { alert(err.message) }
   }
@@ -209,7 +208,7 @@ export default function ElectionsPage() {
                         <button className="admin-icon-btn" onClick={() => deleteRace(race.id)}><Trash2 size={14} style={{ color: 'var(--error)' }} /></button>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        <select value={addCandidateId} onChange={e => setAddCandidateId(e.target.value)} style={{ flex: 1, padding: '0.375rem', fontSize: '0.8125rem' }}>
+                        <select value={addCandidateIds[race.id] || ''} onChange={e => setAddCandidateIds(prev => ({ ...prev, [race.id]: e.target.value }))} style={{ flex: 1, padding: '0.375rem', fontSize: '0.8125rem' }}>
                           <option value="">Add candidate...</option>
                           {candidates.map(c => <option key={c.id} value={c.id}>{c.display_name} ({c.party_affiliation || 'No party'})</option>)}
                         </select>

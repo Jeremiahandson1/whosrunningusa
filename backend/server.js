@@ -1,4 +1,13 @@
 require('dotenv').config();
+
+// Validate required environment variables at startup
+const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET'];
+const missing = REQUIRED_ENV.filter(key => !process.env[key]);
+if (missing.length > 0) {
+  console.error(`FATAL: Missing required environment variables: ${missing.join(', ')}`);
+  process.exit(1);
+}
+
 const Sentry = require('@sentry/node');
 if (process.env.SENTRY_DSN) {
   Sentry.init({
@@ -36,16 +45,48 @@ app.use(cors({
   credentials: true
 }));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: { error: 'Too many requests, please try again later.' }
-});
-app.use('/api/', limiter);
+// Rate limiting (disabled in test environment)
+if (process.env.NODE_ENV !== 'test') {
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    message: { error: 'Too many requests, please try again later.' }
+  });
+  app.use('/api/', limiter);
 
-// Body parsing
-app.use(express.json({ limit: '10mb' }));
+  // Per-route rate limiting for sensitive endpoints
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    message: { error: 'Too many attempts, please try again later.' }
+  });
+  app.use('/api/auth/login', authLimiter);
+  app.use('/api/auth/register', authLimiter);
+  app.use('/api/auth/forgot-password', authLimiter);
+
+  const contactLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    message: { error: 'Too many messages, please try again later.' }
+  });
+  app.use('/api/contact', contactLimiter);
+
+  const uploadLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 30,
+    message: { error: 'Too many uploads, please try again later.' }
+  });
+  app.use('/api/uploads', uploadLimiter);
+}
+
+// Body parsing (skip for Stripe webhook which needs raw body)
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/candidates/verify/webhook') {
+    next();
+  } else {
+    express.json({ limit: '10mb' })(req, res, next);
+  }
+});
 app.use(express.urlencoded({ extended: true }));
 
 // Input sanitization
@@ -77,6 +118,9 @@ app.use('/api/search', require('./routes/search'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/bills', require('./routes/bills'));
 app.use('/api/contact', require('./routes/contact'));
+app.use('/api/criminal-records', require('./routes/criminalRecords'));
+app.use('/api/connections', require('./routes/connections'));
+app.use('/api/community-notes', require('./routes/communityNotes'));
 
 // Health check
 app.get('/api/health', (req, res) => {

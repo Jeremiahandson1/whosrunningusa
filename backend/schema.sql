@@ -108,11 +108,18 @@ CREATE TABLE candidate_profiles (
     is_active BOOLEAN DEFAULT TRUE,
     profile_complete BOOLEAN DEFAULT FALSE,
 
+    -- FEC search fields
+    fec_office_type VARCHAR(1),
+    fec_state VARCHAR(2),
+    fec_district VARCHAR(2),
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_candidate_profiles_user ON candidate_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_candidate_profiles_fec_state ON candidate_profiles(fec_state) WHERE fec_state IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_candidate_profiles_fec_office ON candidate_profiles(fec_office_type) WHERE fec_office_type IS NOT NULL;
 CREATE INDEX idx_candidate_profiles_shadow ON candidate_profiles(is_shadow_profile);
 CREATE INDEX idx_candidate_profiles_fec ON candidate_profiles(fec_candidate_id);
 CREATE INDEX idx_candidate_profiles_open_states ON candidate_profiles(open_states_id);
@@ -466,28 +473,20 @@ CREATE INDEX idx_promises_status ON promises(status);
 
 CREATE TABLE voting_records (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    candidate_id UUID REFERENCES candidate_profiles(id) ON DELETE CASCADE,
-    
-    -- External reference
-    external_vote_id VARCHAR(255),
-    source VARCHAR(50) CHECK (source IN ('propublica', 'openstates', 'govtrack', 'manual')),
-    
-    -- Vote details
-    bill_id VARCHAR(100),
-    bill_name VARCHAR(500),
-    bill_description TEXT,
-    
-    vote VARCHAR(20) CHECK (vote IN ('yes', 'no', 'abstain', 'not_voting', 'present')),
-    vote_date DATE,
-    
-    -- Link to promise (if applicable)
-    related_promise_id UUID REFERENCES promises(id),
-    
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    candidate_id UUID NOT NULL REFERENCES candidate_profiles(id) ON DELETE CASCADE,
+    vote_event_id UUID NOT NULL REFERENCES vote_events(id) ON DELETE CASCADE,
+    bill_id UUID REFERENCES bills(id) ON DELETE CASCADE,
+    vote VARCHAR(20) NOT NULL,
+    source VARCHAR(50) NOT NULL,
+    source_url TEXT,
+    external_voter_id VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(candidate_id, vote_event_id)
 );
 
 CREATE INDEX idx_voting_records_candidate ON voting_records(candidate_id);
-CREATE INDEX idx_voting_records_date ON voting_records(vote_date DESC);
+CREATE INDEX idx_voting_records_bill ON voting_records(bill_id);
+CREATE INDEX idx_voting_records_vote ON voting_records(vote);
 
 -- =====================================================
 -- BILLS & SPONSORSHIPS
@@ -539,16 +538,19 @@ CREATE INDEX idx_sponsorships_type ON bill_sponsorships(sponsorship_type);
 
 CREATE TABLE vote_events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    external_id VARCHAR(100),
     bill_id UUID REFERENCES bills(id) ON DELETE CASCADE,
+    external_id VARCHAR(100),
+    motion_text TEXT,
+    motion_classification VARCHAR(50),
     chamber VARCHAR(20),
-    vote_date DATE,
-    description TEXT,
+    vote_date DATE NOT NULL,
     result VARCHAR(20),
     yes_count INTEGER,
     no_count INTEGER,
-    other_count INTEGER,
+    abstain_count INTEGER,
+    absent_count INTEGER,
     source VARCHAR(50),
+    source_url TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -743,26 +745,35 @@ CREATE INDEX idx_moderation_flags_content ON moderation_flags(content_type, cont
 
 CREATE TABLE community_notes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    
+
     -- What content this note is on
     content_type VARCHAR(50) NOT NULL,
     content_id UUID NOT NULL,
-    
+
     -- The note
     note_text TEXT NOT NULL,
     author_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    
+
     -- Voting
     helpful_count INTEGER DEFAULT 0,
     not_helpful_count INTEGER DEFAULT 0,
-    
+
     -- Status
     is_visible BOOLEAN DEFAULT FALSE, -- Only visible once enough helpful votes
-    
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_community_notes_content ON community_notes(content_type, content_id);
+
+CREATE TABLE community_note_votes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    note_id UUID REFERENCES community_notes(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    vote VARCHAR(20) NOT NULL CHECK (vote IN ('helpful', 'not_helpful')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(note_id, user_id)
+);
 
 -- =====================================================
 -- SESSIONS & AUTH
@@ -938,29 +949,105 @@ CREATE INDEX idx_town_hall_rsvps_user ON town_hall_rsvps(user_id);
 
 CREATE TABLE congressional_districts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    state VARCHAR(2) NOT NULL,
-    district_number INTEGER NOT NULL,
-    name VARCHAR(200),
+    state_fips VARCHAR(2) NOT NULL,
+    state_abbr VARCHAR(2) NOT NULL,
+    district_number VARCHAR(2) NOT NULL,
+    congress_number INTEGER NOT NULL,
+    geoid VARCHAR(4) NOT NULL,
+    full_name VARCHAR(100),
+    representative_name VARCHAR(200),
+    representative_party VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(state, district_number)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(state_fips, district_number, congress_number)
 );
 
 CREATE TABLE counties (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    state VARCHAR(2) NOT NULL,
-    name VARCHAR(200) NOT NULL,
-    fips_code VARCHAR(10),
+    state_fips VARCHAR(2) NOT NULL,
+    state_abbr VARCHAR(2) NOT NULL,
+    county_fips VARCHAR(3) NOT NULL,
+    county_geoid VARCHAR(5) NOT NULL,
+    county_name VARCHAR(100) NOT NULL,
+    county_full_name VARCHAR(150),
+    population_2020 INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(state, name)
+    UNIQUE(county_geoid)
 );
 
 CREATE TABLE district_county_mappings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     district_id UUID REFERENCES congressional_districts(id) ON DELETE CASCADE,
-    county_id UUID REFERENCES counties(id) ON DELETE CASCADE,
-    coverage VARCHAR(20) DEFAULT 'full' CHECK (coverage IN ('full', 'partial')),
-    UNIQUE(district_id, county_id)
+    state_fips VARCHAR(2) NOT NULL,
+    county_fips VARCHAR(3) NOT NULL,
+    county_geoid VARCHAR(5) NOT NULL,
+    county_name VARCHAR(100) NOT NULL,
+    land_area_sq_meters BIGINT,
+    land_area_percent DECIMAL(5,2),
+    is_full_county BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(district_id, county_geoid)
 );
 
+CREATE INDEX idx_districts_state ON congressional_districts(state_abbr);
+CREATE INDEX idx_districts_geoid ON congressional_districts(geoid);
 CREATE INDEX idx_district_county_district ON district_county_mappings(district_id);
-CREATE INDEX idx_district_county_county ON district_county_mappings(county_id);
+CREATE INDEX idx_district_county_county ON district_county_mappings(county_geoid);
+CREATE INDEX idx_district_county_state ON district_county_mappings(state_fips);
+CREATE INDEX idx_counties_state ON counties(state_abbr);
+CREATE INDEX idx_counties_geoid ON counties(county_geoid);
+CREATE INDEX idx_counties_name ON counties(state_abbr, county_name);
+
+-- =====================================================
+-- CRIMINAL RECORDS
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS candidate_criminal_records (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    candidate_id UUID NOT NULL REFERENCES candidate_profiles(id) ON DELETE CASCADE,
+    offense TEXT NOT NULL,
+    year INTEGER,
+    jurisdiction TEXT,
+    jurisdiction_level VARCHAR(20) CHECK (jurisdiction_level IN ('county', 'state', 'federal')),
+    disposition VARCHAR(30) NOT NULL CHECK (disposition IN ('convicted', 'acquitted', 'expunged', 'dismissed', 'pending', 'no_contest', 'deferred', 'pardoned')),
+    sentence TEXT,
+    source VARCHAR(20) NOT NULL CHECK (source IN ('self_reported', 'system_pulled')),
+    candidate_statement TEXT,
+    is_public BOOLEAN DEFAULT FALSE,
+    moderation_status VARCHAR(20) DEFAULT 'pending' CHECK (moderation_status IN ('pending', 'approved', 'rejected')),
+    moderated_by UUID REFERENCES users(id),
+    moderated_at TIMESTAMP,
+    moderation_notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_criminal_records_candidate ON candidate_criminal_records(candidate_id);
+CREATE INDEX idx_criminal_records_moderation ON candidate_criminal_records(moderation_status) WHERE moderation_status = 'pending';
+CREATE INDEX idx_criminal_records_public ON candidate_criminal_records(candidate_id, is_public) WHERE is_public = TRUE;
+
+-- =====================================================
+-- NEWSLETTER SUBSCRIBERS
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    subscribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    unsubscribed_at TIMESTAMP
+);
+
+-- =====================================================
+-- RACE WATCHERS
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS race_watchers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    race_id UUID REFERENCES races(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, race_id)
+);
+
+CREATE INDEX idx_race_watchers_user ON race_watchers(user_id);
+CREATE INDEX idx_race_watchers_race ON race_watchers(race_id);

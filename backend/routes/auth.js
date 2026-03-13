@@ -367,6 +367,20 @@ router.post('/reset-password', async (req, res, next) => {
   }
 });
 
+// POST /api/auth/refresh - refresh JWT token
+router.post('/refresh', authenticate, async (req, res, next) => {
+  try {
+    const token = jwt.sign(
+      { userId: req.user.id, userType: req.user.user_type },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+    res.json({ token });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Change password (authenticated)
 router.post('/change-password', authenticate, async (req, res, next) => {
   try {

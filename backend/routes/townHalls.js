@@ -156,14 +156,14 @@ router.put('/:id', authenticate, requireCandidate, async (req, res, next) => {
     }
     
     const townHallResult = await db.query(
-      'SELECT candidate_id FROM town_halls WHERE id = $1',
+      'SELECT candidate_id, status as current_status FROM town_halls WHERE id = $1',
       [id]
     );
-    
+
     if (townHallResult.rows.length === 0) {
       return res.status(404).json({ error: 'Town hall not found' });
     }
-    
+
     if (townHallResult.rows[0].candidate_id !== profileResult.rows[0].id) {
       return res.status(403).json({ error: 'Not your town hall' });
     }
@@ -182,8 +182,8 @@ router.put('/:id', authenticate, requireCandidate, async (req, res, next) => {
       [title, description, scheduledAt, status, recordingUrl, transcript, id]
     );
     
-    // If completed, update candidate stats
-    if (status === 'completed') {
+    // If newly completed (wasn't already completed), update candidate stats
+    if (status === 'completed' && townHallResult.rows[0].current_status !== 'completed') {
       await db.query(
         'UPDATE candidate_profiles SET town_halls_held = town_halls_held + 1 WHERE id = $1',
         [profileResult.rows[0].id]
@@ -267,21 +267,17 @@ router.post('/:id/questions/:questionId/upvote', authenticate, async (req, res, 
   try {
     const { questionId } = req.params;
 
-    // Check if user already upvoted this question
-    const existing = await db.query(
-      `SELECT id FROM town_hall_question_upvotes WHERE question_id = $1 AND user_id = $2`,
+    // Insert upvote with conflict handling to prevent race conditions
+    const insertResult = await db.query(
+      `INSERT INTO town_hall_question_upvotes (question_id, user_id) VALUES ($1, $2)
+       ON CONFLICT (question_id, user_id) DO NOTHING
+       RETURNING id`,
       [questionId, req.user.id]
     );
 
-    if (existing.rows.length > 0) {
+    if (insertResult.rows.length === 0) {
       return res.status(409).json({ error: 'Already upvoted' });
     }
-
-    // Record the upvote and increment count atomically
-    await db.query(
-      `INSERT INTO town_hall_question_upvotes (question_id, user_id) VALUES ($1, $2)`,
-      [questionId, req.user.id]
-    );
 
     await db.query(
       `UPDATE town_hall_questions SET upvote_count = upvote_count + 1 WHERE id = $1`,
@@ -294,6 +290,36 @@ router.post('/:id/questions/:questionId/upvote', authenticate, async (req, res, 
     );
 
     res.json({ upvoteCount: result.rows[0]?.upvote_count || 0 });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get RSVPs for a town hall (candidate or admin only)
+router.get('/:id/rsvps', authenticate, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    // Verify requester is the town hall's candidate or admin
+    const th = await db.query('SELECT candidate_id FROM town_halls WHERE id = $1', [id]);
+    if (th.rows.length === 0) return res.status(404).json({ error: 'Town hall not found' });
+
+    const profileResult = await db.query('SELECT id FROM candidate_profiles WHERE user_id = $1', [req.user.id]);
+    const isCandidateOwner = profileResult.rows.length > 0 && profileResult.rows[0].id === th.rows[0].candidate_id;
+    const isAdmin = req.user.user_type === 'admin';
+
+    if (!isCandidateOwner && !isAdmin) {
+      return res.status(403).json({ error: 'Only the host candidate or admin can view RSVPs' });
+    }
+
+    const result = await db.query(
+      `SELECT r.*, u.username, u.first_name, u.last_name
+       FROM town_hall_rsvps r
+       JOIN users u ON r.user_id = u.id
+       WHERE r.town_hall_id = $1
+       ORDER BY r.created_at DESC`,
+      [id]
+    );
+    res.json({ rsvps: result.rows, count: result.rows.length });
   } catch (error) {
     next(error);
   }

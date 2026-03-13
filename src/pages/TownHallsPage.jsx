@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Calendar, Clock, Users, PlayCircle, MessageCircle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
+import { formatDate, formatDateTime } from '../utils/dateFormat'
 
 function TownHallsPage() {
   const { user } = useAuth()
@@ -15,15 +16,6 @@ function TownHallsPage() {
       .catch(() => setTownHalls([]))
       .finally(() => setLoading(false))
   }, [])
-
-  const formatDate = (dateStr) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    })
-  }
 
   const handleRsvp = async (townHallId) => {
     if (!user) return alert('Please sign in to RSVP')

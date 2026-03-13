@@ -75,6 +75,8 @@ describe('POST /api/questions', () => {
     mockVerifiedEmail();
     // Candidate exists check
     db.query.mockResolvedValueOnce({ rows: [{ id: 'c1' }] });
+    // Rate limit check
+    db.query.mockResolvedValueOnce({ rows: [{ count: '0' }] });
     // Insert question
     db.query.mockResolvedValueOnce({
       rows: [{ id: 'q1', candidate_id: 'c1', question_text: 'What is your plan?', asked_by_user_id: 'user-1' }]

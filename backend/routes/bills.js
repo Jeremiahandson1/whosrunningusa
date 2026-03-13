@@ -19,7 +19,7 @@ router.get('/', async (req, res, next) => {
     } = req.query;
 
     let query = `
-      SELECT 
+      SELECT
         b.*,
         (SELECT COUNT(*) FROM vote_events WHERE bill_id = b.id) as vote_count,
         (SELECT COUNT(*) FROM bill_sponsorships WHERE bill_id = b.id) as sponsor_count
@@ -109,6 +109,69 @@ router.get('/', async (req, res, next) => {
 });
 
 /**
+ * GET /api/bills/state/:state/recent
+ * Get recent bills for a state (MUST be before /:id)
+ */
+router.get('/state/:state/recent', async (req, res, next) => {
+  try {
+    const { state } = req.params;
+    const { limit = 10 } = req.query;
+
+    const result = await db.query(
+      `SELECT
+        b.*,
+        (SELECT COUNT(*) FROM vote_events WHERE bill_id = b.id) as vote_count
+       FROM bills b
+       WHERE b.state = $1
+       ORDER BY b.last_action_date DESC NULLS LAST
+       LIMIT $2`,
+      [state.toUpperCase(), parseInt(limit)]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/bills/stats/summary
+ * Get bill statistics (MUST be before /:id)
+ */
+router.get('/stats/summary', async (req, res, next) => {
+  try {
+    const { state } = req.query;
+
+    let whereClause = '';
+    const params = [];
+
+    if (state) {
+      whereClause = 'WHERE state = $1';
+      params.push(state.toUpperCase());
+    }
+
+    const result = await db.query(`
+      SELECT
+        COUNT(*) as total_bills,
+        COUNT(DISTINCT state) as states_covered,
+        COUNT(DISTINCT session) as sessions,
+        COUNT(*) FILTER (WHERE status = 'passed') as passed,
+        COUNT(*) FILTER (WHERE status = 'signed') as signed,
+        COUNT(*) FILTER (WHERE status = 'vetoed') as vetoed,
+        COUNT(*) FILTER (WHERE status = 'introduced') as introduced,
+        (SELECT COUNT(*) FROM vote_events ${state ? 'WHERE bill_id IN (SELECT id FROM bills WHERE state = $1)' : ''}) as total_vote_events,
+        (SELECT COUNT(*) FROM voting_records ${state ? "WHERE source = 'open_states'" : ''}) as total_voting_records
+      FROM bills
+      ${whereClause}
+    `, params);
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /api/bills/:id
  * Get single bill with votes and sponsors
  */
@@ -130,7 +193,7 @@ router.get('/:id', async (req, res, next) => {
 
     // Get vote events
     const votesResult = await db.query(
-      `SELECT 
+      `SELECT
         ve.*,
         (SELECT COUNT(*) FROM voting_records WHERE external_vote_id = ve.external_id) as recorded_votes
        FROM vote_events ve
@@ -141,7 +204,7 @@ router.get('/:id', async (req, res, next) => {
 
     // Get sponsors
     const sponsorsResult = await db.query(
-      `SELECT 
+      `SELECT
         bs.*,
         cp.display_name,
         cp.party_affiliation,
@@ -173,7 +236,7 @@ router.get('/:id/votes', async (req, res, next) => {
     const { voteEventId } = req.query;
 
     let query = `
-      SELECT 
+      SELECT
         vr.*,
         cp.display_name,
         cp.party_affiliation,
@@ -197,8 +260,8 @@ router.get('/:id/votes', async (req, res, next) => {
     const grouped = {
       yes: result.rows.filter(r => r.vote === 'yes'),
       no: result.rows.filter(r => r.vote === 'no'),
-      not_voting: result.rows.filter(r => r.vote === 'not voting' || r.vote === 'absent'),
-      other: result.rows.filter(r => !['yes', 'no', 'not voting', 'absent'].includes(r.vote))
+      not_voting: result.rows.filter(r => ['not_voting', 'not voting', 'absent'].includes(r.vote)),
+      other: result.rows.filter(r => !['yes', 'no', 'not_voting', 'not voting', 'absent'].includes(r.vote))
     };
 
     res.json({
@@ -212,69 +275,6 @@ router.get('/:id/votes', async (req, res, next) => {
         total: result.rows.length
       }
     });
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * GET /api/bills/state/:state/recent
- * Get recent bills for a state
- */
-router.get('/state/:state/recent', async (req, res, next) => {
-  try {
-    const { state } = req.params;
-    const { limit = 10 } = req.query;
-
-    const result = await db.query(
-      `SELECT 
-        b.*,
-        (SELECT COUNT(*) FROM vote_events WHERE bill_id = b.id) as vote_count
-       FROM bills b
-       WHERE b.state = $1
-       ORDER BY b.last_action_date DESC NULLS LAST
-       LIMIT $2`,
-      [state.toUpperCase(), parseInt(limit)]
-    );
-
-    res.json(result.rows);
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * GET /api/bills/stats
- * Get bill statistics
- */
-router.get('/stats/summary', async (req, res, next) => {
-  try {
-    const { state } = req.query;
-
-    let whereClause = '';
-    const params = [];
-
-    if (state) {
-      whereClause = 'WHERE state = $1';
-      params.push(state.toUpperCase());
-    }
-
-    const result = await db.query(`
-      SELECT 
-        COUNT(*) as total_bills,
-        COUNT(DISTINCT state) as states_covered,
-        COUNT(DISTINCT session) as sessions,
-        COUNT(*) FILTER (WHERE status = 'passed') as passed,
-        COUNT(*) FILTER (WHERE status = 'signed') as signed,
-        COUNT(*) FILTER (WHERE status = 'vetoed') as vetoed,
-        COUNT(*) FILTER (WHERE status = 'introduced') as introduced,
-        (SELECT COUNT(*) FROM vote_events ${state ? 'WHERE bill_id IN (SELECT id FROM bills WHERE state = $1)' : ''}) as total_vote_events,
-        (SELECT COUNT(*) FROM voting_records ${state ? "WHERE source = 'open_states'" : ''}) as total_voting_records
-      FROM bills
-      ${whereClause}
-    `, params);
-
-    res.json(result.rows[0]);
   } catch (error) {
     next(error);
   }
