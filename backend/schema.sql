@@ -947,6 +947,11 @@ CREATE INDEX idx_town_hall_rsvps_user ON town_hall_rsvps(user_id);
 -- DISTRICT-COUNTY MAPPING (for federal candidate filtering)
 -- =====================================================
 
+-- Drop and recreate district tables to ensure correct column definitions
+DROP TABLE IF EXISTS district_county_mappings CASCADE;
+DROP TABLE IF EXISTS counties CASCADE;
+DROP TABLE IF EXISTS congressional_districts CASCADE;
+
 CREATE TABLE congressional_districts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     state_fips VARCHAR(2) NOT NULL,

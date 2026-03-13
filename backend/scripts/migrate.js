@@ -107,21 +107,25 @@ async function runAll() {
 
   // 1. Apply base schema
   if (!applied.has('000-schema.sql')) {
-    // Check if tables already exist (schema was applied outside migration tracking)
-    const tableCheck = await db.query(
-      "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users'"
-    );
-    if (parseInt(tableCheck.rows[0].count) > 0) {
-      console.log('\nBase schema already exists (marking as applied)...');
-      await markApplied('000-schema.sql');
-    } else {
-      console.log('\nApplying base schema...');
-      const sql = fs.readFileSync(SCHEMA_FILE, 'utf8');
-      await runMigration('000-schema.sql', sql);
-    }
+    console.log('\nApplying base schema...');
+    const sql = fs.readFileSync(SCHEMA_FILE, 'utf8');
+    await runMigration('000-schema.sql', sql);
     ran++;
   } else {
-    console.log('\nBase schema already applied.');
+    // Check if schema needs repair (e.g. columns missing from a previous bad deploy)
+    const colCheck = await db.query(
+      "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'congressional_districts' AND column_name = 'state_abbr'"
+    ).catch(() => ({ rows: [{ count: '0' }] }));
+    if (parseInt(colCheck.rows[0].count) === 0) {
+      console.log('\nBase schema outdated — re-applying...');
+      // Remove old tracking so schema runs fresh
+      await db.query("DELETE FROM _migrations WHERE filename = '000-schema.sql'");
+      const sql = fs.readFileSync(SCHEMA_FILE, 'utf8');
+      await runMigration('000-schema.sql', sql);
+      ran++;
+    } else {
+      console.log('\nBase schema already applied.');
+    }
   }
 
   // 2. Apply numbered migrations
