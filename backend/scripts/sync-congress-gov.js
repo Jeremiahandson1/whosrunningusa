@@ -17,8 +17,8 @@ const CongressGovClient = require('../services/ingestion/congressGovClient');
 
 const client = new CongressGovClient();
 
-// Current congress (118th: 2023-2025)
-const CURRENT_CONGRESS = 118;
+// Current congress (119th: 2025-2027)
+const CURRENT_CONGRESS = 119;
 
 /**
  * State name to abbreviation mapping

@@ -16,9 +16,11 @@ class OpenStatesClient {
       console.warn('OPEN_STATES_API_KEY not set - Open States API calls will fail');
     }
     
-    // Rate limiting: Open States = 10 requests/minute
+    // Rate limiting: Open States = 10 requests/minute, 250/day
     this.requestDelay = 6500; // ms between requests (6.5 sec for 10/min limit)
     this.lastRequestTime = 0;
+    this.requestCount = 0;
+    this.maxRequests = 200; // daily budget (leave buffer for other endpoints)
   }
 
   /**
@@ -57,8 +59,9 @@ class OpenStatesClient {
       'Accept': 'application/json'
     };
 
+    this.requestCount++;
     const response = await fetch(url.toString(), { headers });
-    
+
     if (!response.ok) {
       const error = await response.text();
       throw new Error(`Open States API error ${response.status}: ${error}`);
@@ -167,8 +170,11 @@ class OpenStatesClient {
 
   /**
    * Get all current officials for all 50 states + DC + PR
+   * With daily budget awareness — syncs up to maxRequests API calls worth of states
+   * @param {function} progressCallback
+   * @param {number} maxRequests - Max API requests to use (default 200, leaves buffer for bills)
    */
-  async getAllStateLegislators(progressCallback = null) {
+  async getAllStateLegislators(progressCallback = null, maxRequests = 200) {
     const states = [
       'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
       'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
@@ -177,6 +183,8 @@ class OpenStatesClient {
       'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
       'DC', 'PR'
     ];
+
+    this.requestCount = 0;
 
     const allResults = [];
     
@@ -192,6 +200,12 @@ class OpenStatesClient {
         });
       }
 
+      // Check if we're approaching the daily budget
+      if (this.requestCount >= maxRequests) {
+        console.log(`\nReached daily API budget (${maxRequests} requests). Stopping. ${states.length - i - 1} states remaining for next run.`);
+        break;
+      }
+
       try {
         const legislators = await this.getStateLegislators(state);
         allResults.push({
@@ -199,8 +213,12 @@ class OpenStatesClient {
           legislators,
           count: legislators.length
         });
-        console.log(`Fetched ${legislators.length} legislators from ${state}`);
+        console.log(`Fetched ${legislators.length} legislators from ${state} (${this.requestCount} API calls used)`);
       } catch (err) {
+        if (err.message.includes('429')) {
+          console.error(`Rate limited at ${state}. ${this.requestCount} API calls used. Stopping.`);
+          break;
+        }
         console.error(`Error fetching ${state}:`, err.message);
         allResults.push({
           state,
@@ -211,6 +229,7 @@ class OpenStatesClient {
       }
     }
 
+    console.log(`Total API requests used: ${this.requestCount}`);
     return allResults;
   }
 
