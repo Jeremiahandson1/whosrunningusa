@@ -105,29 +105,41 @@ async function runAll() {
 
   let ran = 0;
 
-  // 1. Apply base schema
-  if (!applied.has('000-schema.sql')) {
+  // Check for stale state: tables exist but _migrations is empty or schema is outdated
+  const needsFullReset = async () => {
+    // Case 1: _migrations is empty but tables exist (failed prior deploy)
+    if (!applied.has('000-schema.sql')) {
+      const tableCheck = await db.query(
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users'"
+      ).catch(() => ({ rows: [{ count: '0' }] }));
+      if (parseInt(tableCheck.rows[0].count) > 0) return true;
+    }
+    // Case 2: schema applied but columns are wrong (outdated schema)
+    if (applied.has('000-schema.sql')) {
+      const colCheck = await db.query(
+        "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'congressional_districts' AND column_name = 'state_abbr'"
+      ).catch(() => ({ rows: [{ count: '0' }] }));
+      if (parseInt(colCheck.rows[0].count) === 0) return true;
+    }
+    return false;
+  };
+
+  if (await needsFullReset()) {
+    console.log('\nStale/outdated schema detected — dropping all tables and re-applying...');
+    await db.query('DROP SCHEMA public CASCADE');
+    await db.query('CREATE SCHEMA public');
+    await db.query('GRANT ALL ON SCHEMA public TO public');
+    await ensureMigrationsTable();
+    const sql = fs.readFileSync(SCHEMA_FILE, 'utf8');
+    await runMigration('000-schema.sql', sql);
+    ran++;
+  } else if (!applied.has('000-schema.sql')) {
     console.log('\nApplying base schema...');
     const sql = fs.readFileSync(SCHEMA_FILE, 'utf8');
     await runMigration('000-schema.sql', sql);
     ran++;
   } else {
-    // Check if schema needs repair (e.g. columns missing from a previous bad deploy)
-    const colCheck = await db.query(
-      "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'congressional_districts' AND column_name = 'state_abbr'"
-    ).catch(() => ({ rows: [{ count: '0' }] }));
-    if (parseInt(colCheck.rows[0].count) === 0) {
-      console.log('\nBase schema outdated — dropping all tables and re-applying...');
-      await db.query('DROP SCHEMA public CASCADE');
-      await db.query('CREATE SCHEMA public');
-      await db.query('GRANT ALL ON SCHEMA public TO public');
-      await ensureMigrationsTable();
-      const sql = fs.readFileSync(SCHEMA_FILE, 'utf8');
-      await runMigration('000-schema.sql', sql);
-      ran++;
-    } else {
-      console.log('\nBase schema already applied.');
-    }
+    console.log('\nBase schema already applied.');
   }
 
   // 2. Apply numbered migrations
