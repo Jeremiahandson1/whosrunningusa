@@ -76,8 +76,47 @@ async function upsertMember(member) {
 
   // Try to match by FEC ID or name
   let candidateId = null;
-  
-  // Try name match for federal candidates
+
+  // Try matching FEC profiles by last name + state + office type
+  // FEC names: "VAN ORDEN, DERRICK F. MR." / Congress names: "Van Orden, Derrick"
+  const lastName = (transformed.lastName || transformed.name.split(',')[0] || '').trim();
+  const officeType = transformed.chamber === 'lower' ? 'H' : 'S';
+  const fecMatch = await db.query(`
+    SELECT id FROM candidate_profiles
+    WHERE fec_state = $1
+      AND fec_office_type = $2
+      AND (
+        LOWER(display_name) LIKE LOWER($3)
+        OR LOWER(display_name) = LOWER($4)
+      )
+    ORDER BY
+      CASE WHEN LOWER(display_name) = LOWER($4) THEN 0 ELSE 1 END
+    LIMIT 1
+  `, [stateAbbr, officeType, `${lastName},%`, transformed.name]);
+
+  if (fecMatch.rows.length > 0) {
+    candidateId = fecMatch.rows[0].id;
+
+    await db.query(`
+      UPDATE candidate_profiles SET
+        display_name = $2,
+        official_title = $3,
+        campaign_website = COALESCE($4, campaign_website),
+        verification_source = 'congress_gov',
+        verification_external_id = $5,
+        verification_last_checked = NOW(),
+        candidate_verified = TRUE,
+        candidate_verified_at = COALESCE(candidate_verified_at, NOW()),
+        updated_at = NOW()
+      WHERE id = $1
+    `, [candidateId, transformed.name,
+        transformed.chamber === 'lower' ? 'U.S. Representative' : 'U.S. Senator',
+        transformed.officialUrl, transformed.bioguideId]);
+
+    return { id: candidateId, action: 'linked' };
+  }
+
+  // Try name match via candidacies (for non-FEC profiles)
   const nameMatch = await db.query(`
     SELECT cp.id FROM candidate_profiles cp
     JOIN candidacies c ON cp.id = c.candidate_id
@@ -91,7 +130,7 @@ async function upsertMember(member) {
 
   if (nameMatch.rows.length > 0) {
     candidateId = nameMatch.rows[0].id;
-    
+
     await db.query(`
       UPDATE candidate_profiles SET
         verification_source = 'congress_gov',
@@ -101,7 +140,7 @@ async function upsertMember(member) {
         updated_at = NOW()
       WHERE id = $1
     `, [candidateId, transformed.bioguideId]);
-    
+
     return { id: candidateId, action: 'linked' };
   }
 
