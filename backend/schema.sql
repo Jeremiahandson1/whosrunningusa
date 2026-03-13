@@ -86,9 +86,13 @@ CREATE TABLE candidate_profiles (
     education TEXT,
     professional_background TEXT,
     
-    -- Social links (display only, not clickable)
+    -- Social links
     twitter_handle VARCHAR(100),
     facebook_handle VARCHAR(100),
+    instagram_handle VARCHAR(100),
+    youtube_handle VARCHAR(100),
+    linkedin_url VARCHAR(500),
+    tiktok_handle VARCHAR(100),
     
     -- Engagement metrics (calculated)
     qa_response_rate DECIMAL(5,2) DEFAULT 0,

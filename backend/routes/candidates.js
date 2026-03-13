@@ -232,19 +232,20 @@ router.put('/profile', authenticate, requireCandidate, async (req, res, next) =>
       displayName, officialTitle, partyAffiliation,
       campaignWebsite, campaignEmail, campaignPhone,
       fullBio, education, professionalBackground,
-      twitterHandle, facebookHandle
+      twitterHandle, facebookHandle, instagramHandle,
+      youtubeHandle, linkedinUrl, tiktokHandle
     } = req.body;
-    
+
     // Get candidate profile ID for this user
     const profileResult = await db.query(
       'SELECT id FROM candidate_profiles WHERE user_id = $1',
       [req.user.id]
     );
-    
+
     if (profileResult.rows.length === 0) {
       return res.status(404).json({ error: 'Candidate profile not found' });
     }
-    
+
     const result = await db.query(
       `UPDATE candidate_profiles SET
          display_name = COALESCE($1, display_name),
@@ -258,12 +259,17 @@ router.put('/profile', authenticate, requireCandidate, async (req, res, next) =>
          professional_background = COALESCE($9, professional_background),
          twitter_handle = COALESCE($10, twitter_handle),
          facebook_handle = COALESCE($11, facebook_handle),
+         instagram_handle = COALESCE($12, instagram_handle),
+         youtube_handle = COALESCE($13, youtube_handle),
+         linkedin_url = COALESCE($14, linkedin_url),
+         tiktok_handle = COALESCE($15, tiktok_handle),
          updated_at = NOW()
-       WHERE user_id = $12
+       WHERE user_id = $16
        RETURNING *`,
       [displayName, officialTitle, partyAffiliation, campaignWebsite, campaignEmail,
        campaignPhone, fullBio, education, professionalBackground, twitterHandle,
-       facebookHandle, req.user.id]
+       facebookHandle, instagramHandle, youtubeHandle, linkedinUrl, tiktokHandle,
+       req.user.id]
     );
     
     res.json(result.rows[0]);

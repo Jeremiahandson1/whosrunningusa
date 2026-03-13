@@ -36,6 +36,10 @@ function CandidateEditPage() {
     professionalBackground: '',
     twitterHandle: '',
     facebookHandle: '',
+    instagramHandle: '',
+    youtubeHandle: '',
+    linkedinUrl: '',
+    tiktokHandle: '',
   })
 
   const draftKey = user ? `draft_candidate_edit_${user.id}` : null
@@ -62,6 +66,10 @@ function CandidateEditPage() {
           professionalBackground: c.professional_background || '',
           twitterHandle: c.twitter_handle || '',
           facebookHandle: c.facebook_handle || '',
+          instagramHandle: c.instagram_handle || '',
+          youtubeHandle: c.youtube_handle || '',
+          linkedinUrl: c.linkedin_url || '',
+          tiktokHandle: c.tiktok_handle || '',
         }
         serverFormRef.current = serverForm
         setForm(serverForm)
@@ -307,6 +315,22 @@ function CandidateEditPage() {
               <div>
                 <label htmlFor="edit-facebook" style={{ display: 'block', fontWeight: 600, marginBottom: '0.375rem', fontSize: '0.875rem' }}>Facebook Handle</label>
                 <input id="edit-facebook" type="text" value={form.facebookHandle} onChange={e => handleChange('facebookHandle', e.target.value)} placeholder="facebook.com/yourpage" />
+              </div>
+              <div>
+                <label htmlFor="edit-instagram" style={{ display: 'block', fontWeight: 600, marginBottom: '0.375rem', fontSize: '0.875rem' }}>Instagram Handle</label>
+                <input id="edit-instagram" type="text" value={form.instagramHandle} onChange={e => handleChange('instagramHandle', e.target.value)} placeholder="@handle" />
+              </div>
+              <div>
+                <label htmlFor="edit-youtube" style={{ display: 'block', fontWeight: 600, marginBottom: '0.375rem', fontSize: '0.875rem' }}>YouTube Channel</label>
+                <input id="edit-youtube" type="text" value={form.youtubeHandle} onChange={e => handleChange('youtubeHandle', e.target.value)} placeholder="@channelname" />
+              </div>
+              <div>
+                <label htmlFor="edit-linkedin" style={{ display: 'block', fontWeight: 600, marginBottom: '0.375rem', fontSize: '0.875rem' }}>LinkedIn URL</label>
+                <input id="edit-linkedin" type="text" value={form.linkedinUrl} onChange={e => handleChange('linkedinUrl', e.target.value)} placeholder="linkedin.com/in/yourprofile" />
+              </div>
+              <div>
+                <label htmlFor="edit-tiktok" style={{ display: 'block', fontWeight: 600, marginBottom: '0.375rem', fontSize: '0.875rem' }}>TikTok Handle</label>
+                <input id="edit-tiktok" type="text" value={form.tiktokHandle} onChange={e => handleChange('tiktokHandle', e.target.value)} placeholder="@handle" />
               </div>
             </div>
           </div>
