@@ -93,8 +93,8 @@ function ExplorePage() {
 
   const buildApiParams = useCallback((query, offset = 0) => {
     const params = new URLSearchParams()
-    if (query) params.set('q', query)
-    if (levelFilter !== 'all') params.set('level', levelFilter)
+    if (query) params.set('search', query)
+    if (levelFilter !== 'all') params.set('officeLevel', levelFilter)
     if (selectedState) params.set('state', selectedState)
     if (activeIssues.length > 0) params.set('issues', activeIssues.join(','))
     if (sortBy) params.set('sort', sortBy)
@@ -104,11 +104,9 @@ function ExplorePage() {
   }, [levelFilter, selectedState, activeIssues, sortBy])
 
   const getEndpoint = useCallback((query, params) => {
-    return query
-      ? `/search?${params.toString()}`
-      : selectedState
-        ? `/search/candidates/by-location?${params.toString()}`
-        : `/candidates?${params.toString()}`
+    return selectedState
+      ? `/search/candidates/by-location?${params.toString()}`
+      : `/candidates?${params.toString()}`
   }, [selectedState])
 
   const fetchCandidates = useCallback((query) => {

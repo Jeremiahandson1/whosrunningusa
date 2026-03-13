@@ -86,11 +86,19 @@ router.get('/', async (req, res, next) => {
 // Search candidates by location
 router.get('/candidates/by-location', async (req, res, next) => {
   try {
-    const { state, county, city, officeLevel, limit = 50 } = req.query;
-    
+    const { state, county, city, officeLevel, search, limit = 50, offset = 0 } = req.query;
+
     const params = [];
     let paramIndex = 1;
-    
+
+    // Name search filter (applied to all sub-queries)
+    let nameFilter = '';
+    if (search) {
+      nameFilter = ` AND cp.display_name ILIKE $${paramIndex}`;
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+
     // Query 1: Candidates with full office/race/candidacy chain (local/state offices)
     let query = `
       SELECT DISTINCT cp.id, cp.display_name, cp.party_affiliation, cp.official_title,
@@ -104,7 +112,7 @@ router.get('/candidates/by-location', async (req, res, next) => {
       JOIN candidacies c ON cp.id = c.candidate_id
       JOIN races r ON c.race_id = r.id
       JOIN offices o ON r.office_id = o.id
-      WHERE cp.is_active = TRUE
+      WHERE cp.is_active = TRUE${nameFilter}
     `;
     
     if (state) {
@@ -148,7 +156,7 @@ router.get('/candidates/by-location', async (req, res, next) => {
                END as office_name,
                'fec' as source
         FROM candidate_profiles cp
-        WHERE cp.is_active = TRUE
+        WHERE cp.is_active = TRUE${nameFilter}
           AND cp.fec_state = $${paramIndex}
       `;
       params.push(state);
@@ -172,7 +180,7 @@ router.get('/candidates/by-location', async (req, res, next) => {
                END as office_name,
                'fec_district' as source
         FROM candidate_profiles cp
-        WHERE cp.is_active = TRUE
+        WHERE cp.is_active = TRUE${nameFilter}
           AND cp.fec_state = $${paramIndex}
           AND (
             -- Senate candidates apply to whole state
@@ -201,9 +209,10 @@ router.get('/candidates/by-location', async (req, res, next) => {
       paramIndex += 3;
     }
     
-    query += ` ORDER BY display_name LIMIT $${paramIndex}`;
+    query += ` ORDER BY display_name LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     params.push(parseInt(limit));
-    
+    params.push(parseInt(offset));
+
     const result = await db.query(query, params);
     res.json({ candidates: result.rows });
   } catch (error) {
