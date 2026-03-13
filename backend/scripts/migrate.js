@@ -117,9 +117,11 @@ async function runAll() {
       "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'congressional_districts' AND column_name = 'state_abbr'"
     ).catch(() => ({ rows: [{ count: '0' }] }));
     if (parseInt(colCheck.rows[0].count) === 0) {
-      console.log('\nBase schema outdated — re-applying...');
-      // Remove old tracking so schema runs fresh
-      await db.query("DELETE FROM _migrations WHERE filename = '000-schema.sql'");
+      console.log('\nBase schema outdated — dropping all tables and re-applying...');
+      await db.query('DROP SCHEMA public CASCADE');
+      await db.query('CREATE SCHEMA public');
+      await db.query('GRANT ALL ON SCHEMA public TO public');
+      await ensureMigrationsTable();
       const sql = fs.readFileSync(SCHEMA_FILE, 'utf8');
       await runMigration('000-schema.sql', sql);
       ran++;
