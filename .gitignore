@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+
+# Environment files
+.env
+backend/.env
+
+# Build output
+dist/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code
+.claude/
+
+# Uploads (local dev only)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
+
+# Env variants
+.env.local
+.env.*.local
+
+# Editor swap files
+*.swp
+*.swo
+
+# Coverage reports
+coverage/
+
+# Test results
+test-results/

@@ -1,0 +1,62 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "WhosRunningUSA API Server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "sync": "node scripts/sync.js",
+    "sync:fec": "node scripts/sync.js fec",
+    "sync:openstates": "node scripts/sync-open-states.js",
+    "sync:openstates:state": "node scripts/sync-open-states.js",
+    "sync:bills": "node scripts/sync-open-states-bills.js",
+    "sync:congress": "node scripts/sync-congress-gov.js",
+    "migrate": "node scripts/migrate.js",
+    "migrate:status": "node scripts/migrate.js --status",
+    "seed": "node scripts/seed-all.js",
+    "seed:clean": "node scripts/seed-all.js --clean",
+    "seed:structure": "node scripts/seed-all.js --only-structure",
+    "sync:finance": "node scripts/sync-finance.js",
+    "ingest": "node scripts/ingest-all.js",
+    "ingest:dry": "node scripts/ingest-all.js --dry-run",
+    "setup": "node scripts/migrate.js && node scripts/seed-all.js",
+    "test": "jest --forceExit --detectOpenHandles"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1004.0",
+    "@sentry/node": "^10.42.0",
+    "axios": "^1.13.2",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.1",
+    "multer": "^2.1.1",
+    "multer-s3": "^3.0.1",
+    "nodemailer": "^8.0.1",
+    "pg": "^8.16.3",
+    "stripe": "^20.4.1",
+    "uuid": "^13.0.0",
+    "validator": "^13.15.26"
+  },
+  "devDependencies": {
+    "jest": "^30.2.0",
+    "supertest": "^7.2.2"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "setupFiles": [
+      "./tests/setup.js"
+    ],
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ]
+  }
+}
