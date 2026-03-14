@@ -184,11 +184,12 @@ class IngestionService {
       return 'updated';
     }
 
-    // Try to match existing candidate by name and state
-    // Check directly on fec_state first (faster, catches same-person different-office dupes)
+    // Try to match existing candidate by normalized name and state
+    // Uses normalize_candidate_name() from migration 020 to handle:
+    //   case differences, middle names, suffixes, name format differences
     const nameMatch = await db.query(
       `SELECT cp.id FROM candidate_profiles cp
-       WHERE LOWER(cp.display_name) = LOWER($1)
+       WHERE normalize_candidate_name(cp.display_name) = normalize_candidate_name($1)
          AND (cp.fec_state = $2 OR cp.fec_state IS NULL)
        ORDER BY CASE WHEN cp.fec_state = $2 THEN 0 ELSE 1 END
        LIMIT 1`,
@@ -588,18 +589,11 @@ class IngestionService {
 
     const nameMatch = await db.query(
       `SELECT cp.id, cp.display_name FROM candidate_profiles cp
-       WHERE cp.fec_state = $1
-         AND (
-           LOWER(cp.display_name) = LOWER($2)
-           OR (
-             $3 != '' AND $4 != ''
-             AND LOWER(cp.display_name) LIKE LOWER($3) || ',%'
-             AND LOWER(cp.display_name) LIKE '%' || LOWER(LEFT($4, 1)) || '%'
-           )
-         )
-       ORDER BY CASE WHEN LOWER(cp.display_name) = LOWER($2) THEN 0 ELSE 1 END
+       WHERE (cp.fec_state = $1 OR cp.fec_state IS NULL)
+         AND normalize_candidate_name(cp.display_name) = normalize_candidate_name($2)
+       ORDER BY CASE WHEN cp.fec_state = $1 THEN 0 ELSE 1 END
        LIMIT 1`,
-      [transformed.state, transformed.displayName, lastName, firstName]
+      [transformed.state, transformed.displayName]
     );
 
     let candidateId;
