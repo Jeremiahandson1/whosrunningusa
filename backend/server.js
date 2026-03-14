@@ -45,11 +45,16 @@ app.use(cors({
   credentials: true
 }));
 
+// Health check — placed before rate limiter so Render health checks never get 429'd
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Rate limiting (disabled in test environment)
 if (process.env.NODE_ENV !== 'test') {
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
+    max: 500, // limit each IP to 500 requests per windowMs
     message: { error: 'Too many requests, please try again later.' }
   });
   app.use('/api/', limiter);
@@ -122,10 +127,7 @@ app.use('/api/criminal-records', require('./routes/criminalRecords'));
 app.use('/api/connections', require('./routes/connections'));
 app.use('/api/community-notes', require('./routes/communityNotes'));
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
+
 
 // Error handling
 app.use((err, req, res, next) => {
