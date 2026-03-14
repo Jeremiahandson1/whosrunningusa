@@ -185,13 +185,12 @@ class IngestionService {
     }
 
     // Try to match existing candidate by name and state
+    // Check directly on fec_state first (faster, catches same-person different-office dupes)
     const nameMatch = await db.query(
       `SELECT cp.id FROM candidate_profiles cp
-       LEFT JOIN candidacies c ON cp.id = c.candidate_id
-       LEFT JOIN races r ON c.race_id = r.id
-       LEFT JOIN offices o ON r.office_id = o.id
        WHERE LOWER(cp.display_name) = LOWER($1)
-         AND (o.state = $2 OR o.office_level = 'federal')
+         AND (cp.fec_state = $2 OR cp.fec_state IS NULL)
+       ORDER BY CASE WHEN cp.fec_state = $2 THEN 0 ELSE 1 END
        LIMIT 1`,
       [transformed.displayName, transformed.state]
     );
