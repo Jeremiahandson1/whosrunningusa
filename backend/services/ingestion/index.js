@@ -582,15 +582,25 @@ class IngestionService {
     }
 
     // Try to match by name and state
+    // First try exact match, then try last name + first initial match
+    // FEC format: "LASTNAME, FIRSTNAME M." — Open States format: "Firstname Lastname"
+    const lastName = (transformed.lastName || '').trim();
+    const firstName = (transformed.firstName || '').trim();
+
     const nameMatch = await db.query(
-      `SELECT cp.id FROM candidate_profiles cp
-       LEFT JOIN candidacies c ON cp.id = c.candidate_id
-       LEFT JOIN races r ON c.race_id = r.id
-       LEFT JOIN offices o ON r.office_id = o.id
-       WHERE LOWER(cp.display_name) = LOWER($1)
-         AND (o.state = $2 OR $2 IS NULL)
+      `SELECT cp.id, cp.display_name FROM candidate_profiles cp
+       WHERE cp.fec_state = $1
+         AND (
+           LOWER(cp.display_name) = LOWER($2)
+           OR (
+             $3 != '' AND $4 != ''
+             AND LOWER(cp.display_name) LIKE LOWER($3) || ',%'
+             AND LOWER(cp.display_name) LIKE '%' || LOWER(LEFT($4, 1)) || '%'
+           )
+         )
+       ORDER BY CASE WHEN LOWER(cp.display_name) = LOWER($2) THEN 0 ELSE 1 END
        LIMIT 1`,
-      [transformed.displayName, transformed.state]
+      [transformed.state, transformed.displayName, lastName, firstName]
     );
 
     let candidateId;
