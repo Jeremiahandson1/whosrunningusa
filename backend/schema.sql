@@ -86,6 +86,9 @@ CREATE TABLE candidate_profiles (
     education TEXT,
     professional_background TEXT,
     
+    -- Photo
+    profile_photo_url TEXT,
+
     -- Social links
     twitter_handle VARCHAR(100),
     facebook_handle VARCHAR(100),

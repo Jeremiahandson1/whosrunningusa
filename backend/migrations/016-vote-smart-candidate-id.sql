@@ -1,4 +1,8 @@
--- Migration 016: Add cross-reference IDs to candidate_profiles
+-- Migration 016: Add cross-reference IDs and photo URL to candidate_profiles
+
+-- Profile photo URL
+ALTER TABLE candidate_profiles ADD COLUMN IF NOT EXISTS profile_photo_url TEXT;
+
 -- VoteSmart candidate ID for enrichment
 ALTER TABLE candidate_profiles ADD COLUMN IF NOT EXISTS vote_smart_candidate_id VARCHAR(50);
 CREATE INDEX IF NOT EXISTS idx_cp_vote_smart ON candidate_profiles(vote_smart_candidate_id);
