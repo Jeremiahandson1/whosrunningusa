@@ -72,7 +72,7 @@ function HomePage() {
               <Link to="/explore" className="btn btn-primary" style={{ padding: '0.875rem 1.75rem', fontSize: '1.0625rem' }}>
                 I'm a Voter <ArrowRight size={18} />
               </Link>
-              <Link to="/run" className="btn btn-secondary" style={{ padding: '0.875rem 1.75rem', fontSize: '1.0625rem', borderColor: 'white', color: 'white' }}>
+              <Link to="/run" className="btn" style={{ padding: '0.875rem 1.75rem', fontSize: '1.0625rem', border: '2px solid white', color: 'white', background: 'rgba(255,255,255,0.15)' }}>
                 I'm Running for Office
               </Link>
             </div>
