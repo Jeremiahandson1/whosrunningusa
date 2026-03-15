@@ -25,7 +25,7 @@ const path = require('path');
 const db = require('../db');
 
 const SCRIPTS_DIR = __dirname;
-const STEP_TIMEOUT = parseInt(process.env.SYNC_TIMEOUT_MS) || 600000; // 10 min default
+const STEP_TIMEOUT = parseInt(process.env.SYNC_TIMEOUT_MS) || 1200000; // 20 min default
 
 // Steps in execution order
 const ALL_STEPS = ['districts', 'fec', 'openstates', 'congress', 'bills', 'congress-legislators', 'wikidata', 'votesmart'];
