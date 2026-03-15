@@ -31,21 +31,25 @@ function CandidatePage() {
   const [transparency, setTransparency] = useState(null)
   const [finance, setFinance] = useState([])
   const [ratings, setRatings] = useState([])
+  const [background, setBackground] = useState({ education: [], experience: [], committees: [] })
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [qaSort, setQaSort] = useState('upvotes')
+  const [qaFilter, setQaFilter] = useState('all')
   const [relatedCandidates, setRelatedCandidates] = useState([])
 
   useEffect(() => {
     setLoading(true)
     Promise.all([
       api.get(`/candidates/${id}`).catch(() => null),
-      api.get(`/questions/candidate/${id}`).catch(() => ({ questions: [] })),
+      api.get(`/questions/candidate/${id}?sort=${qaSort}&status=${qaFilter}`).catch(() => ({ questions: [] })),
       api.get(`/town-halls/candidate/${id}`).catch(() => ({ townHalls: [] })),
       api.get(`/candidates/${id}/voting-record?limit=20`).catch(() => ({ votes: [], stats: {} })),
       api.get(`/candidates/${id}/sponsorships?limit=20`).catch(() => ({ sponsorships: [], counts: [] })),
       api.get(`/candidates/${id}/transparency`).catch(() => null),
       api.get(`/candidates/${id}/finance`).catch(() => ({ finance: [] })),
       api.get(`/candidates/${id}/ratings`).catch(() => ({ ratings: [] })),
-    ]).then(([cData, qData, thData, vrData, spData, trData, finData, ratData]) => {
+      api.get(`/candidates/${id}/background`).catch(() => ({ education: [], experience: [], committees: [] })),
+    ]).then(([cData, qData, thData, vrData, spData, trData, finData, ratData, bgData]) => {
       const c = cData?.candidate || cData
       setCandidate(c)
       setQuestions(qData?.questions || [])
@@ -55,6 +59,7 @@ function CandidatePage() {
       setTransparency(trData)
       setFinance(finData?.finance || [])
       setRatings(ratData?.ratings || [])
+      setBackground(bgData || { education: [], experience: [], committees: [] })
       if (c?.isFollowing) setFollowing(true)
       // Fetch related candidates from the same race
       if (c?.race_id) {
@@ -305,13 +310,14 @@ function CandidatePage() {
         {(() => {
           const tabList = [
             'positions',
+            ...(background.education.length > 0 || background.experience.length > 0 || background.committees.length > 0 ? ['background'] : []),
             ...(votingRecord.votes.length > 0 || votingRecord.stats.total_votes > 0 ? ['record'] : []),
             ...(sponsorships.sponsorships.length > 0 ? ['bills'] : []),
             'qa',
             'events',
             'endorsements',
           ]
-          const tabLabels = { qa: 'Q&A', record: 'Voting Record', bills: 'Bills & Sponsorships' }
+          const tabLabels = { qa: 'Q&A', record: 'Voting Record', bills: 'Bills & Sponsorships', background: 'Background' }
           const handleTabKeyDown = (e, tab) => {
             const idx = tabList.indexOf(tab)
             let newIdx
@@ -384,10 +390,111 @@ function CandidatePage() {
               </div>
             )}
 
+            {activeTab === 'background' && (
+              <div>
+                <h2 style={{ marginBottom: '1.5rem' }}>Background & Qualifications</h2>
+
+                {background.education.length > 0 && (
+                  <div style={{ marginBottom: '2rem' }}>
+                    <h3 style={{ fontSize: '1.125rem', marginBottom: '1rem', color: 'var(--navy-800)' }}>Education</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {background.education.map((edu, idx) => (
+                        <div key={idx} className="card" style={{ padding: '1.25rem', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                          <div style={{ width: 40, height: 40, borderRadius: '8px', background: 'var(--navy-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <Award size={20} style={{ color: 'var(--navy-600)' }} />
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 600, color: 'var(--navy-800)' }}>{edu.degree || 'Degree'}</div>
+                            <div style={{ color: 'var(--slate-600)', fontSize: '0.9375rem' }}>{edu.institution || edu.school}</div>
+                            {edu.field_of_study && <div style={{ color: 'var(--slate-500)', fontSize: '0.875rem' }}>{edu.field_of_study}</div>}
+                            {edu.year && <div style={{ color: 'var(--slate-500)', fontSize: '0.8125rem' }}>{edu.year}</div>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {background.experience.length > 0 && (
+                  <div style={{ marginBottom: '2rem' }}>
+                    <h3 style={{ fontSize: '1.125rem', marginBottom: '1rem', color: 'var(--navy-800)' }}>Professional Experience</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {background.experience.map((exp, idx) => (
+                        <div key={idx} className="card" style={{ padding: '1.25rem' }}>
+                          <div style={{ fontWeight: 600, color: 'var(--navy-800)' }}>{exp.title || exp.position}</div>
+                          <div style={{ color: 'var(--slate-600)', fontSize: '0.9375rem' }}>{exp.organization}</div>
+                          {(exp.start_year || exp.end_year) && (
+                            <div style={{ color: 'var(--slate-500)', fontSize: '0.8125rem', marginTop: '0.25rem' }}>
+                              {exp.start_year}{exp.end_year ? ` - ${exp.end_year}` : ' - Present'}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {background.committees.length > 0 && (
+                  <div style={{ marginBottom: '2rem' }}>
+                    <h3 style={{ fontSize: '1.125rem', marginBottom: '1rem', color: 'var(--navy-800)' }}>Committee Memberships</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {background.committees.map((cm, idx) => (
+                        <div key={idx} className="card" style={{ padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <div style={{ fontWeight: 600, color: 'var(--navy-800)' }}>{cm.committee_name}</div>
+                            {cm.role && <div style={{ color: 'var(--slate-500)', fontSize: '0.875rem' }}>{cm.role}</div>}
+                          </div>
+                          {cm.chamber && (
+                            <span style={{ fontSize: '0.75rem', padding: '0.125rem 0.5rem', background: 'var(--slate-100)', borderRadius: '4px', color: 'var(--slate-600)' }}>
+                              {cm.chamber}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {background.education.length === 0 && background.experience.length === 0 && background.committees.length === 0 && (
+                  <div className="empty-state"><p>No background information available yet.</p></div>
+                )}
+              </div>
+            )}
+
             {activeTab === 'qa' && (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                   <h2 style={{ margin: 0 }}>Questions & Answers</h2>
+                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    <select
+                      value={qaFilter}
+                      onChange={(e) => {
+                        setQaFilter(e.target.value)
+                        api.get(`/questions/candidate/${id}?sort=${qaSort}&status=${e.target.value}`)
+                          .then(data => setQuestions(data.questions || []))
+                          .catch(() => {})
+                      }}
+                      style={{ padding: '0.375rem 0.75rem', fontSize: '0.875rem', borderRadius: '6px', border: '1px solid var(--slate-300)' }}
+                    >
+                      <option value="all">All Questions</option>
+                      <option value="answered">Answered</option>
+                      <option value="pending">Unanswered</option>
+                    </select>
+                    <select
+                      value={qaSort}
+                      onChange={(e) => {
+                        setQaSort(e.target.value)
+                        api.get(`/questions/candidate/${id}?sort=${e.target.value}&status=${qaFilter}`)
+                          .then(data => setQuestions(data.questions || []))
+                          .catch(() => {})
+                      }}
+                      style={{ padding: '0.375rem 0.75rem', fontSize: '0.875rem', borderRadius: '6px', border: '1px solid var(--slate-300)' }}
+                    >
+                      <option value="upvotes">Most Upvoted</option>
+                      <option value="newest">Newest First</option>
+                      <option value="oldest">Oldest First</option>
+                    </select>
+                  </div>
                 </div>
 
                 {user && (
@@ -726,6 +833,9 @@ function CandidatePage() {
                 </button>
                 <Link to={candidate?.race_id ? `/compare?race=${candidate.race_id}` : '/compare'} className="btn btn-secondary" style={{ width: '100%' }}>
                   <FileText size={18} /> Compare Candidates
+                </Link>
+                <Link to="/voting-guide" className="btn btn-secondary" style={{ width: '100%' }}>
+                  <CheckCircle size={18} /> Add to Voting Guide
                 </Link>
               </div>
             </div>

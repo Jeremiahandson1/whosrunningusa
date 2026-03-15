@@ -288,4 +288,59 @@ router.get('/candidates/by-position', async (req, res, next) => {
   }
 });
 
+// Match candidates by issue positions
+router.post('/candidates/match', async (req, res, next) => {
+  try {
+    const { positions, state, limit = 20 } = req.body;
+
+    if (!positions || !Array.isArray(positions) || positions.length === 0) {
+      return res.status(400).json({ error: 'positions array is required' });
+    }
+
+    // positions = [{ issueId, stance }, ...]
+    // Find candidates who match the most positions
+    const issueIds = positions.map(p => p.issueId);
+    const stances = positions.map(p => p.stance);
+    const params = [issueIds, stances];
+    let paramIndex = 3;
+
+    let query = `
+      WITH match_scores AS (
+        SELECT
+          cp.candidate_id,
+          COUNT(*) FILTER (WHERE cp.stance = up.stance) AS matches,
+          COUNT(*) AS total_compared
+        FROM candidate_positions cp
+        JOIN (
+          SELECT * FROM unnest($1::uuid[], $2::text[]) AS t(issue_id, stance)
+        ) up ON cp.issue_id = up.issue_id
+        GROUP BY cp.candidate_id
+      )
+      SELECT
+        ms.matches,
+        ms.total_compared,
+        ROUND(ms.matches::numeric / ms.total_compared * 100) AS match_pct,
+        c.id, c.display_name, c.party_affiliation, c.official_title,
+        c.qa_response_rate, c.candidate_verified, c.profile_photo_url
+      FROM match_scores ms
+      JOIN candidate_profiles c ON ms.candidate_id = c.id
+      WHERE c.is_active = TRUE
+    `;
+
+    if (state) {
+      query += ` AND c.fec_state = $${paramIndex}`;
+      params.push(state);
+      paramIndex++;
+    }
+
+    query += ` ORDER BY ms.matches DESC, ms.total_compared DESC LIMIT $${paramIndex}`;
+    params.push(parseInt(limit));
+
+    const result = await db.query(query, params);
+    res.json({ candidates: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

@@ -39,6 +39,8 @@ const AdminCriminalRecords = lazy(() => import('./pages/admin/CriminalRecordsPag
 const EndorsementsPage = lazy(() => import('./pages/EndorsementsPage'))
 const ConnectionsPage = lazy(() => import('./pages/ConnectionsPage'))
 const PostFeedPage = lazy(() => import('./pages/PostFeedPage'))
+const FindMyBallotPage = lazy(() => import('./pages/FindMyBallotPage'))
+const IssueMatchPage = lazy(() => import('./pages/IssueMatchPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
 function PageLoader() {
@@ -94,6 +96,8 @@ function App() {
             <Route path="/run" element={<RunForOfficePage />} />
             <Route path="/compare" element={<ComparePage />} />
             <Route path="/voting-guide" element={<VotingGuidePage />} />
+            <Route path="/find-my-ballot" element={<FindMyBallotPage />} />
+            <Route path="/issue-match" element={<IssueMatchPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/mission" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />

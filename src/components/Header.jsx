@@ -174,6 +174,7 @@ function Header() {
   }
 
   const navLinks = [
+    { path: '/find-my-ballot', label: 'Find My Ballot' },
     { path: '/explore', label: 'Find Candidates' },
     { path: '/races', label: 'Races' },
     { path: '/endorsements', label: 'Endorsements' },

@@ -882,4 +882,38 @@ router.get('/:id/transparency', async (req, res, next) => {
   }
 });
 
+// Get candidate's background (education, experience, committees)
+router.get('/:id/background', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const [educationResult, experienceResult, committeesResult] = await Promise.all([
+      db.query(
+        `SELECT * FROM candidate_education WHERE candidate_id = $1 ORDER BY year DESC NULLS LAST`,
+        [id]
+      ),
+      db.query(
+        `SELECT * FROM candidate_professional_experience WHERE candidate_id = $1 ORDER BY start_year DESC NULLS LAST`,
+        [id]
+      ),
+      db.query(
+        `SELECT cm.*, c.name as committee_name, c.chamber, c.parent_committee_id
+         FROM committee_memberships cm
+         JOIN committees c ON cm.committee_id = c.id
+         WHERE cm.candidate_id = $1
+         ORDER BY c.name`,
+        [id]
+      ).catch(() => ({ rows: [] })),
+    ]);
+
+    res.json({
+      education: educationResult.rows,
+      experience: experienceResult.rows,
+      committees: committeesResult.rows,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

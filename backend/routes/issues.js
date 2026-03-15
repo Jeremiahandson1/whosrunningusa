@@ -2,6 +2,22 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
+// Get all issues (flat list)
+router.get('/', async (req, res, next) => {
+  try {
+    const result = await db.query(
+      `SELECT i.id, i.name, i.description, i.category_id, ic.name as category_name
+       FROM issues i
+       JOIN issue_categories ic ON i.category_id = ic.id
+       WHERE i.is_active = TRUE
+       ORDER BY ic.sort_order, i.sort_order`
+    );
+    res.json({ issues: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get all issue categories with their issues
 router.get('/categories', async (req, res, next) => {
   try {

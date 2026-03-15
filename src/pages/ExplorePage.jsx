@@ -53,6 +53,7 @@ function ExplorePage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [mapVisible, setMapVisible] = useState(true)
   const PAGE_SIZE = 40
+  const [compareList, setCompareList] = useState([])
 
   // Restore state from URL params
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
@@ -185,6 +186,18 @@ function ExplorePage() {
     setActiveIssues([])
     setCurrentOffset(0)
     setSearchParams({}, { replace: true })
+  }
+
+  const toggleCompare = (e, candidate) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setCompareList(prev => {
+      if (prev.find(c => c.id === candidate.id)) {
+        return prev.filter(c => c.id !== candidate.id)
+      }
+      if (prev.length >= 4) return prev
+      return [...prev, candidate]
+    })
   }
 
   const hasActiveFilters = searchQuery || levelFilter !== 'all' || selectedState || activeIssues.length > 0
@@ -522,9 +535,55 @@ function ExplorePage() {
                   <div className="stat-label">Questions</div>
                 </div>
               </div>
+              <div className="candidate-card-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: viewMode === 'list' ? '0 0 0 1.5rem' : '0.75rem 1.25rem', borderTop: viewMode === 'list' ? 'none' : '1px solid var(--slate-100)' }}>
+                <label
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8125rem', color: 'var(--slate-600)', cursor: 'pointer' }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!compareList.find(c => c.id === candidate.id)}
+                    onChange={(e) => toggleCompare(e, candidate)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  Compare
+                </label>
+                <Link
+                  to="/voting-guide"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ fontSize: '0.8125rem', color: 'var(--navy-600)', fontWeight: 500, textDecoration: 'none' }}
+                >
+                  + Add to Guide
+                </Link>
+              </div>
             </Link>
           ))}
         </div>
+
+        {/* Floating Compare Bar */}
+        {compareList.length >= 2 && (
+          <div style={{
+            position: 'fixed', bottom: '1.5rem', left: '50%', transform: 'translateX(-50%)',
+            background: 'var(--navy-800)', color: 'white', padding: '0.75rem 1.5rem',
+            borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '1rem',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)', zIndex: 100,
+          }}>
+            <span style={{ fontSize: '0.875rem' }}>{compareList.length} candidates selected</span>
+            <Link
+              to={`/compare?ids=${compareList.map(c => c.id).join(',')}`}
+              className="btn btn-primary"
+              style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', background: 'white', color: 'var(--navy-800)' }}
+            >
+              Compare Now
+            </Link>
+            <button
+              onClick={() => setCompareList([])}
+              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', padding: '0.25rem' }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
 
         {!loading && hasMore && (
           <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
