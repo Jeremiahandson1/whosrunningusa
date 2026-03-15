@@ -94,7 +94,7 @@ function HomePage() {
               <DollarSign size={28} style={{ color: 'var(--burgundy-500)', marginBottom: '0.75rem' }} />
               <h4 style={{ marginBottom: '0.375rem', fontSize: '1rem' }}>$0 to get started</h4>
               <p style={{ color: 'var(--slate-600)', margin: 0, fontSize: '0.9375rem' }}>
-                No ads to buy. No fundraising minimum. Create a full candidate profile for free.
+                No fundraising minimum. No pay-to-play. Create a full candidate profile for free.
               </p>
             </div>
             <div className="card" style={{ padding: '1.5rem', textAlign: 'center', border: 'none', background: 'white' }}>
@@ -328,6 +328,12 @@ function HomePage() {
               <h4 style={{ marginBottom: '0.5rem', fontSize: '1rem' }}>Radical Transparency</h4>
               <p style={{ color: 'var(--slate-600)', margin: 0, fontSize: '0.9375rem' }}>
                 Response rates, engagement metrics, voting records — all visible. Silence is a data point.
+              </p>
+            </div>
+            <div className="card" style={{ padding: '1.5rem', background: 'var(--slate-50)', border: 'none' }}>
+              <h4 style={{ marginBottom: '0.5rem', fontSize: '1rem' }}>Zero Political Advertising</h4>
+              <p style={{ color: 'var(--slate-600)', margin: 0, fontSize: '0.9375rem' }}>
+                We run ads to keep the lights on, but never political ads. No candidate can buy visibility here. Ever.
               </p>
             </div>
           </div>
