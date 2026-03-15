@@ -7,6 +7,15 @@
  * Get API key at: https://api.data.gov/signup/
  */
 
+function toTitleCase(name) {
+  if (!name) return name;
+  return name
+    .toLowerCase()
+    .replace(/\b\w/g, c => c.toUpperCase())
+    .replace(/\bMc([a-z])/g, (_, c) => 'Mc' + c.toUpperCase())
+    .replace(/\bO'([a-z])/g, (_, c) => "O'" + c.toUpperCase());
+}
+
 const BASE_URL = 'https://api.open.fec.gov/v1';
 
 class FECClient {
@@ -268,9 +277,9 @@ class FECClient {
 
     return {
       // For matching/creating candidate profiles
-      displayName: fecCandidate.name,
-      firstName: fecCandidate.name?.split(',')[1]?.trim()?.split(' ')[0],
-      lastName: fecCandidate.name?.split(',')[0]?.trim(),
+      displayName: toTitleCase(fecCandidate.name),
+      firstName: toTitleCase(fecCandidate.name?.split(',')[1]?.trim()?.split(' ')[0]),
+      lastName: toTitleCase(fecCandidate.name?.split(',')[0]?.trim()),
       partyAffiliation: partyMap[fecCandidate.party] || fecCandidate.party,
       
       // Office info

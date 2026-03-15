@@ -8,6 +8,7 @@ import api from '../utils/api'
 import USMap from '../components/USMap'
 import { SkeletonCard } from '../components/Skeleton'
 import useDebounce from '../hooks/useDebounce'
+import { formatDisplayName } from '../utils/formatName'
 
 const levels = [
   { value: 'all', label: 'All Levels' },
@@ -500,7 +501,7 @@ function ExplorePage() {
                   {(candidate.last_name || '').charAt(0)}
                 </div>
                 <div className="candidate-info">
-                  <h4 className="candidate-name">{candidate.display_name || `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim() || 'Candidate'}</h4>
+                  <h4 className="candidate-name">{formatDisplayName(candidate.display_name) || `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim() || 'Candidate'}</h4>
                   <div className="candidate-race">{candidate.race_name || candidate.official_title || ''}</div>
                   <div className="candidate-badges">
                     {candidate.candidate_verified && (

@@ -14,6 +14,27 @@ const VoteSmartClient = require('./voteSmartClient');
 const CongressLegislatorsClient = require('./congressLegislatorsClient');
 const WikidataClient = require('./wikidataClient');
 
+/**
+ * Convert a name to title case, handling special patterns:
+ * "BALDWIN, TAMMY" → "Baldwin, Tammy"
+ * "tammy baldwin" → "Tammy Baldwin"
+ * "MCDONALD, JOHN" → "McDonald, John"
+ * "O'BRIEN, PAT" → "O'Brien, Pat"
+ */
+function toTitleCase(name) {
+  if (!name) return name;
+  return name
+    .toLowerCase()
+    .replace(/\b\w/g, c => c.toUpperCase())
+    // Fix Mc names: "Mcdonald" → "McDonald"
+    .replace(/\bMc([a-z])/g, (_, c) => 'Mc' + c.toUpperCase())
+    // Fix O' names: "O'brien" → "O'Brien"
+    .replace(/\bO'([a-z])/g, (_, c) => "O'" + c.toUpperCase())
+    // Fix De/La/Le when they're part of surname (2+ word surnames)
+    // but keep them lowercase if followed by another capitalized word
+    .replace(/\b(De|La|Le|Van|Von|Del|Di|Da) ([A-Z])/g, (m, prefix, next) => prefix.toLowerCase() + ' ' + next);
+}
+
 class IngestionService {
   constructor() {
     this.fec = new FECClient();

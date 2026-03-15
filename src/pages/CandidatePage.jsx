@@ -12,6 +12,7 @@ import ConnectButton from '../components/ConnectButton'
 import CommunityNotes from '../components/CommunityNotes'
 import Breadcrumbs from '../components/Breadcrumbs'
 import { SkeletonProfile } from '../components/Skeleton'
+import { formatDisplayName } from '../utils/formatName'
 
 function CandidatePage() {
   const { id } = useParams()
@@ -166,7 +167,7 @@ function CandidatePage() {
   if (loading) return <SkeletonProfile />
   if (!candidate) return <div className="container" style={{ padding: '4rem 0', textAlign: 'center' }}><div className="empty-state"><h3>Candidate not found</h3><Link to="/explore" className="btn btn-primary" style={{ marginTop: '1rem' }}>Browse Candidates</Link></div></div>
 
-  const name = candidate.display_name || `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim() || 'Candidate'
+  const name = formatDisplayName(candidate.display_name) || `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim() || 'Candidate'
   const initials = name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
 
   return (
