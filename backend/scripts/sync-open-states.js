@@ -86,11 +86,17 @@ async function main() {
     console.log(`Total errors:    ${totalStats.errors}`);
     console.log('='.repeat(60));
 
-    if (totalStats.errors > 0) {
-      console.log('\nSync completed with errors. Check logs for details.');
+    // Transient errors (502, rate limits) are expected when syncing 52 states.
+    // Only fail if majority of fetches errored — partial success is fine.
+    const errorRate = totalStats.fetched > 0 ? totalStats.errors / (totalStats.fetched + totalStats.errors) : 0;
+    if (errorRate > 0.5) {
+      console.log('\nSync completed with too many errors (>50%). Check logs for details.');
       process.exit(1);
     }
 
+    if (totalStats.errors > 0) {
+      console.log(`\nSync completed with ${totalStats.errors} transient error(s) — within tolerance.`);
+    }
     process.exit(0);
 
   } catch (err) {

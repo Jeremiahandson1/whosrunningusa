@@ -28,7 +28,9 @@ const SCRIPTS_DIR = __dirname;
 const STEP_TIMEOUT = parseInt(process.env.SYNC_TIMEOUT_MS) || 1800000; // 30 min default
 
 // Steps in execution order
-const ALL_STEPS = ['districts', 'fec', 'openstates', 'congress', 'bills', 'congress-legislators', 'wikidata', 'votesmart'];
+// Order matters: bills before openstates since both share Open States API rate limit (250/day).
+// Bills (--recent) uses few calls; openstates uses 170+ and has resume logic.
+const ALL_STEPS = ['districts', 'fec', 'bills', 'congress', 'openstates', 'congress-legislators', 'wikidata', 'votesmart'];
 
 function getStepsToRun() {
   const envSteps = process.env.SYNC_STEPS;
@@ -233,10 +235,11 @@ async function main() {
 
   await db.pool.end();
 
-  // Only exit non-zero if critical steps failed (not enrichment-only steps)
-  const ENRICHMENT_STEPS = new Set(['votesmart', 'wikidata']);
+  // Only exit non-zero if critical steps failed.
+  // Non-critical: enrichment steps + rate-limited steps that resume on next run.
+  const NON_CRITICAL_STEPS = new Set(['votesmart', 'wikidata', 'openstates', 'bills']);
   const criticalFailures = Object.entries(stepResults)
-    .filter(([name, r]) => r.status === 'failed' && !ENRICHMENT_STEPS.has(name))
+    .filter(([name, r]) => r.status === 'failed' && !NON_CRITICAL_STEPS.has(name))
     .length;
   process.exit(criticalFailures > 0 ? 1 : 0);
 }
