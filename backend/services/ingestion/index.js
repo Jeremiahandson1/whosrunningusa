@@ -476,6 +476,8 @@ class IngestionService {
           console.log(`Progress: ${progress.state} (${progress.current}/${progress.total}) - ${progress.percent}%`);
         }, 200, lastSyncedState);
 
+        // Process upserts in concurrent batches for speed
+        const BATCH_SIZE = 10;
         for (const stateResult of allResults) {
           stats.fetched += stateResult.count;
 
@@ -485,13 +487,19 @@ class IngestionService {
             continue;
           }
 
-          for (const person of stateResult.legislators) {
-            try {
-              const result = await this.upsertOpenStatesPerson(person, dataSourceId);
-              stats[result]++;
-            } catch (err) {
-              stats.errors++;
-              stats.errorLog += `Error processing ${person.id}: ${err.message}\n`;
+          // Process legislators in batches of BATCH_SIZE concurrently
+          for (let i = 0; i < stateResult.legislators.length; i += BATCH_SIZE) {
+            const batch = stateResult.legislators.slice(i, i + BATCH_SIZE);
+            const results = await Promise.allSettled(
+              batch.map(person => this.upsertOpenStatesPerson(person, dataSourceId))
+            );
+            for (let j = 0; j < results.length; j++) {
+              if (results[j].status === 'fulfilled') {
+                stats[results[j].value]++;
+              } else {
+                stats.errors++;
+                stats.errorLog += `Error processing ${batch[j].id}: ${results[j].reason?.message}\n`;
+              }
             }
           }
         }
