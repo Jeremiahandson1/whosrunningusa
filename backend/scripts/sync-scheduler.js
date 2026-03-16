@@ -187,9 +187,17 @@ async function main() {
     try {
       const result = await runStep(step);
       const elapsed = Date.now() - stepStart;
-      stepResults[step] = { status: 'completed', duration_ms: elapsed };
-      completed++;
-      console.log(`  Completed in ${(elapsed / 1000).toFixed(1)}s\n`);
+      // Detect "skipping" output — treat as skip, not completion
+      const isSkipped = result.stdout && /skipping|not set/i.test(result.stdout);
+      if (isSkipped) {
+        stepResults[step] = { status: 'skipped', duration_ms: elapsed };
+        skipped++;
+        console.log(`  Skipped in ${(elapsed / 1000).toFixed(1)}s\n`);
+      } else {
+        stepResults[step] = { status: 'completed', duration_ms: elapsed };
+        completed++;
+        console.log(`  Completed in ${(elapsed / 1000).toFixed(1)}s\n`);
+      }
     } catch (err) {
       const elapsed = Date.now() - stepStart;
       stepResults[step] = { status: 'failed', duration_ms: elapsed, error: err.message };
@@ -224,7 +232,13 @@ async function main() {
   console.log(`  Log ID:    ${logId}`);
 
   await db.pool.end();
-  process.exit(failed > 0 ? 1 : 0);
+
+  // Only exit non-zero if critical steps failed (not enrichment-only steps)
+  const ENRICHMENT_STEPS = new Set(['votesmart', 'wikidata']);
+  const criticalFailures = Object.entries(stepResults)
+    .filter(([name, r]) => r.status === 'failed' && !ENRICHMENT_STEPS.has(name))
+    .length;
+  process.exit(criticalFailures > 0 ? 1 : 0);
 }
 
 main().catch(async (err) => {
