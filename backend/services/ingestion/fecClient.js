@@ -16,6 +16,32 @@ function toTitleCase(name) {
     .replace(/\bO'([a-z])/g, (_, c) => "O'" + c.toUpperCase());
 }
 
+/**
+ * Build a clean display name from FEC "LASTNAME, FIRSTNAME MIDDLE 'NICKNAME'" format.
+ * Uses nickname if present, otherwise first name. Result: "Firstname Lastname"
+ */
+function buildDisplayName(fecName) {
+  if (!fecName) return fecName;
+  // FEC format: "CRUZ, RAFAEL EDWARD 'TED'" or "WARREN, ELIZABETH"
+  const commaIdx = fecName.indexOf(',');
+  if (commaIdx === -1) return toTitleCase(fecName);
+
+  const lastName = toTitleCase(fecName.slice(0, commaIdx).trim());
+  const rest = fecName.slice(commaIdx + 1).trim();
+
+  // Extract nickname if present (in single quotes, double quotes, or parentheses)
+  const nicknameMatch = rest.match(/['"\u2018\u2019\u201C\u201D]([^'"\u2018\u2019\u201C\u201D]+)['"\u2018\u2019\u201C\u201D]/) ||
+                         rest.match(/\(([^)]+)\)/);
+  const nickname = nicknameMatch ? toTitleCase(nicknameMatch[1].trim()) : null;
+
+  // First name is the first word of the rest (before middle names/nicknames)
+  const firstName = toTitleCase(rest.split(/\s+/)[0]);
+
+  // Use nickname as display first name if available, otherwise first name
+  const displayFirst = nickname || firstName;
+  return `${displayFirst} ${lastName}`;
+}
+
 const BASE_URL = 'https://api.open.fec.gov/v1';
 
 class FECClient {
@@ -277,7 +303,7 @@ class FECClient {
 
     return {
       // For matching/creating candidate profiles
-      displayName: toTitleCase(fecCandidate.name),
+      displayName: buildDisplayName(fecCandidate.name),
       firstName: toTitleCase(fecCandidate.name?.split(',')[1]?.trim()?.split(' ')[0]),
       lastName: toTitleCase(fecCandidate.name?.split(',')[0]?.trim()),
       partyAffiliation: partyMap[fecCandidate.party] || fecCandidate.party,
