@@ -17,7 +17,5 @@ DELETE FROM transparency_scores;
 -- Remove fake promises (all were seeded from populate script)
 DELETE FROM promises;
 
--- Note: candidate_positions are NOT deleted here because the issues were just seeded
--- and no candidates have real positions yet. If populate created positions, they would
--- have source markers, but the log showed "All financed candidates already have positions"
--- meaning no fake positions were created this run.
+-- Remove fake candidate positions (all were seeded from populate script)
+DELETE FROM candidate_positions;
