@@ -684,19 +684,20 @@ router.get('/:id/voting-record', async (req, res, next) => {
     const { limit = 50, offset = 0 } = req.query;
     
     const result = await db.query(
-      `SELECT 
-        vr.*,
+      `SELECT
+        vr.id, vr.candidate_id, vr.vote_event_id, vr.bill_id, vr.vote,
+        vr.source, vr.source_url, vr.external_voter_id, vr.created_at,
+        ve.vote_date, ve.motion_text, ve.chamber as vote_chamber, ve.result as vote_result,
         b.title as bill_title,
         b.bill_number,
         b.status as bill_status,
         b.state as bill_state,
-        b.chamber as bill_chamber,
-        p.promise_text as related_promise
+        b.chamber as bill_chamber
        FROM voting_records vr
+       JOIN vote_events ve ON vr.vote_event_id = ve.id
        LEFT JOIN bills b ON vr.bill_id IS NOT NULL AND vr.bill_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' AND vr.bill_id::uuid = b.id
-       LEFT JOIN promises p ON vr.related_promise_id = p.id
        WHERE vr.candidate_id = $1
-       ORDER BY vr.vote_date DESC NULLS LAST
+       ORDER BY ve.vote_date DESC NULLS LAST
        LIMIT $2 OFFSET $3`,
       [id, parseInt(limit), parseInt(offset)]
     );
@@ -827,13 +828,14 @@ router.get('/:id/transparency', async (req, res, next) => {
     
     // Recent votes
     const recentVotes = await db.query(
-      `SELECT 
-        vr.vote, vr.vote_date, vr.bill_name,
+      `SELECT
+        vr.vote, ve.vote_date, ve.motion_text,
         b.bill_number, b.title, b.status
        FROM voting_records vr
+       JOIN vote_events ve ON vr.vote_event_id = ve.id
        LEFT JOIN bills b ON vr.bill_id IS NOT NULL AND vr.bill_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' AND vr.bill_id::uuid = b.id
        WHERE vr.candidate_id = $1
-       ORDER BY vr.vote_date DESC NULLS LAST
+       ORDER BY ve.vote_date DESC NULLS LAST
        LIMIT 10`,
       [id]
     );
@@ -899,11 +901,14 @@ router.get('/:id/background', async (req, res, next) => {
       db.query(
         `SELECT cm.*, c.name as committee_name, c.chamber, c.parent_committee_id
          FROM committee_memberships cm
-         JOIN committees c ON cm.committee_id = c.id
+         JOIN legislative_committees c ON cm.committee_id = c.id
          WHERE cm.candidate_id = $1
          ORDER BY c.name`,
         [id]
-      ).catch(() => ({ rows: [] })),
+      ).catch((err) => {
+        console.error('Error fetching committee memberships:', err.message);
+        return { rows: [] };
+      }),
     ]);
 
     res.json({
