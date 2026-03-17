@@ -61,6 +61,7 @@ async function upsertMember(member) {
         party_affiliation = $3,
         official_title = $4,
         campaign_website = COALESCE($5, campaign_website),
+        congress_gov_id = COALESCE($6, congress_gov_id),
         verification_last_checked = NOW(),
         updated_at = NOW()
       WHERE id = $1
@@ -69,7 +70,8 @@ async function upsertMember(member) {
       transformed.name,
       transformed.party,
       transformed.chamber === 'lower' ? 'U.S. Representative' : 'U.S. Senator',
-      transformed.officialUrl
+      transformed.officialUrl,
+      transformed.bioguideId
     ]);
     return { id: existing.rows[0].id, action: 'updated' };
   }
@@ -104,6 +106,7 @@ async function upsertMember(member) {
         campaign_website = COALESCE($4, campaign_website),
         verification_source = 'congress_gov',
         verification_external_id = $5,
+        congress_gov_id = COALESCE($5, congress_gov_id),
         verification_last_checked = NOW(),
         candidate_verified = TRUE,
         candidate_verified_at = COALESCE(candidate_verified_at, NOW()),
@@ -135,6 +138,7 @@ async function upsertMember(member) {
       UPDATE candidate_profiles SET
         verification_source = 'congress_gov',
         verification_external_id = $2,
+        congress_gov_id = COALESCE($2, congress_gov_id),
         verification_last_checked = NOW(),
         candidate_verified = TRUE,
         updated_at = NOW()
@@ -149,9 +153,10 @@ async function upsertMember(member) {
     INSERT INTO candidate_profiles (
       display_name, party_affiliation, official_title,
       campaign_website, verification_source, verification_external_id,
+      congress_gov_id,
       verification_last_checked, candidate_verified, candidate_verified_at,
       is_shadow_profile, is_active
-    ) VALUES ($1, $2, $3, $4, 'congress_gov', $5, NOW(), TRUE, NOW(), TRUE, TRUE)
+    ) VALUES ($1, $2, $3, $4, 'congress_gov', $5, $5, NOW(), TRUE, NOW(), TRUE, TRUE)
     RETURNING id
   `, [
     transformed.name,

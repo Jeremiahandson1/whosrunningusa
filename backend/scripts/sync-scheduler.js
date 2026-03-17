@@ -8,7 +8,8 @@
  *
  * Environment variables:
  *   SYNC_STEPS       — Comma-separated steps to run (default: all)
- *                       Options: districts, fec, openstates, congress, bills
+ *                       Options: districts, fec, finance, openstates, congress, bills,
+ *                                congress-legislators, wikidata, votesmart, populate
  *   SYNC_STATE       — Limit to a single state (e.g. "CA")
  *   SYNC_FEC_CYCLE   — FEC election cycle year (default: 2026)
  *   SYNC_TIMEOUT_MS  — Per-step timeout in ms (default: 600000 = 10 min)
@@ -30,7 +31,7 @@ const STEP_TIMEOUT = parseInt(process.env.SYNC_TIMEOUT_MS) || 1800000; // 30 min
 // Steps in execution order
 // Order matters: bills before openstates since both share Open States API rate limit (250/day).
 // Bills (--recent) uses few calls; openstates uses 170+ and has resume logic.
-const ALL_STEPS = ['districts', 'fec', 'bills', 'congress', 'openstates', 'congress-legislators', 'wikidata', 'votesmart'];
+const ALL_STEPS = ['districts', 'fec', 'finance', 'bills', 'congress', 'openstates', 'congress-legislators', 'wikidata', 'votesmart', 'populate'];
 
 function getStepsToRun() {
   const envSteps = process.env.SYNC_STEPS;
@@ -61,6 +62,10 @@ function buildCommand(step) {
       return ['sync-wikidata.js'];
     case 'votesmart':
       return ['sync-votesmart.js', ...(state ? [`--state=${state}`] : [])];
+    case 'finance':
+      return ['sync-finance-incumbents.js', ...(state ? [`--state=${state}`] : [])];
+    case 'populate':
+      return ['populate-empty-tables.js'];
     default:
       return null;
   }
@@ -237,7 +242,7 @@ async function main() {
 
   // Only exit non-zero if critical steps failed.
   // Non-critical: enrichment steps + rate-limited steps that resume on next run.
-  const NON_CRITICAL_STEPS = new Set(['votesmart', 'wikidata', 'openstates', 'bills']);
+  const NON_CRITICAL_STEPS = new Set(['votesmart', 'wikidata', 'openstates', 'bills', 'finance', 'populate']);
   const criticalFailures = Object.entries(stepResults)
     .filter(([name, r]) => r.status === 'failed' && !NON_CRITICAL_STEPS.has(name))
     .length;

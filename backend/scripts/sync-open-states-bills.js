@@ -209,14 +209,14 @@ async function findCandidateByName(db, name, state) {
 /**
  * Insert individual voting record
  */
-async function insertVotingRecord(db, candidateId, voteEventId, billId, vote, voterId, voteDate, billName) {
+async function insertVotingRecord(db, candidateId, voteEventId, billId, vote, voterId) {
   try {
     await db.query(`
       INSERT INTO voting_records (
-        candidate_id, external_vote_id, bill_id, bill_name, vote, vote_date, source
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-      ON CONFLICT DO NOTHING
-    `, [candidateId, voteEventId, billId, billName, vote, voteDate, 'openstates']);
+        candidate_id, vote_event_id, bill_id, vote, source, external_voter_id
+      ) VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (candidate_id, vote_event_id) DO NOTHING
+    `, [candidateId, voteEventId, billId, vote, 'openstates', voterId]);
     return true;
   } catch (err) {
     // Ignore duplicate errors
@@ -310,14 +310,12 @@ async function processBill(db, bill, state, stats) {
 
       if (candidateId) {
         const success = await insertVotingRecord(
-          db, 
-          candidateId, 
-          vote.externalId,  // Open States vote ID
-          billId, 
+          db,
+          candidateId,
+          voteEventId,  // UUID from vote_events table
+          billId,
           individualVote.vote,
-          individualVote.voterId,
-          vote.voteDate,
-          billData.title?.substring(0, 500)
+          individualVote.voterId
         );
         if (success) {
           stats.votingRecordsCreated++;

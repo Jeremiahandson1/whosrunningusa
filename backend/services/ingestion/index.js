@@ -961,10 +961,15 @@ class IngestionService {
       console.log('Starting Wikidata enrichment...');
 
       // Get candidates with bioguide IDs that haven't been enriched yet
+      // Match on congress_gov_id OR verification_external_id (congress_gov source)
       const candidates = await db.query(`
-        SELECT cp.id, cp.display_name, cp.congress_gov_id
+        SELECT cp.id, cp.display_name,
+          COALESCE(cp.congress_gov_id,
+            CASE WHEN cp.verification_source = 'congress_gov' THEN cp.verification_external_id END
+          ) AS congress_gov_id
         FROM candidate_profiles cp
-        WHERE cp.congress_gov_id IS NOT NULL
+        WHERE (cp.congress_gov_id IS NOT NULL
+          OR (cp.verification_source = 'congress_gov' AND cp.verification_external_id IS NOT NULL))
           AND cp.is_active = TRUE
           AND cp.id NOT IN (
             SELECT DISTINCT candidate_id FROM candidate_education WHERE source = 'wikidata'
