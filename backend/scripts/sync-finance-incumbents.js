@@ -32,6 +32,7 @@ async function main() {
     process.exit(1);
   }
 
+  // Resume support: skip candidates that already have finance data for this cycle
   const { rows } = await db.query(`
     SELECT cp.id, cp.fec_candidate_id, cp.display_name
     FROM candidate_profiles cp
@@ -39,10 +40,14 @@ async function main() {
       AND csl.data_source_id = '00000000-0000-0000-0000-000000000001'
     WHERE csl.external_data->>'incumbent_challenge' = 'I'
       AND csl.external_data->>'office' IN (${officeFilter})
+      AND cp.id NOT IN (
+        SELECT candidate_id FROM campaign_finance_summaries
+        WHERE election_cycle = $1 AND updated_at > NOW() - INTERVAL '7 days'
+      )
     ORDER BY cp.display_name
-  `);
+  `, [String(cycle)]);
 
-  console.log(`\nSyncing finance for ${rows.length} incumbents (cycle ${cycle})\n`);
+  console.log(`\nSyncing finance for ${rows.length} remaining incumbents (cycle ${cycle})\n`);
 
   for (let i = 0; i < rows.length; i++) {
     const c = rows[i];
