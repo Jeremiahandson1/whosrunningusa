@@ -182,8 +182,8 @@ function CandidatePage() {
         <div className="container">
           <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <div style={{ width: 120, height: 120, borderRadius: '50%', background: 'linear-gradient(135deg, var(--burgundy-500) 0%, var(--burgundy-700) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', fontWeight: 700, flexShrink: 0, overflow: 'hidden' }}>
-              {candidate.profile_pic_url
-                ? <img src={candidate.profile_pic_url} alt={`${name} profile photo`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              {(candidate.profile_pic_url || candidate.profile_photo_url)
+                ? <img src={candidate.profile_pic_url || candidate.profile_photo_url} alt={`${name} profile photo`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 : initials
               }
             </div>
@@ -311,14 +311,15 @@ function CandidatePage() {
         {(() => {
           const tabList = [
             'positions',
-            ...(background.education.length > 0 || background.experience.length > 0 || background.committees.length > 0 ? ['background'] : []),
-            ...(votingRecord.votes.length > 0 || votingRecord.stats.total_votes > 0 ? ['record'] : []),
-            ...(sponsorships.sponsorships.length > 0 ? ['bills'] : []),
+            'background',
+            'finance',
+            'record',
+            'bills',
             'qa',
             'events',
             'endorsements',
           ]
-          const tabLabels = { qa: 'Q&A', record: 'Voting Record', bills: 'Bills & Sponsorships', background: 'Background' }
+          const tabLabels = { qa: 'Q&A', record: 'Voting Record', bills: 'Bills & Sponsorships', background: 'Background', finance: 'Follow the Money' }
           const handleTabKeyDown = (e, tab) => {
             const idx = tabList.indexOf(tab)
             let newIdx
@@ -457,7 +458,106 @@ function CandidatePage() {
                 )}
 
                 {background.education.length === 0 && background.experience.length === 0 && background.committees.length === 0 && (
-                  <div className="empty-state"><p>No background information available yet.</p></div>
+                  <div className="empty-state"><p>No background information available yet. Education, work history, and committee assignments will appear here as data becomes available.</p></div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'finance' && (
+              <div>
+                <h2 style={{ marginBottom: '1.5rem' }}>Follow the Money</h2>
+                {finance.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    {finance.map((f, idx) => (
+                      <div key={idx} className="card" style={{ padding: '1.5rem' }}>
+                        <h3 style={{ fontSize: '1.125rem', marginBottom: '1.25rem', color: 'var(--navy-800)' }}>
+                          {f.election_cycle} Election Cycle
+                        </h3>
+
+                        {/* Big numbers */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                          <div className="stat" style={{ textAlign: 'center', padding: '1rem', background: 'var(--slate-50)', borderRadius: 8 }}>
+                            <div className="stat-value" style={{ color: 'var(--success)', fontSize: '1.5rem' }}>{formatCurrency(f.total_raised)}</div>
+                            <div className="stat-label">Total Raised</div>
+                          </div>
+                          <div className="stat" style={{ textAlign: 'center', padding: '1rem', background: 'var(--slate-50)', borderRadius: 8 }}>
+                            <div className="stat-value" style={{ color: 'var(--error)', fontSize: '1.5rem' }}>{formatCurrency(f.total_spent)}</div>
+                            <div className="stat-label">Total Spent</div>
+                          </div>
+                          <div className="stat" style={{ textAlign: 'center', padding: '1rem', background: 'var(--slate-50)', borderRadius: 8 }}>
+                            <div className="stat-value" style={{ fontSize: '1.5rem' }}>{formatCurrency(f.cash_on_hand)}</div>
+                            <div className="stat-label">Cash on Hand</div>
+                          </div>
+                          {f.debt != null && Number(f.debt) > 0 && (
+                            <div className="stat" style={{ textAlign: 'center', padding: '1rem', background: 'var(--slate-50)', borderRadius: 8 }}>
+                              <div className="stat-value" style={{ color: 'var(--warning)', fontSize: '1.5rem' }}>{formatCurrency(f.debt)}</div>
+                              <div className="stat-label">Debt</div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Funding sources */}
+                        {(f.individual_contributions != null || f.pac_contributions != null) && (
+                          <div style={{ marginBottom: '1.5rem' }}>
+                            <h4 style={{ fontSize: '0.9375rem', color: 'var(--navy-800)', marginBottom: '0.75rem' }}>Where the Money Comes From</h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                              {[
+                                { label: 'Individual Contributions', value: f.individual_contributions },
+                                { label: 'PAC Contributions', value: f.pac_contributions },
+                                { label: 'Party Contributions', value: f.party_contributions },
+                                { label: 'Self-Financing', value: f.self_financing },
+                              ].filter(s => s.value != null && Number(s.value) > 0).map((s, i) => {
+                                const total = Number(f.total_raised) || 1
+                                const pct = Math.round((Number(s.value) / total) * 100)
+                                return (
+                                  <div key={i}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', marginBottom: '0.25rem' }}>
+                                      <span style={{ color: 'var(--slate-600)' }}>{s.label}</span>
+                                      <span style={{ fontWeight: 600, color: 'var(--navy-800)' }}>{formatCurrency(s.value)} ({pct}%)</span>
+                                    </div>
+                                    <div style={{ height: 6, background: 'var(--slate-200)', borderRadius: 3, overflow: 'hidden' }}>
+                                      <div style={{ height: '100%', background: 'var(--navy-600)', borderRadius: 3, width: `${pct}%`, transition: 'width 0.3s' }} />
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Small vs large donors */}
+                        {f.small_donor_percent != null && (
+                          <div>
+                            <h4 style={{ fontSize: '0.9375rem', color: 'var(--navy-800)', marginBottom: '0.75rem' }}>Donor Size Breakdown</h4>
+                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                              <div style={{ flex: 1, height: 24, background: 'var(--slate-200)', borderRadius: 12, overflow: 'hidden', display: 'flex' }}>
+                                <div style={{ width: `${Number(f.small_donor_percent)}%`, background: 'var(--success)', transition: 'width 0.3s' }} />
+                                <div style={{ flex: 1, background: 'var(--navy-600)' }} />
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem', fontSize: '0.8125rem' }}>
+                              <span style={{ color: 'var(--success)' }}>Small donors (&le;$200): {Number(f.small_donor_percent).toFixed(0)}%</span>
+                              <span style={{ color: 'var(--navy-600)' }}>Large donors: {(100 - Number(f.small_donor_percent)).toFixed(0)}%</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {f.last_filed_date && (
+                          <div style={{ marginTop: '1rem', fontSize: '0.8125rem', color: 'var(--slate-500)' }}>
+                            Last filed: {formatDate(f.last_filed_date)} &middot; Source: FEC
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-state">
+                    <DollarSign size={32} style={{ color: 'var(--slate-400)', marginBottom: '0.75rem' }} />
+                    <p>No campaign finance data available yet.</p>
+                    <p style={{ fontSize: '0.875rem', color: 'var(--slate-500)' }}>
+                      FEC filings for federal candidates are updated regularly. State-level candidates may not have FEC data.
+                    </p>
+                  </div>
                 )}
               </div>
             )}
@@ -721,7 +821,13 @@ function CandidatePage() {
                     </div>
                   </>
                 ) : (
-                  <div className="empty-state"><p>No voting record data available.</p></div>
+                  <div className="empty-state">
+                    <FileText size={32} style={{ color: 'var(--slate-400)', marginBottom: '0.75rem' }} />
+                    <p>No voting record data available yet.</p>
+                    <p style={{ fontSize: '0.875rem', color: 'var(--slate-500)' }}>
+                      Roll call votes will appear here as legislative data is synced from official sources.
+                    </p>
+                  </div>
                 )}
               </div>
             )}
@@ -810,7 +916,13 @@ function CandidatePage() {
                     </div>
                   </>
                 ) : (
-                  <div className="empty-state"><p>No bill sponsorship data available.</p></div>
+                  <div className="empty-state">
+                    <FileText size={32} style={{ color: 'var(--slate-400)', marginBottom: '0.75rem' }} />
+                    <p>No bill sponsorship data available yet.</p>
+                    <p style={{ fontSize: '0.875rem', color: 'var(--slate-500)' }}>
+                      Bills this candidate has sponsored or co-sponsored will appear here.
+                    </p>
+                  </div>
                 )}
               </div>
             )}
