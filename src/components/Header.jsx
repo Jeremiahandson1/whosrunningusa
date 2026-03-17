@@ -80,6 +80,7 @@ function Header() {
     setMobileSearchOpen(false)
     setSearchQuery('')
     setSearchResults(null)
+    setMoreMenuOpen(false)
   }, [location.pathname])
 
   // Debounced search
@@ -174,14 +175,21 @@ function Header() {
   }
 
   const navLinks = [
-    { path: '/find-my-ballot', label: 'Find My Ballot' },
-    { path: '/explore', label: 'Find Candidates' },
+    { path: '/find-my-ballot', label: 'My Ballot' },
+    { path: '/explore', label: 'Candidates' },
     { path: '/races', label: 'Races' },
+    { path: '/issue-match', label: 'Issue Match' },
+  ]
+
+  const moreLinks = [
     { path: '/endorsements', label: 'Endorsements' },
     { path: '/town-halls', label: 'Town Halls' },
-    ...(user ? [{ path: '/feed', label: 'Feed' }, { path: '/connections', label: 'Connections' }] : []),
     { path: '/how-it-works', label: 'How It Works' },
+    ...(user ? [{ path: '/feed', label: 'Feed' }, { path: '/connections', label: 'Connections' }] : []),
   ]
+
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false)
+  const moreMenuRef = useRef(null)
 
   const handleLogout = () => {
     logout()
@@ -291,7 +299,7 @@ function Header() {
         </Link>
 
         {/* Desktop Search */}
-        <div ref={searchRef} style={{ position: 'relative', flex: '0 1 320px', margin: '0 1.5rem' }} className="desktop-nav">
+        <div ref={searchRef} style={{ position: 'relative', flex: '0 1 240px', minWidth: '160px' }} className="desktop-nav">
           <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-400)', pointerEvents: 'none', zIndex: 1 }} />
           <input
             type="text"
@@ -330,6 +338,44 @@ function Header() {
               {link.label}
             </Link>
           ))}
+          <div ref={moreMenuRef} style={{ position: 'relative' }}>
+            <button
+              className={`nav-link ${moreLinks.some(l => location.pathname === l.path) ? 'active' : ''}`}
+              onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+            >
+              More <ChevronDown size={14} />
+            </button>
+            {moreMenuOpen && (
+              <>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setMoreMenuOpen(false)} />
+                <div style={{
+                  position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
+                  marginTop: '0.5rem', background: 'white', borderRadius: '0.5rem',
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.12)', border: '1px solid var(--slate-200)',
+                  zIndex: 100, overflow: 'hidden', minWidth: '180px',
+                }}>
+                  {moreLinks.map(link => (
+                    <Link
+                      key={link.path}
+                      to={link.path}
+                      onClick={() => setMoreMenuOpen(false)}
+                      style={{
+                        display: 'block', padding: '0.625rem 1rem',
+                        fontSize: '0.875rem', color: location.pathname === link.path ? 'var(--navy-800)' : 'var(--slate-700)',
+                        fontWeight: location.pathname === link.path ? 600 : 400,
+                        background: location.pathname === link.path ? 'var(--slate-50)' : 'white',
+                        borderBottom: '1px solid var(--slate-100)',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </nav>
 
         <div className="nav-actions desktop-nav">
@@ -555,7 +601,7 @@ function Header() {
             >
               Home
             </Link>
-            {navLinks.map(link => (
+            {[...navLinks, ...moreLinks].map(link => (
               <Link
                 key={link.path}
                 to={link.path}
