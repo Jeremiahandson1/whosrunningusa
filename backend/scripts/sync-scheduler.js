@@ -64,8 +64,6 @@ function buildCommand(step) {
       return ['sync-votesmart.js', ...(state ? [`--state=${state}`] : [])];
     case 'finance':
       return ['sync-finance-incumbents.js', ...(state ? [`--state=${state}`] : [])];
-    case 'populate':
-      return ['populate-empty-tables.js'];
     default:
       return null;
   }

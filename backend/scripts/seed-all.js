@@ -10,12 +10,9 @@
  * - Races linking elections to offices
  * - All current officials as shadow candidate profiles
  * - Candidacies linking candidates to races
- * - Issue positions for candidates
- * - Sample engagement data (town halls, questions, posts)
  *
- * Usage: node seed-all.js [--clean] [--skip-engagement]
+ * Usage: node seed-all.js [--clean] [--only-structure]
  *   --clean            Drop and re-seed all seeded data
- *   --skip-engagement  Skip sample engagement data
  *   --only-structure   Only seed issues, elections, offices, races (no candidates)
  */
 
@@ -31,7 +28,6 @@ const states = require('./seed-data/states');
 
 const args = process.argv.slice(2);
 const CLEAN = args.includes('--clean');
-const SKIP_ENGAGEMENT = args.includes('--skip-engagement');
 const ONLY_STRUCTURE = args.includes('--only-structure');
 
 const stats = {
@@ -41,10 +37,6 @@ const stats = {
   races: 0,
   candidates: 0,
   candidacies: 0,
-  positions: 0,
-  townHalls: 0,
-  questions: 0,
-  posts: 0,
 };
 
 async function main() {
@@ -82,16 +74,6 @@ async function main() {
       // 6. Link candidates to races
       console.log('\n--- Seeding Candidacies ---');
       await seedCandidacies(client, candidateMap, raceMap);
-
-      // 7. Seed positions
-      console.log('\n--- Seeding Issue Positions ---');
-      await seedPositions(client, candidateMap, issueMap);
-
-      if (!SKIP_ENGAGEMENT) {
-        // 8. Sample engagement data
-        console.log('\n--- Seeding Engagement Data ---');
-        await seedEngagementData(client, candidateMap, issueMap);
-      }
     }
 
     // Report
@@ -102,10 +84,6 @@ async function main() {
     console.log(`  Races:       ${stats.races}`);
     console.log(`  Candidates:  ${stats.candidates}`);
     console.log(`  Candidacies: ${stats.candidacies}`);
-    console.log(`  Positions:   ${stats.positions}`);
-    console.log(`  Town Halls:  ${stats.townHalls}`);
-    console.log(`  Questions:   ${stats.questions}`);
-    console.log(`  Posts:       ${stats.posts}`);
     console.log('');
 
   } catch (err) {
@@ -650,379 +628,6 @@ async function upsertCandidacy(client, candidateId, raceId, filingStatus, result
     [candidateId, raceId, filingStatus, result]
   );
   stats.candidacies++;
-}
-
-// =====================================================
-// POSITIONS
-// =====================================================
-
-async function seedPositions(client, candidateMap, issueMap) {
-  const issueNames = Object.keys(issueMap);
-  if (issueNames.length === 0) {
-    console.log('  No issues found, skipping positions');
-    return;
-  }
-
-  // Deterministic but varied position assignment based on party
-  const partyStances = {
-    'Republican': {
-      'Federal Minimum Wage Increase': 'oppose',
-      'Tax Reform': 'support',
-      'Labor Union Rights': 'oppose',
-      'Student Loan Forgiveness': 'oppose',
-      'National Debt Reduction': 'support',
-      'Social Security Reform': 'complicated',
-      'Trade Policy': 'support',
-      'School Choice & Vouchers': 'support',
-      'Public School Funding': 'complicated',
-      'Public Health Insurance Option': 'oppose',
-      'Abortion Access': 'oppose',
-      'Prescription Drug Pricing': 'complicated',
-      'ACA Protections': 'oppose',
-      'Carbon Emissions Reduction': 'oppose',
-      'Renewable Energy Investment': 'complicated',
-      'Fossil Fuel Production': 'support',
-      'Paris Climate Agreement': 'oppose',
-      'Gun Background Checks': 'complicated',
-      'Assault Weapons Ban': 'oppose',
-      'Police Reform': 'oppose',
-      'Criminal Justice Reform': 'complicated',
-      'Death Penalty': 'support',
-      'Fentanyl & Drug Policy': 'support',
-      'Voting Rights Protections': 'complicated',
-      'LGBTQ+ Equality': 'oppose',
-      'Border Security': 'support',
-      'Pathway to Citizenship': 'oppose',
-      'DACA Protections': 'complicated',
-      'Congressional Term Limits': 'support',
-      'Campaign Finance Reform': 'complicated',
-      'Supreme Court Reform': 'oppose',
-      'Congressional Stock Trading Ban': 'support',
-      'Ukraine Support': 'complicated',
-      'China Relations': 'support',
-      'NATO Commitment': 'complicated',
-      'Defense Spending': 'support',
-      'Broadband Internet Access': 'support',
-      'Affordable Housing Construction': 'complicated',
-      'First-Time Homebuyer Assistance': 'support',
-    },
-    'Democrat': {
-      'Federal Minimum Wage Increase': 'support',
-      'Tax Reform': 'complicated',
-      'Labor Union Rights': 'support',
-      'Student Loan Forgiveness': 'support',
-      'National Debt Reduction': 'complicated',
-      'Social Security Reform': 'support',
-      'Trade Policy': 'complicated',
-      'School Choice & Vouchers': 'oppose',
-      'Public School Funding': 'support',
-      'Public Health Insurance Option': 'support',
-      'Abortion Access': 'support',
-      'Prescription Drug Pricing': 'support',
-      'ACA Protections': 'support',
-      'Carbon Emissions Reduction': 'support',
-      'Renewable Energy Investment': 'support',
-      'Fossil Fuel Production': 'oppose',
-      'Paris Climate Agreement': 'support',
-      'Gun Background Checks': 'support',
-      'Assault Weapons Ban': 'support',
-      'Police Reform': 'support',
-      'Criminal Justice Reform': 'support',
-      'Death Penalty': 'oppose',
-      'Fentanyl & Drug Policy': 'support',
-      'Voting Rights Protections': 'support',
-      'LGBTQ+ Equality': 'support',
-      'Border Security': 'complicated',
-      'Pathway to Citizenship': 'support',
-      'DACA Protections': 'support',
-      'Congressional Term Limits': 'complicated',
-      'Campaign Finance Reform': 'support',
-      'Supreme Court Reform': 'support',
-      'Congressional Stock Trading Ban': 'support',
-      'Ukraine Support': 'support',
-      'China Relations': 'support',
-      'NATO Commitment': 'support',
-      'Defense Spending': 'complicated',
-      'Broadband Internet Access': 'support',
-      'Affordable Housing Construction': 'support',
-      'First-Time Homebuyer Assistance': 'support',
-    },
-    'Independent': {
-      'Federal Minimum Wage Increase': 'support',
-      'Tax Reform': 'complicated',
-      'Labor Union Rights': 'support',
-      'National Debt Reduction': 'support',
-      'Carbon Emissions Reduction': 'support',
-      'Gun Background Checks': 'support',
-      'Congressional Term Limits': 'support',
-      'Campaign Finance Reform': 'support',
-      'Congressional Stock Trading Ban': 'support',
-    },
-  };
-
-  // Seed positions for all candidates — pick 8-15 random issues per candidate
-  const candidates = Object.values(candidateMap);
-
-  for (const candidate of candidates) {
-    const party = candidate.party;
-    const stances = partyStances[party] || partyStances['Independent'];
-    const stanceIssues = Object.keys(stances).filter(name => issueMap[name]);
-
-    // Each candidate gets positions on 8-15 issues
-    const numPositions = 8 + Math.floor(seededRandom(candidate.name) * 8);
-    const shuffled = shuffleWithSeed(stanceIssues, candidate.name);
-    const selected = shuffled.slice(0, Math.min(numPositions, shuffled.length));
-
-    for (let i = 0; i < selected.length; i++) {
-      const issueName = selected[i];
-      const issueId = issueMap[issueName];
-      const stance = stances[issueName] || 'complicated';
-
-      try {
-        await client.query(
-          `INSERT INTO candidate_positions (candidate_id, issue_id, stance, priority_rank)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (candidate_id, issue_id) DO NOTHING`,
-          [candidate.id, issueId, stance, i < 5 ? i + 1 : null]
-        );
-        stats.positions++;
-      } catch (err) {
-        // Skip constraint violations
-      }
-    }
-  }
-
-  console.log(`  Seeded ${stats.positions} issue positions`);
-}
-
-// =====================================================
-// ENGAGEMENT DATA
-// =====================================================
-
-async function seedEngagementData(client, candidateMap, issueMap) {
-  // Create an admin user for seeding (if doesn't exist)
-  let adminId;
-  const adminCheck = await client.query("SELECT id FROM users WHERE email = 'admin@whosrunningusa.com'");
-  if (adminCheck.rows.length > 0) {
-    adminId = adminCheck.rows[0].id;
-  } else {
-    const bcrypt = require('bcryptjs');
-    const hash = await bcrypt.hash('admin123!', 12);
-    const { rows } = await client.query(
-      `INSERT INTO users (email, password_hash, username, user_type, first_name, last_name, email_verified, state)
-       VALUES ('admin@whosrunningusa.com', $1, 'admin', 'admin', 'System', 'Admin', TRUE, 'DC')
-       RETURNING id`,
-      [hash]
-    );
-    adminId = rows[0].id;
-  }
-
-  // Create some sample voter users
-  const voterIds = [];
-  const sampleVoters = [
-    { email: 'voter1@example.com', username: 'engaged_voter_1', first: 'Alex', last: 'Johnson', state: 'VA' },
-    { email: 'voter2@example.com', username: 'engaged_voter_2', first: 'Jordan', last: 'Williams', state: 'OH' },
-    { email: 'voter3@example.com', username: 'engaged_voter_3', first: 'Taylor', last: 'Chen', state: 'CA' },
-    { email: 'voter4@example.com', username: 'engaged_voter_4', first: 'Morgan', last: 'Davis', state: 'TX' },
-    { email: 'voter5@example.com', username: 'engaged_voter_5', first: 'Casey', last: 'Martinez', state: 'FL' },
-  ];
-
-  for (const v of sampleVoters) {
-    const existing = await client.query('SELECT id FROM users WHERE email = $1', [v.email]);
-    if (existing.rows.length > 0) {
-      voterIds.push(existing.rows[0].id);
-    } else {
-      const bcrypt = require('bcryptjs');
-      const hash = await bcrypt.hash('voter123!', 12);
-      const { rows } = await client.query(
-        `INSERT INTO users (email, password_hash, username, user_type, first_name, last_name, email_verified, state)
-         VALUES ($1, $2, $3, 'voter', $4, $5, TRUE, $6)
-         RETURNING id`,
-        [v.email, hash, v.username, v.first, v.last, v.state]
-      );
-      voterIds.push(rows[0].id);
-    }
-  }
-
-  // Pick some high-profile candidates for engagement data
-  const highProfile = [
-    candidateMap['senator_NY_3'],   // Schumer
-    candidateMap['senator_KY_2'],   // McConnell
-    candidateMap['senator_VT_1'],   // Sanders
-    candidateMap['senator_TX_1'],   // Cruz
-    candidateMap['senator_MA_1'],   // Warren
-    candidateMap['senator_FL_1'],   // Scott
-    candidateMap['senator_PA_3'],   // Fetterman
-    candidateMap['governor_CA'],    // Newsom
-    candidateMap['governor_FL'],    // DeSantis
-    candidateMap['governor_TX'],    // Abbott
-  ].filter(Boolean);
-
-  // Town Halls
-  const townHallTemplates = [
-    { title: 'Open Forum: Economy & Jobs', desc: 'Join us for an open discussion about economic policy and job creation in America.', format: 'video' },
-    { title: 'Healthcare Town Hall', desc: 'A community discussion about healthcare access, costs, and coverage.', format: 'video' },
-    { title: 'Ask Me Anything: Education Policy', desc: 'Submit your questions about education funding, school choice, and student debt.', format: 'text_ama' },
-    { title: 'Climate & Energy Policy Discussion', desc: 'Let\'s discuss our approach to climate change, energy independence, and environmental protection.', format: 'text_ama' },
-    { title: 'Immigration & Border Security Forum', desc: 'An open conversation about immigration reform, border security, and the pathway forward.', format: 'video' },
-  ];
-
-  for (let i = 0; i < highProfile.length && i < townHallTemplates.length; i++) {
-    const candidate = highProfile[i];
-    const template = townHallTemplates[i];
-    const scheduledAt = new Date();
-    scheduledAt.setDate(scheduledAt.getDate() + 7 + (i * 3));
-
-    const existing = await client.query(
-      'SELECT id FROM town_halls WHERE candidate_id = $1 AND title = $2',
-      [candidate.id, template.title]
-    );
-    if (existing.rows.length === 0) {
-      await client.query(
-        `INSERT INTO town_halls (candidate_id, title, description, format, scheduled_at, duration_minutes, status)
-         VALUES ($1, $2, $3, $4, $5, 60, 'scheduled')`,
-        [candidate.id, template.title, template.desc, template.format, scheduledAt]
-      );
-      stats.townHalls++;
-    }
-  }
-
-  // Questions
-  const questionTemplates = [
-    'What is your plan to address the rising cost of living for middle-class families?',
-    'How do you plan to improve healthcare access in rural communities?',
-    'What is your position on federal student loan forgiveness programs?',
-    'How will you work across the aisle to reduce political polarization?',
-    'What specific steps will you take to address climate change?',
-    'How do you plan to strengthen Social Security for future generations?',
-    'What is your approach to reducing gun violence while respecting Second Amendment rights?',
-    'How will you support small businesses in your state?',
-    'What are your priorities for immigration reform?',
-    'How do you plan to address the national debt?',
-    'What is your position on term limits for members of Congress?',
-    'How will you ensure affordable housing in growing communities?',
-    'What steps will you take to improve public education?',
-    'How do you plan to address the opioid and fentanyl crisis?',
-    'What is your vision for America\'s role in the world?',
-  ];
-
-  for (let i = 0; i < highProfile.length; i++) {
-    const candidate = highProfile[i];
-    // 2-3 questions per high-profile candidate
-    const numQuestions = 2 + (i % 2);
-    for (let q = 0; q < numQuestions; q++) {
-      const qIdx = (i * 3 + q) % questionTemplates.length;
-      const voterId = voterIds[q % voterIds.length];
-
-      try {
-        const { rows } = await client.query(
-          `INSERT INTO questions (candidate_id, asked_by_user_id, question_text, status, upvote_count)
-           VALUES ($1, $2, $3, $4, $5)
-           ON CONFLICT DO NOTHING
-           RETURNING id`,
-          [candidate.id, voterId, questionTemplates[qIdx], q === 0 ? 'answered' : 'pending', Math.floor(Math.random() * 50)]
-        );
-        if (rows.length > 0) {
-          stats.questions++;
-          // Add an answer for the first question
-          if (q === 0) {
-            await client.query(
-              `INSERT INTO answers (question_id, candidate_id, answer_text)
-               VALUES ($1, $2, $3)
-               ON CONFLICT (question_id) DO NOTHING`,
-              [rows[0].id, candidate.id, `Thank you for this important question. This is a priority for me and I'm committed to working on solutions that benefit all Americans. I believe we need a balanced approach that considers both the immediate needs and long-term implications of our policy decisions.`]
-            );
-          }
-        }
-      } catch (err) {
-        // Skip duplicates
-      }
-    }
-  }
-
-  // Posts
-  const postTemplates = [
-    { title: 'Standing Up for Working Families', content: 'Today I introduced new legislation to support working families across America. This bill would expand access to affordable childcare and increase tax credits for middle-income households.', type: 'announcement' },
-    { title: 'Bipartisan Infrastructure Progress', content: 'Proud to report that our bipartisan infrastructure bill is making real progress. New road and bridge projects are already underway in communities across our state.', type: 'update' },
-    { title: 'My Position on Education Funding', content: 'Every child deserves access to quality education regardless of their zip code. Here\'s my comprehensive plan to increase federal education funding while ensuring local communities maintain control.', type: 'position' },
-    { title: 'Town Hall Recap', content: 'Thank you to everyone who joined our town hall last week. We discussed healthcare, jobs, and the economy. Your voices matter and I\'m taking your concerns back to Washington.', type: 'update' },
-    { title: 'Fighting for Veterans', content: 'Our veterans deserve the best care and support we can provide. I\'m working on legislation to expand VA healthcare access and reduce wait times for appointments.', type: 'announcement' },
-  ];
-
-  for (let i = 0; i < highProfile.length && i < postTemplates.length; i++) {
-    const candidate = highProfile[i];
-    const template = postTemplates[i];
-
-    try {
-      await client.query(
-        `INSERT INTO posts (candidate_id, title, content, post_type, is_published)
-         VALUES ($1, $2, $3, $4, TRUE)`,
-        [candidate.id, template.title, template.content, template.type]
-      );
-      stats.posts++;
-    } catch (err) {
-      // Skip duplicates
-    }
-  }
-
-  // Promises for some candidates
-  const issueCategories = await client.query('SELECT id, name FROM issue_categories LIMIT 6');
-  const promiseTemplates = [
-    'Reduce prescription drug costs by 30% within my first term',
-    'Create 100,000 new clean energy jobs in our state',
-    'Pass comprehensive immigration reform with bipartisan support',
-    'Secure funding for rural broadband expansion to 95% coverage',
-    'Reduce the federal deficit by eliminating wasteful spending',
-    'Increase teacher pay to be competitive with private sector salaries',
-  ];
-
-  for (let i = 0; i < Math.min(highProfile.length, 6); i++) {
-    const candidate = highProfile[i];
-    const catId = issueCategories.rows[i % issueCategories.rows.length]?.id;
-    if (!catId) continue;
-
-    try {
-      await client.query(
-        `INSERT INTO promises (candidate_id, promise_text, category_id, status)
-         VALUES ($1, $2, $3, 'pending')`,
-        [candidate.id, promiseTemplates[i], catId]
-      );
-    } catch (err) {
-      // Skip
-    }
-  }
-
-  console.log(`  Seeded ${stats.townHalls} town halls, ${stats.questions} questions, ${stats.posts} posts`);
-}
-
-// =====================================================
-// HELPERS
-// =====================================================
-
-function seededRandom(seed) {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    const char = seed.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash % 1000) / 1000;
-}
-
-function shuffleWithSeed(arr, seed) {
-  const shuffled = [...arr];
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) {
-    h = ((h << 5) - h) + seed.charCodeAt(i);
-    h = h & h;
-  }
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    h = ((h << 5) - h) + i;
-    h = h & h;
-    const j = Math.abs(h) % (i + 1);
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
 }
 
 // =====================================================
