@@ -15,6 +15,18 @@ if (process.env.SENTRY_DSN) {
     environment: process.env.NODE_ENV || 'development',
     tracesSampleRate: 0.1,
     enabled: process.env.NODE_ENV === 'production',
+    sendDefaultPii: false,
+    beforeSend(event) {
+      if (event.request) {
+        delete event.request.cookies;
+        delete event.request.data;
+        if (event.request.headers) {
+          delete event.request.headers['authorization'];
+          delete event.request.headers['cookie'];
+        }
+      }
+      return event;
+    },
   });
 }
 const express = require('express');
@@ -126,6 +138,7 @@ app.use('/api/contact', require('./routes/contact'));
 app.use('/api/criminal-records', require('./routes/criminalRecords'));
 app.use('/api/connections', require('./routes/connections'));
 app.use('/api/community-notes', require('./routes/communityNotes'));
+app.use('/api/accountability', require('./routes/accountability'));
 
 
 
