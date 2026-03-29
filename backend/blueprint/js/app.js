@@ -405,6 +405,7 @@ function pageDebt(main) {
         <div class="counter-card"><div class="counter-value live" id="percitizen-counter">Loading...</div><div class="counter-label"><span class="live-dot"></span>Your Share of the Debt</div></div>
         <div class="counter-card"><div class="counter-value live" id="interest-counter">Loading...</div><div class="counter-label"><span class="live-dot"></span>Interest Since You Opened This Page</div></div>
       </div>
+      <p id="debt-asof" style="text-align:center;font-size:0.75rem;color:var(--slate-500);margin-top:-1rem;margin-bottom:2rem;">Source: US Treasury (Debt to the Penny) — loading...</p>
 
       <div class="calc-card">
         <h3>Revenue vs. Spending After Reforms</h3>
@@ -604,21 +605,44 @@ function pageDebt(main) {
     }
   }
 
-  // Live debt counters
-  const debtStart = 39_000_000_000_000; // $39T base
-  const debtPerMs = 83000 / 1000; // $83K per second = $83 per ms
-  const deficitPerYear = 1_800_000_000_000; // ~$1.8T annual deficit
+  // Live debt counters — fetch real data from US Treasury via backend
+  const debtPerMs = 83000 / 1000; // $83K/sec = $83/ms (CBO estimate)
+  const deficitPerYear = 1_832_000_000_000; // CBO FY2026 projected deficit
   const deficitPerMs = deficitPerYear / (365.25 * 24 * 3600 * 1000);
-  const interestPerYear = 1_000_000_000_000; // $1T
+  const interestPerYear = 952_000_000_000; // CBO FY2026 net interest
   const interestPerMs = interestPerYear / (365.25 * 24 * 3600 * 1000);
-  const population = 334_000_000;
-  const startTime = Date.now();
+  const population = 336_500_000; // Census 2026 est
 
   function formatBigMoney(n) {
-    if (n >= 1e12) return '$' + (n / 1e12).toFixed(6) + 'T';
-    if (n >= 1e9) return '$' + (n / 1e9).toFixed(3) + 'B';
-    return '$' + n.toLocaleString('en-US', {maximumFractionDigits: 0});
+    if (n >= 1e12) {
+      const t = n / 1e12;
+      const str = t.toFixed(9);
+      // Show as $XX,XXX,XXX,XXX,XXX format for visceral impact
+      const whole = Math.floor(n);
+      return '$' + whole.toLocaleString('en-US');
+    }
+    if (n >= 1e9) return '$' + (n / 1e9).toFixed(2) + ' billion';
+    if (n >= 1e6) return '$' + (n / 1e6).toFixed(2) + ' million';
+    return '$' + Math.floor(n).toLocaleString('en-US');
   }
+
+  // Fetch real debt from Treasury API (cached on backend)
+  let debtStart = 38_990_389_667_489; // fallback
+  let debtAsOf = '2026-03-26';
+  const startTime = Date.now();
+
+  fetch('/api/blueprint/debt')
+    .then(r => r.json())
+    .then(d => {
+      if (d.totalDebt) {
+        debtStart = d.totalDebt;
+        debtAsOf = d.asOf;
+        // Update the "as of" display
+        const asOfEl = document.getElementById('debt-asof');
+        if (asOfEl) asOfEl.textContent = 'Source: US Treasury, as of ' + d.asOf;
+      }
+    })
+    .catch(() => {}); // use fallback
 
   let debtAnimFrame;
   function tickCounters() {
@@ -633,7 +657,7 @@ function pageDebt(main) {
 
     elDebt.textContent = formatBigMoney(currentDebt);
     elDeficit.textContent = formatBigMoney(elapsed * deficitPerMs);
-    elCitizen.textContent = '$' + Math.floor(currentDebt / population).toLocaleString();
+    elCitizen.textContent = '$' + Math.floor(currentDebt / population).toLocaleString('en-US');
     elInterest.textContent = formatBigMoney(elapsed * interestPerMs);
 
     debtAnimFrame = requestAnimationFrame(tickCounters);

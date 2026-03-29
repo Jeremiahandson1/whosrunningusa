@@ -1,6 +1,40 @@
 const express = require('express');
 const router = express.Router();
 
+// GET /api/blueprint/debt — real national debt from US Treasury
+let debtCache = { data: null, fetchedAt: 0 };
+const DEBT_CACHE_MS = 3600_000; // 1 hour
+
+router.get('/debt', async (req, res) => {
+  if (debtCache.data && Date.now() - debtCache.fetchedAt < DEBT_CACHE_MS) {
+    return res.json(debtCache.data);
+  }
+  try {
+    const resp = await fetch('https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?sort=-record_date&page%5Bsize%5D=1');
+    if (!resp.ok) throw new Error('Treasury API error');
+    const json = await resp.json();
+    const row = json.data[0];
+    debtCache.data = {
+      totalDebt: parseFloat(row.tot_pub_debt_out_amt),
+      publicDebt: parseFloat(row.debt_held_public_amt),
+      intragovDebt: parseFloat(row.intragov_hold_amt),
+      asOf: row.record_date,
+    };
+    debtCache.fetchedAt = Date.now();
+    res.json(debtCache.data);
+  } catch (err) {
+    console.error('Treasury API error:', err.message);
+    // Fallback to known recent value
+    res.json({
+      totalDebt: 38990389667489.38,
+      publicDebt: 31361115540758.11,
+      intragovDebt: 7629274126731.27,
+      asOf: '2026-03-26',
+      cached: true,
+    });
+  }
+});
+
 // POST /api/blueprint/ask — Anthropic API proxy for policy chatbot
 router.post('/ask', async (req, res) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
