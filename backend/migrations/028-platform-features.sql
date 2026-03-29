@@ -27,11 +27,11 @@ CREATE TABLE IF NOT EXISTS petitions (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_petitions_status ON petitions(status);
-CREATE INDEX idx_petitions_state ON petitions(state);
-CREATE INDEX idx_petitions_target ON petitions(target_type);
-CREATE INDEX idx_petitions_created ON petitions(created_at DESC);
-CREATE INDEX idx_petitions_signatures ON petitions(current_signatures DESC);
+CREATE INDEX IF NOT EXISTS idx_petitions_status ON petitions(status);
+CREATE INDEX IF NOT EXISTS idx_petitions_state ON petitions(state);
+CREATE INDEX IF NOT EXISTS idx_petitions_target ON petitions(target_type);
+CREATE INDEX IF NOT EXISTS idx_petitions_created ON petitions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_petitions_signatures ON petitions(current_signatures DESC);
 
 CREATE TABLE IF NOT EXISTS petition_signatures (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -43,8 +43,8 @@ CREATE TABLE IF NOT EXISTS petition_signatures (
     UNIQUE(petition_id, user_id)
 );
 
-CREATE INDEX idx_petition_signatures_petition ON petition_signatures(petition_id);
-CREATE INDEX idx_petition_signatures_user ON petition_signatures(user_id);
+CREATE INDEX IF NOT EXISTS idx_petition_signatures_petition ON petition_signatures(petition_id);
+CREATE INDEX IF NOT EXISTS idx_petition_signatures_user ON petition_signatures(user_id);
 
 CREATE TABLE IF NOT EXISTS petition_volunteers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS petition_volunteers (
     UNIQUE(petition_id, user_id)
 );
 
-CREATE INDEX idx_petition_volunteers_petition ON petition_volunteers(petition_id);
+CREATE INDEX IF NOT EXISTS idx_petition_volunteers_petition ON petition_volunteers(petition_id);
 
 -- State petition requirements (signature thresholds, deadlines, rules)
 CREATE TABLE IF NOT EXISTS petition_state_requirements (
@@ -93,9 +93,9 @@ CREATE TABLE IF NOT EXISTS candidate_claims (
     reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL
 );
 
-CREATE INDEX idx_candidate_claims_user ON candidate_claims(user_id);
-CREATE INDEX idx_candidate_claims_status ON candidate_claims(verification_status);
-CREATE INDEX idx_candidate_claims_profile ON candidate_claims(candidate_profile_id);
+CREATE INDEX IF NOT EXISTS idx_candidate_claims_user ON candidate_claims(user_id);
+CREATE INDEX IF NOT EXISTS idx_candidate_claims_status ON candidate_claims(verification_status);
+CREATE INDEX IF NOT EXISTS idx_candidate_claims_profile ON candidate_claims(candidate_profile_id);
 
 -- ============================================================
 -- PLAIN LANGUAGE VOTE EXPLANATIONS
@@ -117,8 +117,8 @@ CREATE TABLE IF NOT EXISTS vote_explanations (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_vote_explanations_vote ON vote_explanations(vote_event_id);
-CREATE INDEX idx_vote_explanations_bill ON vote_explanations(bill_id);
+CREATE INDEX IF NOT EXISTS idx_vote_explanations_vote ON vote_explanations(vote_event_id);
+CREATE INDEX IF NOT EXISTS idx_vote_explanations_bill ON vote_explanations(bill_id);
 CREATE UNIQUE INDEX idx_vote_explanations_unique_vote ON vote_explanations(vote_event_id) WHERE vote_event_id IS NOT NULL;
 CREATE UNIQUE INDEX idx_vote_explanations_unique_bill ON vote_explanations(bill_id) WHERE bill_id IS NOT NULL;
 
@@ -144,9 +144,9 @@ CREATE TABLE IF NOT EXISTS post_service_employment (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_post_service_politician ON post_service_employment(politician_id);
-CREATE INDEX idx_post_service_industry ON post_service_employment(industry);
-CREATE INDEX idx_post_service_lobbying ON post_service_employment(is_lobbying) WHERE is_lobbying = TRUE;
+CREATE INDEX IF NOT EXISTS idx_post_service_politician ON post_service_employment(politician_id);
+CREATE INDEX IF NOT EXISTS idx_post_service_industry ON post_service_employment(industry);
+CREATE INDEX IF NOT EXISTS idx_post_service_lobbying ON post_service_employment(is_lobbying) WHERE is_lobbying = TRUE;
 
 CREATE TABLE IF NOT EXISTS revolving_door_flags (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -162,9 +162,9 @@ CREATE TABLE IF NOT EXISTS revolving_door_flags (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_revolving_flags_employment ON revolving_door_flags(employment_id);
-CREATE INDEX idx_revolving_flags_type ON revolving_door_flags(flag_type);
-CREATE INDEX idx_revolving_flags_severity ON revolving_door_flags(severity DESC);
+CREATE INDEX IF NOT EXISTS idx_revolving_flags_employment ON revolving_door_flags(employment_id);
+CREATE INDEX IF NOT EXISTS idx_revolving_flags_type ON revolving_door_flags(flag_type);
+CREATE INDEX IF NOT EXISTS idx_revolving_flags_severity ON revolving_door_flags(severity DESC);
 
 -- ============================================================
 -- TRADING ACTIVITY MONITOR
@@ -188,11 +188,11 @@ CREATE TABLE IF NOT EXISTS official_trades (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_official_trades_politician ON official_trades(politician_id);
-CREATE INDEX idx_official_trades_ticker ON official_trades(ticker);
-CREATE INDEX idx_official_trades_date ON official_trades(trade_date DESC);
-CREATE INDEX idx_official_trades_disclosure ON official_trades(disclosure_date DESC);
-CREATE INDEX idx_official_trades_type ON official_trades(trade_type);
+CREATE INDEX IF NOT EXISTS idx_official_trades_politician ON official_trades(politician_id);
+CREATE INDEX IF NOT EXISTS idx_official_trades_ticker ON official_trades(ticker);
+CREATE INDEX IF NOT EXISTS idx_official_trades_date ON official_trades(trade_date DESC);
+CREATE INDEX IF NOT EXISTS idx_official_trades_disclosure ON official_trades(disclosure_date DESC);
+CREATE INDEX IF NOT EXISTS idx_official_trades_type ON official_trades(trade_type);
 
 CREATE TABLE IF NOT EXISTS trade_flags (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -208,9 +208,9 @@ CREATE TABLE IF NOT EXISTS trade_flags (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_trade_flags_trade ON trade_flags(trade_id);
-CREATE INDEX idx_trade_flags_type ON trade_flags(flag_type);
-CREATE INDEX idx_trade_flags_severity ON trade_flags(severity DESC);
+CREATE INDEX IF NOT EXISTS idx_trade_flags_trade ON trade_flags(trade_id);
+CREATE INDEX IF NOT EXISTS idx_trade_flags_type ON trade_flags(flag_type);
+CREATE INDEX IF NOT EXISTS idx_trade_flags_severity ON trade_flags(severity DESC);
 
 -- ============================================================
 -- BODY CAMERA & TRANSPARENCY COMPLIANCE
@@ -231,8 +231,8 @@ CREATE TABLE IF NOT EXISTS transparency_requirements (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_transparency_reqs_jurisdiction ON transparency_requirements(jurisdiction_type, state);
-CREATE INDEX idx_transparency_reqs_type ON transparency_requirements(requirement_type);
+CREATE INDEX IF NOT EXISTS idx_transparency_reqs_jurisdiction ON transparency_requirements(jurisdiction_type, state);
+CREATE INDEX IF NOT EXISTS idx_transparency_reqs_type ON transparency_requirements(requirement_type);
 
 CREATE TABLE IF NOT EXISTS compliance_records (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -250,9 +250,9 @@ CREATE TABLE IF NOT EXISTS compliance_records (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_compliance_politician ON compliance_records(politician_id);
-CREATE INDEX idx_compliance_requirement ON compliance_records(requirement_id);
-CREATE INDEX idx_compliance_status ON compliance_records(compliance_status);
+CREATE INDEX IF NOT EXISTS idx_compliance_politician ON compliance_records(politician_id);
+CREATE INDEX IF NOT EXISTS idx_compliance_requirement ON compliance_records(requirement_id);
+CREATE INDEX IF NOT EXISTS idx_compliance_status ON compliance_records(compliance_status);
 
 -- ============================================================
 -- CAMPAIGN FINANCE SOURCE MAPPING (donor-to-vote connections)
@@ -274,7 +274,7 @@ CREATE TABLE IF NOT EXISTS donor_vote_connections (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_donor_vote_politician ON donor_vote_connections(politician_id);
-CREATE INDEX idx_donor_vote_industry ON donor_vote_connections(industry_name);
-CREATE INDEX idx_donor_vote_correlation ON donor_vote_connections(correlation_type);
-CREATE INDEX idx_donor_vote_bill ON donor_vote_connections(bill_id);
+CREATE INDEX IF NOT EXISTS idx_donor_vote_politician ON donor_vote_connections(politician_id);
+CREATE INDEX IF NOT EXISTS idx_donor_vote_industry ON donor_vote_connections(industry_name);
+CREATE INDEX IF NOT EXISTS idx_donor_vote_correlation ON donor_vote_connections(correlation_type);
+CREATE INDEX IF NOT EXISTS idx_donor_vote_bill ON donor_vote_connections(bill_id);

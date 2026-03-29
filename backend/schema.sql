@@ -49,10 +49,10 @@ CREATE TABLE users (
     last_login_at TIMESTAMP
 );
 
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_username ON users(username);
-CREATE INDEX idx_users_user_type ON users(user_type);
-CREATE INDEX idx_users_location ON users(state, county, city);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_user_type ON users(user_type);
+CREATE INDEX IF NOT EXISTS idx_users_location ON users(state, county, city);
 
 -- =====================================================
 -- CANDIDATE PROFILES
@@ -129,14 +129,14 @@ CREATE TABLE candidate_profiles (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_candidate_profiles_user ON candidate_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_candidate_profiles_user ON candidate_profiles(user_id);
 CREATE INDEX IF NOT EXISTS idx_candidate_profiles_fec_state ON candidate_profiles(fec_state) WHERE fec_state IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_candidate_profiles_fec_office ON candidate_profiles(fec_office_type) WHERE fec_office_type IS NOT NULL;
-CREATE INDEX idx_candidate_profiles_shadow ON candidate_profiles(is_shadow_profile);
-CREATE INDEX idx_candidate_profiles_fec ON candidate_profiles(fec_candidate_id);
-CREATE INDEX idx_candidate_profiles_open_states ON candidate_profiles(open_states_id);
-CREATE INDEX idx_cp_vote_smart ON candidate_profiles(vote_smart_candidate_id);
-CREATE INDEX idx_cp_congress_gov ON candidate_profiles(congress_gov_id);
+CREATE INDEX IF NOT EXISTS idx_candidate_profiles_shadow ON candidate_profiles(is_shadow_profile);
+CREATE INDEX IF NOT EXISTS idx_candidate_profiles_fec ON candidate_profiles(fec_candidate_id);
+CREATE INDEX IF NOT EXISTS idx_candidate_profiles_open_states ON candidate_profiles(open_states_id);
+CREATE INDEX IF NOT EXISTS idx_cp_vote_smart ON candidate_profiles(vote_smart_candidate_id);
+CREATE INDEX IF NOT EXISTS idx_cp_congress_gov ON candidate_profiles(congress_gov_id);
 
 
 -- =====================================================
@@ -163,8 +163,8 @@ CREATE TABLE elections (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_elections_date ON elections(election_date);
-CREATE INDEX idx_elections_state ON elections(state);
+CREATE INDEX IF NOT EXISTS idx_elections_date ON elections(election_date);
+CREATE INDEX IF NOT EXISTS idx_elections_state ON elections(state);
 
 CREATE TABLE offices (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -186,8 +186,8 @@ CREATE TABLE offices (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_offices_level ON offices(office_level);
-CREATE INDEX idx_offices_location ON offices(state, county, city);
+CREATE INDEX IF NOT EXISTS idx_offices_level ON offices(office_level);
+CREATE INDEX IF NOT EXISTS idx_offices_location ON offices(state, county, city);
 
 CREATE TABLE races (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -215,8 +215,8 @@ CREATE TABLE races (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_races_election ON races(election_id);
-CREATE INDEX idx_races_office ON races(office_id);
+CREATE INDEX IF NOT EXISTS idx_races_election ON races(election_id);
+CREATE INDEX IF NOT EXISTS idx_races_office ON races(office_id);
 
 -- =====================================================
 -- CANDIDATE-RACE RELATIONSHIP
@@ -242,8 +242,8 @@ CREATE TABLE candidacies (
     UNIQUE(candidate_id, race_id)
 );
 
-CREATE INDEX idx_candidacies_candidate ON candidacies(candidate_id);
-CREATE INDEX idx_candidacies_race ON candidacies(race_id);
+CREATE INDEX IF NOT EXISTS idx_candidacies_candidate ON candidacies(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_candidacies_race ON candidacies(race_id);
 
 -- =====================================================
 -- ISSUE POSITIONS
@@ -277,7 +277,7 @@ CREATE TABLE issues (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_issues_category ON issues(category_id);
+CREATE INDEX IF NOT EXISTS idx_issues_category ON issues(category_id);
 
 CREATE TABLE candidate_positions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -297,8 +297,8 @@ CREATE TABLE candidate_positions (
     UNIQUE(candidate_id, issue_id)
 );
 
-CREATE INDEX idx_candidate_positions_candidate ON candidate_positions(candidate_id);
-CREATE INDEX idx_candidate_positions_issue ON candidate_positions(issue_id);
+CREATE INDEX IF NOT EXISTS idx_candidate_positions_candidate ON candidate_positions(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_candidate_positions_issue ON candidate_positions(issue_id);
 
 -- =====================================================
 -- Q&A SYSTEM
@@ -325,9 +325,9 @@ CREATE TABLE questions (
     answered_at TIMESTAMP
 );
 
-CREATE INDEX idx_questions_candidate ON questions(candidate_id);
-CREATE INDEX idx_questions_status ON questions(status);
-CREATE INDEX idx_questions_upvotes ON questions(upvote_count DESC);
+CREATE INDEX IF NOT EXISTS idx_questions_candidate ON questions(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_questions_status ON questions(status);
+CREATE INDEX IF NOT EXISTS idx_questions_upvotes ON questions(upvote_count DESC);
 
 CREATE TABLE question_upvotes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -384,8 +384,8 @@ CREATE TABLE posts (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_posts_candidate ON posts(candidate_id);
-CREATE INDEX idx_posts_created ON posts(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_posts_candidate ON posts(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
 
 -- =====================================================
 -- TOWN HALLS
@@ -422,9 +422,9 @@ CREATE TABLE town_halls (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_town_halls_candidate ON town_halls(candidate_id);
-CREATE INDEX idx_town_halls_scheduled ON town_halls(scheduled_at);
-CREATE INDEX idx_town_halls_status ON town_halls(status);
+CREATE INDEX IF NOT EXISTS idx_town_halls_candidate ON town_halls(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_town_halls_scheduled ON town_halls(scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_town_halls_status ON town_halls(status);
 
 CREATE TABLE town_hall_questions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -445,7 +445,7 @@ CREATE TABLE town_hall_questions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_town_hall_questions_event ON town_hall_questions(town_hall_id);
+CREATE INDEX IF NOT EXISTS idx_town_hall_questions_event ON town_hall_questions(town_hall_id);
 
 CREATE TABLE town_hall_question_upvotes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -479,8 +479,8 @@ CREATE TABLE promises (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_promises_candidate ON promises(candidate_id);
-CREATE INDEX idx_promises_status ON promises(status);
+CREATE INDEX IF NOT EXISTS idx_promises_candidate ON promises(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_promises_status ON promises(status);
 
 -- =====================================================
 -- BILLS & SPONSORSHIPS
@@ -506,9 +506,9 @@ CREATE TABLE bills (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_bills_state ON bills(state);
-CREATE INDEX idx_bills_external_id ON bills(external_id);
-CREATE INDEX idx_bills_bill_number ON bills(bill_number, state);
+CREATE INDEX IF NOT EXISTS idx_bills_state ON bills(state);
+CREATE INDEX IF NOT EXISTS idx_bills_external_id ON bills(external_id);
+CREATE INDEX IF NOT EXISTS idx_bills_bill_number ON bills(bill_number, state);
 
 CREATE TABLE bill_sponsorships (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -526,9 +526,9 @@ CREATE TABLE bill_sponsorships (
     UNIQUE(candidate_id, bill_id, sponsorship_type)
 );
 
-CREATE INDEX idx_sponsorships_candidate ON bill_sponsorships(candidate_id);
-CREATE INDEX idx_sponsorships_bill ON bill_sponsorships(bill_id);
-CREATE INDEX idx_sponsorships_type ON bill_sponsorships(sponsorship_type);
+CREATE INDEX IF NOT EXISTS idx_sponsorships_candidate ON bill_sponsorships(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_sponsorships_bill ON bill_sponsorships(bill_id);
+CREATE INDEX IF NOT EXISTS idx_sponsorships_type ON bill_sponsorships(sponsorship_type);
 
 CREATE TABLE vote_events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -548,8 +548,8 @@ CREATE TABLE vote_events (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_vote_events_bill ON vote_events(bill_id);
-CREATE INDEX idx_vote_events_date ON vote_events(vote_date);
+CREATE INDEX IF NOT EXISTS idx_vote_events_bill ON vote_events(bill_id);
+CREATE INDEX IF NOT EXISTS idx_vote_events_date ON vote_events(vote_date);
 
 -- =====================================================
 -- VOTING RECORDS
@@ -568,9 +568,9 @@ CREATE TABLE voting_records (
     UNIQUE(candidate_id, vote_event_id)
 );
 
-CREATE INDEX idx_voting_records_candidate ON voting_records(candidate_id);
-CREATE INDEX idx_voting_records_bill ON voting_records(bill_id);
-CREATE INDEX idx_voting_records_vote ON voting_records(vote);
+CREATE INDEX IF NOT EXISTS idx_voting_records_candidate ON voting_records(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_voting_records_bill ON voting_records(bill_id);
+CREATE INDEX IF NOT EXISTS idx_voting_records_vote ON voting_records(vote);
 
 -- =====================================================
 -- ACCOUNTABILITY ENGINE
@@ -586,9 +586,9 @@ CREATE TABLE public_statements (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_public_statements_politician ON public_statements(politician_id);
-CREATE INDEX idx_public_statements_date ON public_statements(statement_date);
-CREATE INDEX idx_public_statements_topics ON public_statements USING GIN(topic_tags);
+CREATE INDEX IF NOT EXISTS idx_public_statements_politician ON public_statements(politician_id);
+CREATE INDEX IF NOT EXISTS idx_public_statements_date ON public_statements(statement_date);
+CREATE INDEX IF NOT EXISTS idx_public_statements_topics ON public_statements USING GIN(topic_tags);
 
 CREATE TABLE accountability_gaps (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -609,11 +609,11 @@ CREATE TABLE accountability_gaps (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_accountability_gaps_politician ON accountability_gaps(politician_id);
-CREATE INDEX idx_accountability_gaps_type ON accountability_gaps(gap_type);
-CREATE INDEX idx_accountability_gaps_severity ON accountability_gaps(gap_severity DESC);
-CREATE INDEX idx_accountability_gaps_published ON accountability_gaps(published) WHERE published = TRUE;
-CREATE INDEX idx_accountability_gaps_topic ON accountability_gaps(topic_tag);
+CREATE INDEX IF NOT EXISTS idx_accountability_gaps_politician ON accountability_gaps(politician_id);
+CREATE INDEX IF NOT EXISTS idx_accountability_gaps_type ON accountability_gaps(gap_type);
+CREATE INDEX IF NOT EXISTS idx_accountability_gaps_severity ON accountability_gaps(gap_severity DESC);
+CREATE INDEX IF NOT EXISTS idx_accountability_gaps_published ON accountability_gaps(published) WHERE published = TRUE;
+CREATE INDEX IF NOT EXISTS idx_accountability_gaps_topic ON accountability_gaps(topic_tag);
 
 CREATE TABLE accountability_scores (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -624,8 +624,8 @@ CREATE TABLE accountability_scores (
     last_computed TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_accountability_scores_consistency ON accountability_scores(consistency_score DESC);
-CREATE INDEX idx_accountability_scores_donor ON accountability_scores(donor_influence_score DESC);
+CREATE INDEX IF NOT EXISTS idx_accountability_scores_consistency ON accountability_scores(consistency_score DESC);
+CREATE INDEX IF NOT EXISTS idx_accountability_scores_donor ON accountability_scores(donor_influence_score DESC);
 
 CREATE TABLE politician_donor_industries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -640,8 +640,8 @@ CREATE TABLE politician_donor_industries (
     UNIQUE(politician_id, industry_name, cycle_year)
 );
 
-CREATE INDEX idx_politician_donor_industries_politician ON politician_donor_industries(politician_id);
-CREATE INDEX idx_politician_donor_industries_amount ON politician_donor_industries(total_amount DESC);
+CREATE INDEX IF NOT EXISTS idx_politician_donor_industries_politician ON politician_donor_industries(politician_id);
+CREATE INDEX IF NOT EXISTS idx_politician_donor_industries_amount ON politician_donor_industries(total_amount DESC);
 
 -- =====================================================
 -- ENDORSEMENTS (Candidate to Candidate only)
@@ -659,8 +659,8 @@ CREATE TABLE endorsements (
     UNIQUE(endorser_id, endorsed_id)
 );
 
-CREATE INDEX idx_endorsements_endorser ON endorsements(endorser_id);
-CREATE INDEX idx_endorsements_endorsed ON endorsements(endorsed_id);
+CREATE INDEX IF NOT EXISTS idx_endorsements_endorser ON endorsements(endorser_id);
+CREATE INDEX IF NOT EXISTS idx_endorsements_endorsed ON endorsements(endorsed_id);
 
 -- =====================================================
 -- FOLLOWING
@@ -681,8 +681,8 @@ CREATE TABLE follows (
     UNIQUE(user_id, candidate_id)
 );
 
-CREATE INDEX idx_follows_user ON follows(user_id);
-CREATE INDEX idx_follows_candidate ON follows(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_follows_user ON follows(user_id);
+CREATE INDEX IF NOT EXISTS idx_follows_candidate ON follows(candidate_id);
 
 -- =====================================================
 -- USER CONNECTIONS (Friend system)
@@ -776,8 +776,8 @@ CREATE TABLE notifications (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_notifications_user ON notifications(user_id);
-CREATE INDEX idx_notifications_unread ON notifications(user_id, is_read) WHERE is_read = FALSE;
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(user_id, is_read) WHERE is_read = FALSE;
 
 -- =====================================================
 -- NOTIFICATION PREFERENCES
@@ -826,8 +826,8 @@ CREATE TABLE moderation_flags (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_moderation_flags_status ON moderation_flags(status);
-CREATE INDEX idx_moderation_flags_content ON moderation_flags(content_type, content_id);
+CREATE INDEX IF NOT EXISTS idx_moderation_flags_status ON moderation_flags(status);
+CREATE INDEX IF NOT EXISTS idx_moderation_flags_content ON moderation_flags(content_type, content_id);
 
 CREATE TABLE community_notes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -850,7 +850,7 @@ CREATE TABLE community_notes (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_community_notes_content ON community_notes(content_type, content_id);
+CREATE INDEX IF NOT EXISTS idx_community_notes_content ON community_notes(content_type, content_id);
 
 CREATE TABLE community_note_votes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -879,8 +879,8 @@ CREATE TABLE sessions (
     last_activity_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_sessions_user ON sessions(user_id);
-CREATE INDEX idx_sessions_token ON sessions(token_hash);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token_hash);
 
 CREATE TABLE password_resets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -941,8 +941,8 @@ CREATE TABLE sync_runs (
     metadata JSONB
 );
 
-CREATE INDEX idx_sync_runs_source ON sync_runs(data_source_id);
-CREATE INDEX idx_sync_runs_status ON sync_runs(status);
+CREATE INDEX IF NOT EXISTS idx_sync_runs_source ON sync_runs(data_source_id);
+CREATE INDEX IF NOT EXISTS idx_sync_runs_status ON sync_runs(status);
 
 CREATE TABLE candidate_source_links (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -958,9 +958,9 @@ CREATE TABLE candidate_source_links (
     UNIQUE(data_source_id, external_id)
 );
 
-CREATE INDEX idx_candidate_source_links_candidate ON candidate_source_links(candidate_id);
-CREATE INDEX idx_candidate_source_links_source ON candidate_source_links(data_source_id);
-CREATE INDEX idx_candidate_source_links_external ON candidate_source_links(external_id);
+CREATE INDEX IF NOT EXISTS idx_candidate_source_links_candidate ON candidate_source_links(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_candidate_source_links_source ON candidate_source_links(data_source_id);
+CREATE INDEX IF NOT EXISTS idx_candidate_source_links_external ON candidate_source_links(external_id);
 
 -- Seed initial data sources
 INSERT INTO data_sources (id, name, display_name, source_type, base_url, api_key_env_var, sync_frequency_hours)
@@ -991,9 +991,9 @@ CREATE TABLE audit_log (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_audit_log_user ON audit_log(user_id);
-CREATE INDEX idx_audit_log_entity ON audit_log(entity_type, entity_id);
-CREATE INDEX idx_audit_log_created ON audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_entity ON audit_log(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at DESC);
 
 -- =====================================================
 -- SEED DATA: Issue Categories
@@ -1026,8 +1026,8 @@ CREATE TABLE town_hall_rsvps (
     UNIQUE(town_hall_id, user_id)
 );
 
-CREATE INDEX idx_town_hall_rsvps_town_hall ON town_hall_rsvps(town_hall_id);
-CREATE INDEX idx_town_hall_rsvps_user ON town_hall_rsvps(user_id);
+CREATE INDEX IF NOT EXISTS idx_town_hall_rsvps_town_hall ON town_hall_rsvps(town_hall_id);
+CREATE INDEX IF NOT EXISTS idx_town_hall_rsvps_user ON town_hall_rsvps(user_id);
 
 -- =====================================================
 -- DISTRICT-COUNTY MAPPING (for federal candidate filtering)
@@ -1080,14 +1080,14 @@ CREATE TABLE district_county_mappings (
     UNIQUE(district_id, county_geoid)
 );
 
-CREATE INDEX idx_districts_state ON congressional_districts(state_abbr);
-CREATE INDEX idx_districts_geoid ON congressional_districts(geoid);
-CREATE INDEX idx_district_county_district ON district_county_mappings(district_id);
-CREATE INDEX idx_district_county_county ON district_county_mappings(county_geoid);
-CREATE INDEX idx_district_county_state ON district_county_mappings(state_fips);
-CREATE INDEX idx_counties_state ON counties(state_abbr);
-CREATE INDEX idx_counties_geoid ON counties(county_geoid);
-CREATE INDEX idx_counties_name ON counties(state_abbr, county_name);
+CREATE INDEX IF NOT EXISTS idx_districts_state ON congressional_districts(state_abbr);
+CREATE INDEX IF NOT EXISTS idx_districts_geoid ON congressional_districts(geoid);
+CREATE INDEX IF NOT EXISTS idx_district_county_district ON district_county_mappings(district_id);
+CREATE INDEX IF NOT EXISTS idx_district_county_county ON district_county_mappings(county_geoid);
+CREATE INDEX IF NOT EXISTS idx_district_county_state ON district_county_mappings(state_fips);
+CREATE INDEX IF NOT EXISTS idx_counties_state ON counties(state_abbr);
+CREATE INDEX IF NOT EXISTS idx_counties_geoid ON counties(county_geoid);
+CREATE INDEX IF NOT EXISTS idx_counties_name ON counties(state_abbr, county_name);
 
 -- =====================================================
 -- CRIMINAL RECORDS
@@ -1113,9 +1113,9 @@ CREATE TABLE IF NOT EXISTS candidate_criminal_records (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_criminal_records_candidate ON candidate_criminal_records(candidate_id);
-CREATE INDEX idx_criminal_records_moderation ON candidate_criminal_records(moderation_status) WHERE moderation_status = 'pending';
-CREATE INDEX idx_criminal_records_public ON candidate_criminal_records(candidate_id, is_public) WHERE is_public = TRUE;
+CREATE INDEX IF NOT EXISTS idx_criminal_records_candidate ON candidate_criminal_records(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_criminal_records_moderation ON candidate_criminal_records(moderation_status) WHERE moderation_status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_criminal_records_public ON candidate_criminal_records(candidate_id, is_public) WHERE is_public = TRUE;
 
 -- =====================================================
 -- NEWSLETTER SUBSCRIBERS
@@ -1140,8 +1140,8 @@ CREATE TABLE IF NOT EXISTS race_watchers (
     UNIQUE(user_id, race_id)
 );
 
-CREATE INDEX idx_race_watchers_user ON race_watchers(user_id);
-CREATE INDEX idx_race_watchers_race ON race_watchers(race_id);
+CREATE INDEX IF NOT EXISTS idx_race_watchers_user ON race_watchers(user_id);
+CREATE INDEX IF NOT EXISTS idx_race_watchers_race ON race_watchers(race_id);
 
 -- =====================================================
 -- ACCOUNTABILITY ENGINE (Migration 027)
@@ -1157,9 +1157,9 @@ CREATE TABLE IF NOT EXISTS public_statements (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_public_statements_politician ON public_statements(politician_id);
-CREATE INDEX idx_public_statements_date ON public_statements(statement_date);
-CREATE INDEX idx_public_statements_topics ON public_statements USING GIN(topic_tags);
+CREATE INDEX IF NOT EXISTS idx_public_statements_politician ON public_statements(politician_id);
+CREATE INDEX IF NOT EXISTS idx_public_statements_date ON public_statements(statement_date);
+CREATE INDEX IF NOT EXISTS idx_public_statements_topics ON public_statements USING GIN(topic_tags);
 
 CREATE TABLE IF NOT EXISTS accountability_gaps (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1180,11 +1180,11 @@ CREATE TABLE IF NOT EXISTS accountability_gaps (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_accountability_gaps_politician ON accountability_gaps(politician_id);
-CREATE INDEX idx_accountability_gaps_type ON accountability_gaps(gap_type);
-CREATE INDEX idx_accountability_gaps_severity ON accountability_gaps(gap_severity DESC);
-CREATE INDEX idx_accountability_gaps_published ON accountability_gaps(published) WHERE published = TRUE;
-CREATE INDEX idx_accountability_gaps_topic ON accountability_gaps(topic_tag);
+CREATE INDEX IF NOT EXISTS idx_accountability_gaps_politician ON accountability_gaps(politician_id);
+CREATE INDEX IF NOT EXISTS idx_accountability_gaps_type ON accountability_gaps(gap_type);
+CREATE INDEX IF NOT EXISTS idx_accountability_gaps_severity ON accountability_gaps(gap_severity DESC);
+CREATE INDEX IF NOT EXISTS idx_accountability_gaps_published ON accountability_gaps(published) WHERE published = TRUE;
+CREATE INDEX IF NOT EXISTS idx_accountability_gaps_topic ON accountability_gaps(topic_tag);
 
 CREATE TABLE IF NOT EXISTS accountability_scores (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1195,8 +1195,8 @@ CREATE TABLE IF NOT EXISTS accountability_scores (
     last_computed TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_accountability_scores_consistency ON accountability_scores(consistency_score DESC);
-CREATE INDEX idx_accountability_scores_donor ON accountability_scores(donor_influence_score DESC);
+CREATE INDEX IF NOT EXISTS idx_accountability_scores_consistency ON accountability_scores(consistency_score DESC);
+CREATE INDEX IF NOT EXISTS idx_accountability_scores_donor ON accountability_scores(donor_influence_score DESC);
 
 CREATE TABLE IF NOT EXISTS politician_donor_industries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1211,8 +1211,8 @@ CREATE TABLE IF NOT EXISTS politician_donor_industries (
     UNIQUE(politician_id, industry_name, cycle_year)
 );
 
-CREATE INDEX idx_politician_donor_industries_politician ON politician_donor_industries(politician_id);
-CREATE INDEX idx_politician_donor_industries_amount ON politician_donor_industries(total_amount DESC);
+CREATE INDEX IF NOT EXISTS idx_politician_donor_industries_politician ON politician_donor_industries(politician_id);
+CREATE INDEX IF NOT EXISTS idx_politician_donor_industries_amount ON politician_donor_industries(total_amount DESC);
 
 -- =====================================================
 -- PLATFORM FEATURES (Migration 028)

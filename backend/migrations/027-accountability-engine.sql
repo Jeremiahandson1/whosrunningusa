@@ -12,9 +12,9 @@ CREATE TABLE IF NOT EXISTS public_statements (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_public_statements_politician ON public_statements(politician_id);
-CREATE INDEX idx_public_statements_date ON public_statements(statement_date);
-CREATE INDEX idx_public_statements_topics ON public_statements USING GIN(topic_tags);
+CREATE INDEX IF NOT EXISTS idx_public_statements_politician ON public_statements(politician_id);
+CREATE INDEX IF NOT EXISTS idx_public_statements_date ON public_statements(statement_date);
+CREATE INDEX IF NOT EXISTS idx_public_statements_topics ON public_statements USING GIN(topic_tags);
 
 -- Identified gaps between what politicians say and what they do
 CREATE TABLE IF NOT EXISTS accountability_gaps (
@@ -36,11 +36,11 @@ CREATE TABLE IF NOT EXISTS accountability_gaps (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_accountability_gaps_politician ON accountability_gaps(politician_id);
-CREATE INDEX idx_accountability_gaps_type ON accountability_gaps(gap_type);
-CREATE INDEX idx_accountability_gaps_severity ON accountability_gaps(gap_severity DESC);
-CREATE INDEX idx_accountability_gaps_published ON accountability_gaps(published) WHERE published = TRUE;
-CREATE INDEX idx_accountability_gaps_topic ON accountability_gaps(topic_tag);
+CREATE INDEX IF NOT EXISTS idx_accountability_gaps_politician ON accountability_gaps(politician_id);
+CREATE INDEX IF NOT EXISTS idx_accountability_gaps_type ON accountability_gaps(gap_type);
+CREATE INDEX IF NOT EXISTS idx_accountability_gaps_severity ON accountability_gaps(gap_severity DESC);
+CREATE INDEX IF NOT EXISTS idx_accountability_gaps_published ON accountability_gaps(published) WHERE published = TRUE;
+CREATE INDEX IF NOT EXISTS idx_accountability_gaps_topic ON accountability_gaps(topic_tag);
 
 -- Aggregate accountability scores per politician
 CREATE TABLE IF NOT EXISTS accountability_scores (
@@ -52,8 +52,8 @@ CREATE TABLE IF NOT EXISTS accountability_scores (
     last_computed TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_accountability_scores_consistency ON accountability_scores(consistency_score DESC);
-CREATE INDEX idx_accountability_scores_donor ON accountability_scores(donor_influence_score DESC);
+CREATE INDEX IF NOT EXISTS idx_accountability_scores_consistency ON accountability_scores(consistency_score DESC);
+CREATE INDEX IF NOT EXISTS idx_accountability_scores_donor ON accountability_scores(donor_influence_score DESC);
 
 -- Donor industry aggregation for politician donor breakdowns
 CREATE TABLE IF NOT EXISTS politician_donor_industries (
@@ -69,5 +69,5 @@ CREATE TABLE IF NOT EXISTS politician_donor_industries (
     UNIQUE(politician_id, industry_name, cycle_year)
 );
 
-CREATE INDEX idx_politician_donor_industries_politician ON politician_donor_industries(politician_id);
-CREATE INDEX idx_politician_donor_industries_amount ON politician_donor_industries(total_amount DESC);
+CREATE INDEX IF NOT EXISTS idx_politician_donor_industries_politician ON politician_donor_industries(politician_id);
+CREATE INDEX IF NOT EXISTS idx_politician_donor_industries_amount ON politician_donor_industries(total_amount DESC);
