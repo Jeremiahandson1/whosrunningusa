@@ -149,7 +149,7 @@ app.use('/api/blueprint', require('./routes/blueprint'));
 
 // Blueprint policy hub — hidden static site at /blueprint
 app.use('/blueprint', express.static(path.join(__dirname, 'blueprint'), { index: 'index.html' }));
-app.get('/blueprint/*', (req, res) => {
+app.get('/blueprint/{*path}', (req, res) => {
   res.sendFile(path.join(__dirname, 'blueprint', 'index.html'));
 });
 
