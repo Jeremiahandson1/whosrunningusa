@@ -16,6 +16,7 @@
   "license": "ISC",
   "dependencies": {
     "@sentry/react": "^10.42.0",
+    "framer-motion": "^12.38.0",
     "lucide-react": "^0.555.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",

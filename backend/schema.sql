@@ -573,6 +573,77 @@ CREATE INDEX idx_voting_records_bill ON voting_records(bill_id);
 CREATE INDEX idx_voting_records_vote ON voting_records(vote);
 
 -- =====================================================
+-- ACCOUNTABILITY ENGINE
+-- =====================================================
+
+CREATE TABLE public_statements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    politician_id UUID REFERENCES candidate_profiles(id) ON DELETE CASCADE,
+    statement_text TEXT NOT NULL,
+    statement_date DATE,
+    source_url TEXT,
+    topic_tags TEXT[],
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_public_statements_politician ON public_statements(politician_id);
+CREATE INDEX idx_public_statements_date ON public_statements(statement_date);
+CREATE INDEX idx_public_statements_topics ON public_statements USING GIN(topic_tags);
+
+CREATE TABLE accountability_gaps (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    politician_id UUID REFERENCES candidate_profiles(id) ON DELETE CASCADE,
+    gap_type VARCHAR(50) CHECK (gap_type IN ('donor_vote', 'statement_vote', 'statement_donor')),
+    stated_position TEXT,
+    actual_action TEXT,
+    supporting_vote_ids UUID[],
+    supporting_donor_ids UUID[],
+    gap_severity INTEGER CHECK (gap_severity BETWEEN 1 AND 10),
+    ai_analysis TEXT,
+    topic_tag VARCHAR(100),
+    verified BOOLEAN DEFAULT FALSE,
+    verified_at TIMESTAMPTZ,
+    verified_by UUID REFERENCES users(id),
+    published BOOLEAN DEFAULT FALSE,
+    published_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_accountability_gaps_politician ON accountability_gaps(politician_id);
+CREATE INDEX idx_accountability_gaps_type ON accountability_gaps(gap_type);
+CREATE INDEX idx_accountability_gaps_severity ON accountability_gaps(gap_severity DESC);
+CREATE INDEX idx_accountability_gaps_published ON accountability_gaps(published) WHERE published = TRUE;
+CREATE INDEX idx_accountability_gaps_topic ON accountability_gaps(topic_tag);
+
+CREATE TABLE accountability_scores (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    politician_id UUID REFERENCES candidate_profiles(id) ON DELETE CASCADE UNIQUE,
+    consistency_score INTEGER CHECK (consistency_score BETWEEN 0 AND 100),
+    donor_influence_score INTEGER CHECK (donor_influence_score BETWEEN 0 AND 100),
+    total_gaps_found INTEGER DEFAULT 0,
+    last_computed TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_accountability_scores_consistency ON accountability_scores(consistency_score DESC);
+CREATE INDEX idx_accountability_scores_donor ON accountability_scores(donor_influence_score DESC);
+
+CREATE TABLE politician_donor_industries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    politician_id UUID REFERENCES candidate_profiles(id) ON DELETE CASCADE,
+    industry_name VARCHAR(200) NOT NULL,
+    total_amount DECIMAL(12, 2) DEFAULT 0,
+    donor_count INTEGER DEFAULT 0,
+    cycle_year INTEGER,
+    source VARCHAR(50),
+    source_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(politician_id, industry_name, cycle_year)
+);
+
+CREATE INDEX idx_politician_donor_industries_politician ON politician_donor_industries(politician_id);
+CREATE INDEX idx_politician_donor_industries_amount ON politician_donor_industries(total_amount DESC);
+
+-- =====================================================
 -- ENDORSEMENTS (Candidate to Candidate only)
 -- =====================================================
 
@@ -1071,3 +1142,282 @@ CREATE TABLE IF NOT EXISTS race_watchers (
 
 CREATE INDEX idx_race_watchers_user ON race_watchers(user_id);
 CREATE INDEX idx_race_watchers_race ON race_watchers(race_id);
+
+-- =====================================================
+-- ACCOUNTABILITY ENGINE (Migration 027)
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS public_statements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    politician_id UUID REFERENCES candidate_profiles(id) ON DELETE CASCADE,
+    statement_text TEXT NOT NULL,
+    statement_date DATE,
+    source_url TEXT,
+    topic_tags TEXT[],
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_public_statements_politician ON public_statements(politician_id);
+CREATE INDEX idx_public_statements_date ON public_statements(statement_date);
+CREATE INDEX idx_public_statements_topics ON public_statements USING GIN(topic_tags);
+
+CREATE TABLE IF NOT EXISTS accountability_gaps (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    politician_id UUID REFERENCES candidate_profiles(id) ON DELETE CASCADE,
+    gap_type VARCHAR(50) CHECK (gap_type IN ('donor_vote', 'statement_vote', 'statement_donor')),
+    stated_position TEXT,
+    actual_action TEXT,
+    supporting_vote_ids UUID[],
+    supporting_donor_ids UUID[],
+    gap_severity INTEGER CHECK (gap_severity BETWEEN 1 AND 10),
+    ai_analysis TEXT,
+    topic_tag VARCHAR(100),
+    verified BOOLEAN DEFAULT FALSE,
+    verified_at TIMESTAMPTZ,
+    verified_by UUID REFERENCES users(id),
+    published BOOLEAN DEFAULT FALSE,
+    published_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_accountability_gaps_politician ON accountability_gaps(politician_id);
+CREATE INDEX idx_accountability_gaps_type ON accountability_gaps(gap_type);
+CREATE INDEX idx_accountability_gaps_severity ON accountability_gaps(gap_severity DESC);
+CREATE INDEX idx_accountability_gaps_published ON accountability_gaps(published) WHERE published = TRUE;
+CREATE INDEX idx_accountability_gaps_topic ON accountability_gaps(topic_tag);
+
+CREATE TABLE IF NOT EXISTS accountability_scores (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    politician_id UUID REFERENCES candidate_profiles(id) ON DELETE CASCADE UNIQUE,
+    consistency_score INTEGER CHECK (consistency_score BETWEEN 0 AND 100),
+    donor_influence_score INTEGER CHECK (donor_influence_score BETWEEN 0 AND 100),
+    total_gaps_found INTEGER DEFAULT 0,
+    last_computed TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_accountability_scores_consistency ON accountability_scores(consistency_score DESC);
+CREATE INDEX idx_accountability_scores_donor ON accountability_scores(donor_influence_score DESC);
+
+CREATE TABLE IF NOT EXISTS politician_donor_industries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    politician_id UUID REFERENCES candidate_profiles(id) ON DELETE CASCADE,
+    industry_name VARCHAR(200) NOT NULL,
+    total_amount DECIMAL(12, 2) DEFAULT 0,
+    donor_count INTEGER DEFAULT 0,
+    cycle_year INTEGER,
+    source VARCHAR(50),
+    source_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(politician_id, industry_name, cycle_year)
+);
+
+CREATE INDEX idx_politician_donor_industries_politician ON politician_donor_industries(politician_id);
+CREATE INDEX idx_politician_donor_industries_amount ON politician_donor_industries(total_amount DESC);
+
+-- =====================================================
+-- PLATFORM FEATURES (Migration 028)
+-- =====================================================
+
+-- Petitions
+CREATE TABLE IF NOT EXISTS petitions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(300) NOT NULL,
+    description TEXT NOT NULL,
+    plain_language_summary TEXT,
+    target_type VARCHAR(50) CHECK (target_type IN ('federal', 'state', 'local', 'agency', 'general')),
+    target_entity VARCHAR(300),
+    target_politician_id UUID REFERENCES candidate_profiles(id) ON DELETE SET NULL,
+    state VARCHAR(2),
+    required_signatures INTEGER NOT NULL DEFAULT 1000,
+    current_signatures INTEGER NOT NULL DEFAULT 0,
+    status VARCHAR(30) CHECK (status IN ('draft', 'active', 'delivered', 'closed', 'expired')) DEFAULT 'active',
+    identity_verification_required BOOLEAN DEFAULT FALSE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    deadline DATE,
+    delivered_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS petition_signatures (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    petition_id UUID NOT NULL REFERENCES petitions(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    verified BOOLEAN DEFAULT FALSE,
+    verification_method VARCHAR(50),
+    signed_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(petition_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS petition_volunteers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    petition_id UUID NOT NULL REFERENCES petitions(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role VARCHAR(50) CHECK (role IN ('coordinator', 'canvasser', 'social_media', 'general')) DEFAULT 'general',
+    joined_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(petition_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS petition_state_requirements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    state VARCHAR(2) NOT NULL,
+    petition_type VARCHAR(50) NOT NULL,
+    required_signatures INTEGER,
+    deadline_description TEXT,
+    additional_rules TEXT,
+    source_url TEXT,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(state, petition_type)
+);
+
+-- Candidate Self-Registration
+CREATE TABLE IF NOT EXISTS candidate_claims (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    candidate_profile_id UUID REFERENCES candidate_profiles(id) ON DELETE SET NULL,
+    claim_type VARCHAR(30) CHECK (claim_type IN ('existing', 'new')) DEFAULT 'existing',
+    verification_status VARCHAR(30) CHECK (verification_status IN ('pending', 'approved', 'rejected', 'needs_info')) DEFAULT 'pending',
+    verification_documents TEXT[],
+    fec_candidate_id VARCHAR(20),
+    official_name VARCHAR(300),
+    office_sought VARCHAR(200),
+    state VARCHAR(2),
+    party VARCHAR(100),
+    campaign_url TEXT,
+    rejection_reason TEXT,
+    submitted_at TIMESTAMPTZ DEFAULT NOW(),
+    reviewed_at TIMESTAMPTZ,
+    reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- Plain Language Vote Explanations
+CREATE TABLE IF NOT EXISTS vote_explanations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    vote_event_id UUID REFERENCES vote_events(id) ON DELETE CASCADE,
+    bill_id UUID REFERENCES bills(id) ON DELETE CASCADE,
+    plain_language_title VARCHAR(300),
+    plain_language_summary TEXT NOT NULL,
+    what_it_means TEXT,
+    who_it_affects TEXT,
+    reading_level DECIMAL(3,1) DEFAULT 8.0,
+    generated_by VARCHAR(50) DEFAULT 'ai',
+    verified BOOLEAN DEFAULT FALSE,
+    verified_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Post-Service Employment (Revolving Door)
+CREATE TABLE IF NOT EXISTS post_service_employment (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    politician_id UUID NOT NULL REFERENCES candidate_profiles(id) ON DELETE CASCADE,
+    employer VARCHAR(300) NOT NULL,
+    position_title VARCHAR(300),
+    industry VARCHAR(200),
+    start_date DATE,
+    end_date DATE,
+    left_office_date DATE,
+    compensation_range VARCHAR(50),
+    is_lobbying BOOLEAN DEFAULT FALSE,
+    is_board_position BOOLEAN DEFAULT FALSE,
+    source_url TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS revolving_door_flags (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employment_id UUID NOT NULL REFERENCES post_service_employment(id) ON DELETE CASCADE,
+    flag_type VARCHAR(50) CHECK (flag_type IN ('cooling_period_violation', 'industry_conflict', 'lobbying_restriction', 'committee_overlap')) NOT NULL,
+    description TEXT NOT NULL,
+    severity INTEGER CHECK (severity BETWEEN 1 AND 10) DEFAULT 5,
+    violation_start DATE,
+    violation_end DATE,
+    related_committee VARCHAR(200),
+    related_industry VARCHAR(200),
+    verified BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Trading Activity Monitor
+CREATE TABLE IF NOT EXISTS official_trades (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    politician_id UUID NOT NULL REFERENCES candidate_profiles(id) ON DELETE CASCADE,
+    filer_name VARCHAR(300),
+    ticker VARCHAR(20),
+    asset_name VARCHAR(300),
+    trade_type VARCHAR(20) CHECK (trade_type IN ('purchase', 'sale', 'exchange')) NOT NULL,
+    amount_range_low DECIMAL(14,2),
+    amount_range_high DECIMAL(14,2),
+    trade_date DATE NOT NULL,
+    disclosure_date DATE,
+    days_to_disclose INTEGER,
+    committee_assignments TEXT[],
+    source_url TEXT,
+    source VARCHAR(50),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS trade_flags (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    trade_id UUID NOT NULL REFERENCES official_trades(id) ON DELETE CASCADE,
+    flag_type VARCHAR(50) CHECK (flag_type IN ('timing_suspicious', 'committee_relevant', 'volume_unusual', 'pre_announcement', 'late_disclosure', 'pattern_detected')) NOT NULL,
+    description TEXT NOT NULL,
+    severity INTEGER CHECK (severity BETWEEN 1 AND 10) DEFAULT 5,
+    related_committee VARCHAR(200),
+    related_bill_id UUID REFERENCES bills(id) ON DELETE SET NULL,
+    related_event_description TEXT,
+    event_date DATE,
+    verified BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Body Camera & Transparency Compliance
+CREATE TABLE IF NOT EXISTS transparency_requirements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    jurisdiction VARCHAR(200) NOT NULL,
+    jurisdiction_type VARCHAR(30) CHECK (jurisdiction_type IN ('federal', 'state', 'county', 'city')) NOT NULL,
+    state VARCHAR(2),
+    requirement_type VARCHAR(50) CHECK (requirement_type IN ('body_camera', 'foia_response', 'meeting_recording', 'financial_disclosure', 'lobbying_disclosure', 'campaign_finance')) NOT NULL,
+    title VARCHAR(300) NOT NULL,
+    description TEXT,
+    enacted_date DATE,
+    effective_date DATE,
+    statute_reference VARCHAR(200),
+    source_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS compliance_records (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    politician_id UUID REFERENCES candidate_profiles(id) ON DELETE CASCADE,
+    agency_name VARCHAR(300),
+    requirement_id UUID NOT NULL REFERENCES transparency_requirements(id) ON DELETE CASCADE,
+    compliance_status VARCHAR(30) CHECK (compliance_status IN ('compliant', 'partial', 'non_compliant', 'unknown', 'exempt')) DEFAULT 'unknown',
+    compliance_score INTEGER CHECK (compliance_score BETWEEN 0 AND 100),
+    last_checked DATE,
+    evidence_url TEXT,
+    notes TEXT,
+    reporting_period_start DATE,
+    reporting_period_end DATE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Campaign Finance Source Mapping
+CREATE TABLE IF NOT EXISTS donor_vote_connections (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    politician_id UUID NOT NULL REFERENCES candidate_profiles(id) ON DELETE CASCADE,
+    donor_industry_id UUID REFERENCES politician_donor_industries(id) ON DELETE SET NULL,
+    industry_name VARCHAR(200) NOT NULL,
+    donation_total DECIMAL(14,2),
+    vote_event_id UUID REFERENCES vote_events(id) ON DELETE SET NULL,
+    bill_id UUID REFERENCES bills(id) ON DELETE SET NULL,
+    vote_cast VARCHAR(10),
+    correlation_type VARCHAR(50) CHECK (correlation_type IN ('aligned', 'contradicted', 'neutral')) NOT NULL,
+    description TEXT,
+    ai_analysis TEXT,
+    confidence_score DECIMAL(3,2) CHECK (confidence_score BETWEEN 0 AND 1),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);

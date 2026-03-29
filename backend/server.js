@@ -44,7 +44,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "https://plausible.io"],
+      scriptSrc: ["'self'", "https://plausible.io", "https://cdn.jsdelivr.net"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:"],
@@ -139,6 +139,19 @@ app.use('/api/criminal-records', require('./routes/criminalRecords'));
 app.use('/api/connections', require('./routes/connections'));
 app.use('/api/community-notes', require('./routes/communityNotes'));
 app.use('/api/accountability', require('./routes/accountability'));
+app.use('/api/petitions', require('./routes/petitions'));
+app.use('/api/candidate-claims', require('./routes/candidate-claims'));
+app.use('/api/revolving-door', require('./routes/revolving-door'));
+app.use('/api/trades', require('./routes/trades'));
+app.use('/api/transparency', require('./routes/transparency'));
+app.use('/api/finance-map', require('./routes/finance-map'));
+app.use('/api/blueprint', require('./routes/blueprint'));
+
+// Blueprint policy hub — hidden static site at /blueprint
+app.use('/blueprint', express.static(path.join(__dirname, 'blueprint'), { index: 'index.html' }));
+app.get('/blueprint/*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'blueprint', 'index.html'));
+});
 
 
 

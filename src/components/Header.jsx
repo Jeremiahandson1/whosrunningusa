@@ -178,12 +178,20 @@ function Header() {
     { path: '/find-my-ballot', label: 'My Ballot' },
     { path: '/explore', label: 'Candidates' },
     { path: '/races', label: 'Races' },
-    { path: '/issue-match', label: 'Issue Match' },
+    { path: '/accountability', label: 'Accountability' },
+    { path: '/follow-the-money', label: 'Follow the Money' },
   ]
 
   const moreLinks = [
+    { path: '/accountability-mirror', label: 'Mirror' },
+    { path: '/petitions', label: 'Petitions' },
+    { path: '/trading-monitor', label: 'Trading Monitor' },
+    { path: '/revolving-door', label: 'Revolving Door' },
+    { path: '/transparency', label: 'Transparency' },
     { path: '/endorsements', label: 'Endorsements' },
     { path: '/town-halls', label: 'Town Halls' },
+    { path: '/issue-match', label: 'Issue Match' },
+    { path: '/claim-profile', label: 'Claim Profile' },
     { path: '/how-it-works', label: 'How It Works' },
     ...(user ? [{ path: '/feed', label: 'Feed' }, { path: '/connections', label: 'Connections' }] : []),
   ]

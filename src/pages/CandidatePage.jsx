@@ -37,6 +37,9 @@ function CandidatePage() {
   const [qaSort, setQaSort] = useState('upvotes')
   const [qaFilter, setQaFilter] = useState('all')
   const [relatedCandidates, setRelatedCandidates] = useState([])
+  const [accountabilityScore, setAccountabilityScore] = useState(null)
+  const [accountabilityGaps, setAccountabilityGaps] = useState([])
+  const [donorIndustries, setDonorIndustries] = useState([])
 
   useEffect(() => {
     setLoading(true)
@@ -50,7 +53,10 @@ function CandidatePage() {
       api.get(`/candidates/${id}/finance`).catch(() => ({ finance: [] })),
       api.get(`/candidates/${id}/ratings`).catch(() => ({ ratings: [] })),
       api.get(`/candidates/${id}/background`).catch(() => ({ education: [], experience: [], committees: [] })),
-    ]).then(([cData, qData, thData, vrData, spData, trData, finData, ratData, bgData]) => {
+      api.get(`/accountability/politicians/${id}/score`).catch(() => null),
+      api.get(`/accountability/politicians/${id}/gaps`).catch(() => ({ gaps: [] })),
+      api.get(`/accountability/politicians/${id}/donors`).catch(() => ({ donors: [] })),
+    ]).then(([cData, qData, thData, vrData, spData, trData, finData, ratData, bgData, scoreData, gapsData, donorsData]) => {
       const c = cData?.candidate || cData
       setCandidate(c)
       setQuestions(qData?.questions || [])
@@ -61,6 +67,9 @@ function CandidatePage() {
       setFinance(finData?.finance || [])
       setRatings(ratData?.ratings || [])
       setBackground(bgData || { education: [], experience: [], committees: [] })
+      setAccountabilityScore(scoreData)
+      setAccountabilityGaps(gapsData?.gaps || [])
+      setDonorIndustries(donorsData?.donors || [])
       if (c?.isFollowing) setFollowing(true)
       // Fetch related candidates from the same race
       if (c?.race_id) {
@@ -313,13 +322,14 @@ function CandidatePage() {
             'positions',
             'background',
             'finance',
+            'accountability',
             'record',
             'bills',
             'qa',
             'events',
             'endorsements',
           ]
-          const tabLabels = { qa: 'Q&A', record: 'Voting Record', bills: 'Bills & Sponsorships', background: 'Background', finance: 'Follow the Money' }
+          const tabLabels = { qa: 'Q&A', record: 'Voting Record', bills: 'Bills & Sponsorships', background: 'Background', finance: 'Follow the Money', accountability: 'Accountability' }
           const handleTabKeyDown = (e, tab) => {
             const idx = tabList.indexOf(tab)
             let newIdx
@@ -828,6 +838,170 @@ function CandidatePage() {
                       Roll call votes will appear here as legislative data is synced from official sources.
                     </p>
                   </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'accountability' && (
+              <div>
+                <h2 style={{ marginBottom: '1.5rem' }}>Accountability</h2>
+                {!accountabilityScore ? (
+                  <div className="empty-state">
+                    <AlertCircle size={32} style={{ color: 'var(--slate-400)', marginBottom: '0.75rem' }} />
+                    <p>Accountability data is being compiled for this politician. Check back soon.</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Score Gauges */}
+                    <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
+                      {/* Consistency Score Gauge */}
+                      <div className="card" style={{ padding: '1.5rem', flex: '1 1 280px', textAlign: 'center' }}>
+                        <h4 style={{ marginBottom: '1rem', color: 'var(--navy-800)' }}>Consistency Score</h4>
+                        {(() => {
+                          const score = accountabilityScore.consistency_score || 0
+                          const color = score >= 70 ? '#38a169' : score >= 40 ? '#d69e2e' : '#e53e3e'
+                          const angle = (score / 100) * 180
+                          const rad = (angle * Math.PI) / 180
+                          const x = 100 - 80 * Math.cos(rad)
+                          const y = 100 - 80 * Math.sin(rad)
+                          const largeArc = angle > 180 ? 1 : 0
+                          return (
+                            <svg viewBox="0 0 200 120" width="200" height="120">
+                              <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="var(--slate-200)" strokeWidth="12" strokeLinecap="round" />
+                              {score > 0 && (
+                                <path d={`M 20 100 A 80 80 0 ${largeArc} 1 ${x} ${y}`} fill="none" stroke={color} strokeWidth="12" strokeLinecap="round" />
+                              )}
+                              <text x="100" y="90" textAnchor="middle" fontSize="32" fontWeight="700" fill={color}>{score}</text>
+                              <text x="100" y="112" textAnchor="middle" fontSize="11" fill="var(--slate-500)">out of 100</text>
+                            </svg>
+                          )
+                        })()}
+                      </div>
+
+                      {/* Donor Influence Score Gauge */}
+                      <div className="card" style={{ padding: '1.5rem', flex: '1 1 200px', textAlign: 'center' }}>
+                        <h4 style={{ marginBottom: '1rem', color: 'var(--navy-800)' }}>Donor Influence</h4>
+                        {(() => {
+                          const score = accountabilityScore.donor_influence_score || 0
+                          const color = score >= 70 ? '#e53e3e' : score >= 40 ? '#d69e2e' : '#38a169'
+                          const angle = (score / 100) * 180
+                          const rad = (angle * Math.PI) / 180
+                          const x = 100 - 80 * Math.cos(rad)
+                          const y = 100 - 80 * Math.sin(rad)
+                          const largeArc = angle > 180 ? 1 : 0
+                          return (
+                            <svg viewBox="0 0 200 120" width="160" height="96">
+                              <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="var(--slate-200)" strokeWidth="12" strokeLinecap="round" />
+                              {score > 0 && (
+                                <path d={`M 20 100 A 80 80 0 ${largeArc} 1 ${x} ${y}`} fill="none" stroke={color} strokeWidth="12" strokeLinecap="round" />
+                              )}
+                              <text x="100" y="90" textAnchor="middle" fontSize="32" fontWeight="700" fill={color}>{score}</text>
+                              <text x="100" y="112" textAnchor="middle" fontSize="11" fill="var(--slate-500)">out of 100</text>
+                            </svg>
+                          )
+                        })()}
+                        <p style={{ fontSize: '0.8125rem', color: 'var(--slate-500)', marginTop: '0.5rem' }}>Higher = more donor-aligned voting</p>
+                      </div>
+                    </div>
+
+                    {/* Gap Cards */}
+                    {accountabilityGaps.length > 0 && (
+                      <div style={{ marginBottom: '2rem' }}>
+                        <h3 style={{ marginBottom: '1rem', color: 'var(--navy-800)' }}>Accountability Gaps</h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                          {accountabilityGaps.map((gap, idx) => {
+                            const typeLabel = gap.gap_type === 'donor_vote' ? 'Donor \u2194 Vote'
+                              : gap.gap_type === 'statement_vote' ? 'Said \u2194 Did'
+                              : gap.gap_type === 'statement_donor' ? 'Said \u2194 Funded By'
+                              : gap.gap_type || 'Gap'
+                            const severityColor = (gap.gap_severity || 0) >= 7 ? '#e53e3e' : (gap.gap_severity || 0) >= 4 ? '#d69e2e' : '#38a169'
+                            return (
+                              <div key={idx} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', borderBottom: '1px solid var(--slate-200)', background: 'var(--slate-50)' }}>
+                                  <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.125rem 0.5rem', background: 'var(--navy-100)', color: 'var(--navy-700)', borderRadius: '4px' }}>{typeLabel}</span>
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--slate-500)' }}>Severity: {gap.gap_severity || 'N/A'}/10</span>
+                                </div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+                                  <div style={{ flex: '1 1 200px', padding: '1rem', background: 'rgba(56, 161, 105, 0.06)', borderRight: '1px solid var(--slate-200)' }}>
+                                    <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#38a169', fontWeight: 600, marginBottom: '0.375rem' }}>What they said</div>
+                                    <p style={{ margin: 0, fontSize: '0.9375rem', color: 'var(--slate-700)' }}>{gap.stated_position || 'No statement recorded'}</p>
+                                  </div>
+                                  <div style={{ flex: '1 1 200px', padding: '1rem', background: 'rgba(229, 62, 62, 0.06)' }}>
+                                    <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#e53e3e', fontWeight: 600, marginBottom: '0.375rem' }}>What they did</div>
+                                    <p style={{ margin: 0, fontSize: '0.9375rem', color: 'var(--slate-700)' }}>{gap.actual_action || 'No action recorded'}</p>
+                                  </div>
+                                </div>
+                                <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--slate-200)' }}>
+                                  <div style={{ height: '4px', borderRadius: '2px', background: 'var(--slate-100)', marginBottom: '0.5rem' }}>
+                                    <div style={{ height: '100%', borderRadius: '2px', background: severityColor, width: `${((gap.gap_severity || 0) / 10) * 100}%` }} />
+                                  </div>
+                                  {gap.ai_analysis && (
+                                    <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--slate-600)', lineHeight: 1.5 }}>{gap.ai_analysis}</p>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Donor Force Graph */}
+                    <div style={{ marginBottom: '2rem' }}>
+                      <h3 style={{ marginBottom: '1rem', color: 'var(--navy-800)' }}>Donor Industries</h3>
+                      {donorIndustries.length === 0 ? (
+                        <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
+                          <p style={{ color: 'var(--slate-500)' }}>No donor data available</p>
+                        </div>
+                      ) : (
+                        <div className="card" style={{ padding: '1.5rem' }}>
+                          {(() => {
+                            const maxAmount = Math.max(...donorIndustries.map(d => d.total_amount || 0), 1)
+                            const centerX = 250
+                            const centerY = 200
+                            const radius = 140
+                            return (
+                              <svg viewBox="0 0 500 400" width="100%" style={{ maxWidth: '600px', margin: '0 auto', display: 'block' }}>
+                                {/* Lines */}
+                                {donorIndustries.map((donor, i) => {
+                                  const angle = (i / donorIndustries.length) * 2 * Math.PI - Math.PI / 2
+                                  const x = centerX + radius * Math.cos(angle)
+                                  const y = centerY + radius * Math.sin(angle)
+                                  return (
+                                    <line key={`line-${i}`} x1={centerX} y1={centerY} x2={x} y2={y} stroke="var(--slate-300)" strokeWidth="1.5" />
+                                  )
+                                })}
+                                {/* Donor nodes + labels */}
+                                {donorIndustries.map((donor, i) => {
+                                  const angle = (i / donorIndustries.length) * 2 * Math.PI - Math.PI / 2
+                                  const x = centerX + radius * Math.cos(angle)
+                                  const y = centerY + radius * Math.sin(angle)
+                                  const nodeSize = 12 + ((donor.total_amount || 0) / maxAmount) * 24
+                                  const amountLabel = (donor.total_amount || 0) >= 1000000
+                                    ? `$${((donor.total_amount || 0) / 1000000).toFixed(1)}M`
+                                    : (donor.total_amount || 0) >= 1000
+                                    ? `$${((donor.total_amount || 0) / 1000).toFixed(0)}K`
+                                    : `$${donor.total_amount || 0}`
+                                  const midX = (centerX + x) / 2
+                                  const midY = (centerY + y) / 2
+                                  return (
+                                    <g key={`node-${i}`}>
+                                      <circle cx={x} cy={y} r={nodeSize} fill="var(--burgundy-500)" opacity="0.8" />
+                                      <text x={x} y={y + nodeSize + 14} textAnchor="middle" fontSize="10" fill="var(--slate-600)">{donor.industry || donor.name || 'Unknown'}</text>
+                                      <text x={midX} y={midY - 6} textAnchor="middle" fontSize="9" fill="var(--slate-500)">{amountLabel}</text>
+                                    </g>
+                                  )
+                                })}
+                                {/* Center node */}
+                                <circle cx={centerX} cy={centerY} r="28" fill="var(--navy-800)" />
+                                <text x={centerX} y={centerY + 4} textAnchor="middle" fontSize="10" fill="white" fontWeight="600">{name.split(' ').pop()}</text>
+                              </svg>
+                            )
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             )}

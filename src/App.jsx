@@ -41,6 +41,14 @@ const ConnectionsPage = lazy(() => import('./pages/ConnectionsPage'))
 const PostFeedPage = lazy(() => import('./pages/PostFeedPage'))
 const FindMyBallotPage = lazy(() => import('./pages/FindMyBallotPage'))
 const IssueMatchPage = lazy(() => import('./pages/IssueMatchPage'))
+const AccountabilityPage = lazy(() => import('./pages/AccountabilityPage'))
+const AccountabilityMirrorPage = lazy(() => import('./pages/AccountabilityMirrorPage'))
+const PetitionsPage = lazy(() => import('./pages/PetitionsPage'))
+const RevolvingDoorPage = lazy(() => import('./pages/RevolvingDoorPage'))
+const TradingMonitorPage = lazy(() => import('./pages/TradingMonitorPage'))
+const TransparencyPage = lazy(() => import('./pages/TransparencyPage'))
+const FinanceMapPage = lazy(() => import('./pages/FinanceMapPage'))
+const ClaimProfilePage = lazy(() => import('./pages/ClaimProfilePage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
 function PageLoader() {
@@ -98,6 +106,14 @@ function App() {
             <Route path="/voting-guide" element={<VotingGuidePage />} />
             <Route path="/find-my-ballot" element={<FindMyBallotPage />} />
             <Route path="/issue-match" element={<IssueMatchPage />} />
+            <Route path="/accountability" element={<AccountabilityPage />} />
+            <Route path="/accountability-mirror" element={<AccountabilityMirrorPage />} />
+            <Route path="/petitions" element={<PetitionsPage />} />
+            <Route path="/revolving-door" element={<RevolvingDoorPage />} />
+            <Route path="/trading-monitor" element={<TradingMonitorPage />} />
+            <Route path="/transparency" element={<TransparencyPage />} />
+            <Route path="/follow-the-money" element={<FinanceMapPage />} />
+            <Route path="/claim-profile" element={<ClaimProfilePage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/mission" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
