@@ -1,5 +1,6 @@
 /* Persistent navigation — matches WhosRunningUSA header pattern */
-function bp(path) { return (typeof BASE !== 'undefined' ? BASE : '') + path; }
+if (typeof BASE === 'undefined') { var BASE = '/blueprint'; }
+function bp(path) { return BASE + path; }
 
 const NAV_SECTIONS = [
   { label: 'Economy', children: [
