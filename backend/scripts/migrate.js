@@ -124,22 +124,26 @@ async function runAll() {
     return false;
   };
 
-  if (await needsFullReset()) {
-    console.log('\nStale/outdated schema detected — dropping all tables and re-applying...');
-    await db.query('DROP SCHEMA public CASCADE');
-    await db.query('CREATE SCHEMA public');
-    await db.query('GRANT ALL ON SCHEMA public TO public');
-    await ensureMigrationsTable();
-    const sql = fs.readFileSync(SCHEMA_FILE, 'utf8');
-    await runMigration('000-schema.sql', sql);
-    ran++;
-  } else if (!applied.has('000-schema.sql')) {
-    console.log('\nApplying base schema...');
-    const sql = fs.readFileSync(SCHEMA_FILE, 'utf8');
-    await runMigration('000-schema.sql', sql);
-    ran++;
-  } else {
-    console.log('\nBase schema already applied.');
+  try {
+    if (await needsFullReset()) {
+      console.log('\nStale/outdated schema detected — dropping all tables and re-applying...');
+      await db.query('DROP SCHEMA public CASCADE');
+      await db.query('CREATE SCHEMA public');
+      await db.query('GRANT ALL ON SCHEMA public TO public');
+      await ensureMigrationsTable();
+      const sql = fs.readFileSync(SCHEMA_FILE, 'utf8');
+      await runMigration('000-schema.sql', sql);
+      ran++;
+    } else if (!applied.has('000-schema.sql')) {
+      console.log('\nApplying base schema...');
+      const sql = fs.readFileSync(SCHEMA_FILE, 'utf8');
+      await runMigration('000-schema.sql', sql);
+      ran++;
+    } else {
+      console.log('\nBase schema already applied.');
+    }
+  } catch (err) {
+    console.error(`  Base schema error: ${err.message} (continuing...)`);
   }
 
   // 2. Apply numbered migrations
@@ -150,10 +154,20 @@ async function runAll() {
     console.log('No pending migrations.');
   } else {
     console.log(`\nApplying ${pending.length} migration(s)...`);
+    const failed = [];
     for (const file of pending) {
       const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8');
-      await runMigration(file, sql);
-      ran++;
+      try {
+        await runMigration(file, sql);
+        ran++;
+      } catch (err) {
+        console.error(`  FAILED: ${file} — ${err.message}`);
+        failed.push(file);
+      }
+    }
+    if (failed.length > 0) {
+      console.log(`\n  WARNING: ${failed.length} migration(s) failed (server will still start):`);
+      failed.forEach(f => console.log(`    - ${f}`));
     }
   }
 
@@ -175,7 +189,8 @@ async function main() {
     }
   } catch (err) {
     console.error('Migration error:', err.message);
-    process.exit(1);
+    // Don't exit(1) — let the server start even if migrations had issues
+    console.error('WARNING: Migration had errors but server will attempt to start.');
   }
 
   process.exit(0);
