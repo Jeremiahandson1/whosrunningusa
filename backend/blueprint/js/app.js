@@ -1,5 +1,4 @@
 /* Phillips Policy Hub — SPA Router & All Pages */
-const BASE = '/blueprint';
 
 // ─── Router ────────────────────────────────────────────────
 function route() {
