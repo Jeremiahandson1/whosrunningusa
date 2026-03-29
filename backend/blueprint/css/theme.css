@@ -280,8 +280,17 @@ label { display: block; font-size: 0.875rem; font-weight: 600; color: var(--slat
   background: linear-gradient(135deg, var(--navy-800), var(--navy-900));
   color: white; border-radius: 8px; padding: 1.5rem; text-align: center;
 }
-.counter-value { font-size: 2rem; font-weight: 700; font-family: var(--font-display); margin-bottom: 0.25rem; }
+.counter-value {
+  font-size: 1.75rem; font-weight: 700; font-family: 'Courier New', monospace;
+  margin-bottom: 0.25rem; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.counter-value.live { color: #fc8181; text-shadow: 0 0 20px rgba(252, 129, 129, 0.3); }
 .counter-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.7; }
+.counter-card .live-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: #fc8181; margin-right: 0.5rem; animation: pulse 1.5s ease infinite;
+}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
 /* Tables */
 .data-table { width: 100%; border-collapse: collapse; font-size: 0.9375rem; }

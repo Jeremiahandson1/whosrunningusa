@@ -400,10 +400,10 @@ function pageDebt(main) {
     },
     content: `
       <div class="counter-grid">
-        <div class="counter-card"><div class="counter-value" id="debt-counter">$${(debtTotal/1e12).toFixed(1)}T</div><div class="counter-label">National Debt</div></div>
-        <div class="counter-card"><div class="counter-value">$${fmt(perSecond)}</div><div class="counter-label">Growing Per Second</div></div>
-        <div class="counter-card"><div class="counter-value">$1T</div><div class="counter-label">Annual Interest Payments</div></div>
-        <div class="counter-card"><div class="counter-value">$${fmt(perHousehold)}</div><div class="counter-label">Interest Per Household/Year</div></div>
+        <div class="counter-card"><div class="counter-value live" id="debt-counter">Loading...</div><div class="counter-label"><span class="live-dot"></span>National Debt</div></div>
+        <div class="counter-card"><div class="counter-value live" id="deficit-counter">Loading...</div><div class="counter-label"><span class="live-dot"></span>Deficit Since You Opened This Page</div></div>
+        <div class="counter-card"><div class="counter-value live" id="percitizen-counter">Loading...</div><div class="counter-label"><span class="live-dot"></span>Your Share of the Debt</div></div>
+        <div class="counter-card"><div class="counter-value live" id="interest-counter">Loading...</div><div class="counter-label"><span class="live-dot"></span>Interest Since You Opened This Page</div></div>
       </div>
 
       <div class="calc-card">
@@ -603,6 +603,42 @@ function pageDebt(main) {
       });
     }
   }
+
+  // Live debt counters
+  const debtStart = 39_000_000_000_000; // $39T base
+  const debtPerMs = 83000 / 1000; // $83K per second = $83 per ms
+  const deficitPerYear = 1_800_000_000_000; // ~$1.8T annual deficit
+  const deficitPerMs = deficitPerYear / (365.25 * 24 * 3600 * 1000);
+  const interestPerYear = 1_000_000_000_000; // $1T
+  const interestPerMs = interestPerYear / (365.25 * 24 * 3600 * 1000);
+  const population = 334_000_000;
+  const startTime = Date.now();
+
+  function formatBigMoney(n) {
+    if (n >= 1e12) return '$' + (n / 1e12).toFixed(6) + 'T';
+    if (n >= 1e9) return '$' + (n / 1e9).toFixed(3) + 'B';
+    return '$' + n.toLocaleString('en-US', {maximumFractionDigits: 0});
+  }
+
+  let debtAnimFrame;
+  function tickCounters() {
+    const elapsed = Date.now() - startTime;
+    const currentDebt = debtStart + elapsed * debtPerMs;
+    const elDebt = document.getElementById('debt-counter');
+    const elDeficit = document.getElementById('deficit-counter');
+    const elCitizen = document.getElementById('percitizen-counter');
+    const elInterest = document.getElementById('interest-counter');
+
+    if (!elDebt) { cancelAnimationFrame(debtAnimFrame); return; }
+
+    elDebt.textContent = formatBigMoney(currentDebt);
+    elDeficit.textContent = formatBigMoney(elapsed * deficitPerMs);
+    elCitizen.textContent = '$' + Math.floor(currentDebt / population).toLocaleString();
+    elInterest.textContent = formatBigMoney(elapsed * interestPerMs);
+
+    debtAnimFrame = requestAnimationFrame(tickCounters);
+  }
+  tickCounters();
 }
 
 // ─── VETERANS ──────────────────────────────────────────────
