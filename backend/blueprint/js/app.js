@@ -695,7 +695,6 @@ function pageVeterans(main) {
           <tbody>
             <tr><td>4 years</td><td>Up to $1,600/mo</td><td>Up to $19,200/yr</td></tr>
             <tr><td>10 years</td><td>Up to $4,000/mo</td><td>Up to $48,000/yr</td></tr>
-            <tr><td>20 years</td><td>Up to $8,000/mo</td><td>Up to $96,000/yr</td></tr>
           </tbody>
         </table>
         <p style="font-size:0.875rem;color:var(--slate-600);margin-top:1rem;">The stipend fills the gap between your current income and the $2,450/month floor. If you already meet the floor, you receive nothing. A career military retiree with a pension does not qualify. Medical discharge qualifies. Automatic calculation and real-time deposit adjustment. No forms. No caseworkers.</p>
