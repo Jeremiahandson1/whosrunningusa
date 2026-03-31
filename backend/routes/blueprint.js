@@ -53,7 +53,7 @@ The platform has 41 chapters covering:
 - Tax Reform (Ch 8): 0% income tax, 0% payroll tax, 27% NST on non-essentials, 1% FTT, wealth tax >$11M
 - Property Tax Abolition (Ch 32): 5-year phase-out to $0, petty fees eliminated
 - National Debt (Ch 2, 39): $39T debt, 30-year elimination through surplus, FAO oversight
-- Veterans (Ch 22): $400/month per year served, means-tested, automatic deposit
+- Veterans (Ch 22): Up to $400/month per year served toward the $2,450/mo income floor, means-tested gap-fill (not additive), automatic deposit
 - Seniors (Ch 25): Senior UBI at MIT Living Wage floor (~$2,450/mo at full implementation), strict means-testing
 - Healthcare (Ch 6): Free at point of access, no premiums/copays/deductibles
 - Banking (Ch 16): 15% rate cap, Glass-Steagall, break up too-big-to-fail

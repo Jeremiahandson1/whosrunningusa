@@ -88,7 +88,7 @@ function pageLanding(main) {
     { href:'/tax', icon:'💰', title:'Tax Reform', desc:'Zero income tax. Zero payroll tax. See your real take-home pay.' },
     { href:'/property', icon:'🏠', title:'Property Tax Abolition', desc:'Own your home — truly. No more annual rent to the government.' },
     { href:'/debt', icon:'📊', title:'National Debt', desc:'$39T debt. Live counters. The plan to eliminate it in 30 years.' },
-    { href:'/veterans', icon:'🎖️', title:'Veterans', desc:'$400/month per year served. No forms. No case workers.' },
+    { href:'/veterans', icon:'🎖️', title:'Veterans', desc:'Up to $400/month per year served toward the income floor. No forms. No case workers.' },
     { href:'/seniors', icon:'👴', title:'Seniors & Social Security', desc:'Senior UBI up to $5,000/mo. SS buyout option.' },
     { href:'/healthcare', icon:'🏥', title:'Healthcare', desc:'Universal coverage. No copays. Mental health parity.' },
     { href:'/loans', icon:'🏦', title:'Banking & Loans', desc:'15% rate cap. End payday lending. Break up too-big-to-fail.' },
@@ -676,7 +676,7 @@ function pageVeterans(main) {
       if (!p.veteranStatus || p.veteranStatus === 'Not a veteran') return { level: 'none', message: 'This policy applies to veterans and active duty service members.' };
       const yrs = Number(p.yearsServed) || 0;
       const stipend = yrs * 400;
-      return { level: 'affects', message: `With ${yrs} years of service, you'd receive <strong>${fmtDollar(stipend)}/month</strong> (${fmtDollar(stipend * 12)}/year). Means-tested — reduces as other income rises. The floor is always there.` };
+      return { level: 'affects', message: `With ${yrs} years of service, you'd receive <strong>up to ${fmtDollar(stipend)}/month</strong> toward the $2,450/month income floor. The stipend fills the gap between your current income and the floor — if you already meet it, you receive nothing. Automatic calculation, automatic deposit, adjusted monthly in real time.` };
     },
     content: `
       <div class="calc-card">
@@ -691,15 +691,14 @@ function pageVeterans(main) {
       <div class="calc-card">
         <h3>Stipend Schedule</h3>
         <table class="data-table">
-          <thead><tr><th>Years Served</th><th>Monthly Stipend</th><th>Annual Amount</th></tr></thead>
+          <thead><tr><th>Years Served</th><th>Max Monthly Stipend</th><th>Max Annual Amount</th></tr></thead>
           <tbody>
-            <tr><td>4 years</td><td>$1,600/mo</td><td>$19,200/yr</td></tr>
-            <tr><td>10 years</td><td>$4,000/mo</td><td>$48,000/yr</td></tr>
-            <tr><td>15 years</td><td>$6,000/mo</td><td>$72,000/yr</td></tr>
-            <tr><td>20 years</td><td>$8,000/mo</td><td>$96,000/yr</td></tr>
+            <tr><td>4 years</td><td>Up to $1,600/mo</td><td>Up to $19,200/yr</td></tr>
+            <tr><td>10 years</td><td>Up to $4,000/mo</td><td>Up to $48,000/yr</td></tr>
+            <tr><td>20 years</td><td>Up to $8,000/mo</td><td>Up to $96,000/yr</td></tr>
           </tbody>
         </table>
-        <p style="font-size:0.875rem;color:var(--slate-600);margin-top:1rem;">Medical discharge qualifies. Automatic calculation and deposit. No forms. No case workers.</p>
+        <p style="font-size:0.875rem;color:var(--slate-600);margin-top:1rem;">The stipend fills the gap between your current income and the $2,450/month floor. If you already meet the floor, you receive nothing. A career military retiree with a pension does not qualify. Medical discharge qualifies. Automatic calculation and real-time deposit adjustment. No forms. No caseworkers.</p>
       </div>
 
       <div class="calc-card">
@@ -729,8 +728,8 @@ function calcVeteran() {
   const monthly = yrs * 400;
   document.getElementById('vet-result').innerHTML = `
     <div class="result-box">
-      <div class="result-value">${fmtDollar(monthly)}/mo</div>
-      <div class="result-label">${fmtDollar(monthly * 12)} per year • For life • Means-tested</div>
+      <div class="result-value">Up to ${fmtDollar(monthly)}/mo</div>
+      <div class="result-label">Up to ${fmtDollar(monthly * 12)} per year • Toward the $2,450/mo floor • For life • Means-tested</div>
     </div>`;
 }
 
