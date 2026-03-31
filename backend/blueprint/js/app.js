@@ -697,7 +697,7 @@ function pageVeterans(main) {
             <tr><td>10 years</td><td>Up to $4,000/mo</td><td>Up to $48,000/yr</td></tr>
           </tbody>
         </table>
-        <p style="font-size:0.875rem;color:var(--slate-600);margin-top:1rem;">The stipend fills the gap between your current income and the $2,450/month floor. If you already meet the floor, you receive nothing. A career military retiree with a pension does not qualify. Medical discharge qualifies. Automatic calculation and real-time deposit adjustment. No forms. No caseworkers.</p>
+        <p style="font-size:0.875rem;color:var(--slate-600);margin-top:1rem;">The stipend fills the gap between your current income and the income floor (currently $2,450/month). Your maximum stipend can never exceed the floor. As the floor rises each February with the MIT Living Wage Calculator, so does the stipend available. A career military retiree with a pension does not qualify. Medical discharge qualifies. Automatic calculation and real-time deposit adjustment. No forms. No caseworkers.</p>
       </div>
 
       <div class="calc-card">
