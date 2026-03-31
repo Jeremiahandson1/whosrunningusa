@@ -3,12 +3,13 @@
 /**
  * Compute rubber stamp scores from voting records.
  *
- * Usage:
- *   node scripts/compute-rubber-stamp.js
- *   node scripts/compute-rubber-stamp.js --cycle=2026
+ * Uses the actual voting_records schema: candidate_id, bill_id, vote, vote_date
+ * Party loyalty is determined by comparing each politician's vote against
+ * the majority vote of same-party members on the same bill+date.
  *
- * Required env vars:
- *   DATABASE_URL — PostgreSQL connection string
+ * Usage:
+ *   node scripts/compute-rubber-stamp.cjs
+ *   node scripts/compute-rubber-stamp.cjs --cycle=2026
  */
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', 'backend', '.env') });
@@ -37,9 +38,9 @@ async function main() {
   const { rows: politicians } = await pool.query(`
     SELECT DISTINCT vr.candidate_id, cp.display_name, cp.party_affiliation
     FROM voting_records vr
-    JOIN vote_events ve ON ve.id = vr.vote_event_id
     JOIN candidate_profiles cp ON cp.id = vr.candidate_id
-    WHERE EXTRACT(YEAR FROM ve.vote_date) = $1
+    WHERE EXTRACT(YEAR FROM vr.vote_date) = $1
+      AND vr.vote IN ('yes', 'no')
   `, [cycleYear]);
 
   console.log(`Found ${politicians.length} politicians with voting records in ${cycleYear}.\n`);
@@ -52,41 +53,42 @@ async function main() {
 
     // Get all this politician's votes for the cycle
     const { rows: myVotes } = await pool.query(`
-      SELECT vr.vote_event_id, vr.vote
+      SELECT vr.bill_id, vr.vote, vr.vote_date
       FROM voting_records vr
-      JOIN vote_events ve ON ve.id = vr.vote_event_id
       WHERE vr.candidate_id = $1
-        AND EXTRACT(YEAR FROM ve.vote_date) = $2
+        AND EXTRACT(YEAR FROM vr.vote_date) = $2
+        AND vr.vote IN ('yes', 'no')
     `, [candidateId, cycleYear]);
 
     const totalVotes = myVotes.length;
     if (totalVotes === 0) continue;
 
-    // For party loyalty: for each vote_event, determine the party majority position
+    // For party loyalty: for each bill+date, determine the party majority position
     let partyLineVotes = 0;
     let crossPartyVotes = 0;
 
     if (party) {
       for (const myVote of myVotes) {
-        // Count yes/no among same-party members for this vote event (excluding this politician)
+        // Count yes/no among same-party members for this bill on same date
         const { rows: partyTally } = await pool.query(`
           SELECT vr.vote, COUNT(*) AS cnt
           FROM voting_records vr
           JOIN candidate_profiles cp ON cp.id = vr.candidate_id
-          WHERE vr.vote_event_id = $1
-            AND cp.party_affiliation = $2
-            AND vr.candidate_id != $3
+          WHERE vr.bill_id = $1
+            AND vr.vote_date = $2
+            AND cp.party_affiliation = $3
+            AND vr.candidate_id != $4
             AND vr.vote IN ('yes', 'no')
           GROUP BY vr.vote
           ORDER BY cnt DESC
           LIMIT 1
-        `, [myVote.vote_event_id, party, candidateId]);
+        `, [myVote.bill_id, myVote.vote_date, party, candidateId]);
 
         if (partyTally.length > 0) {
           const majorityPosition = partyTally[0].vote;
           if (myVote.vote === majorityPosition) {
             partyLineVotes++;
-          } else if (myVote.vote === 'yes' || myVote.vote === 'no') {
+          } else {
             crossPartyVotes++;
           }
         }

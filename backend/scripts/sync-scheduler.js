@@ -84,39 +84,39 @@ function buildCommand(step) {
       return ['sync-finance-incumbents.js', ...(state ? [`--state=${state}`] : [])];
     // Platform feature scripts (live in root scripts/ dir)
     case 'transparency-seed':
-      return [path.join(ROOT_SCRIPTS_DIR, 'seed-transparency-requirements.js')];
+      return [path.join(ROOT_SCRIPTS_DIR, 'seed-transparency-requirements.cjs')];
     case 'trades':
-      return [path.join(ROOT_SCRIPTS_DIR, 'sync-stock-trades.js')];
+      return [path.join(ROOT_SCRIPTS_DIR, 'sync-stock-trades.cjs')];
     case 'revolving-door':
-      return [path.join(ROOT_SCRIPTS_DIR, 'sync-revolving-door.js')];
+      return [path.join(ROOT_SCRIPTS_DIR, 'sync-revolving-door.cjs')];
     case 'compliance':
-      return [path.join(ROOT_SCRIPTS_DIR, 'sync-compliance-records.js')];
+      return [path.join(ROOT_SCRIPTS_DIR, 'sync-compliance-records.cjs')];
     case 'explanations':
-      return [path.join(ROOT_SCRIPTS_DIR, 'generate-vote-explanations.js')];
+      return [path.join(ROOT_SCRIPTS_DIR, 'generate-vote-explanations.cjs')];
     case 'donor-map':
-      return [path.join(ROOT_SCRIPTS_DIR, 'generate-donor-vote-map.js')];
+      return [path.join(ROOT_SCRIPTS_DIR, 'generate-donor-vote-map.cjs')];
     case 'gaps':
-      return [path.join(ROOT_SCRIPTS_DIR, 'generate-accountability-gaps.js')];
+      return [path.join(ROOT_SCRIPTS_DIR, 'generate-accountability-gaps.cjs')];
     case 'foreign-aid':
-      return [path.join(ROOT_SCRIPTS_DIR, 'sync-foreign-aid.js')];
+      return [path.join(ROOT_SCRIPTS_DIR, 'sync-foreign-aid.cjs')];
     case 'outside-spending':
-      return [path.join(ROOT_SCRIPTS_DIR, 'sync-outside-spending.js')];
+      return [path.join(ROOT_SCRIPTS_DIR, 'sync-outside-spending.cjs')];
     case 'fara':
-      return [path.join(ROOT_SCRIPTS_DIR, 'sync-fara.js')];
+      return [path.join(ROOT_SCRIPTS_DIR, 'sync-fara.cjs')];
     case 'promise-scores':
-      return [path.join(ROOT_SCRIPTS_DIR, 'compute-promise-scores.js')];
+      return [path.join(ROOT_SCRIPTS_DIR, 'compute-promise-scores.cjs')];
     case 'rubber-stamp':
-      return [path.join(ROOT_SCRIPTS_DIR, 'compute-rubber-stamp.js')];
+      return [path.join(ROOT_SCRIPTS_DIR, 'compute-rubber-stamp.cjs')];
     case 'pac-violations':
-      return [path.join(ROOT_SCRIPTS_DIR, 'check-pac-violations.js')];
+      return [path.join(ROOT_SCRIPTS_DIR, 'check-pac-violations.cjs')];
     case 'auto-check-promises':
-      return [path.join(ROOT_SCRIPTS_DIR, 'auto-check-promises.js')];
+      return [path.join(ROOT_SCRIPTS_DIR, 'auto-check-promises.cjs')];
     case 'scan-conflicts':
-      return [path.join(ROOT_SCRIPTS_DIR, 'scan-conflicts.js')];
+      return [path.join(ROOT_SCRIPTS_DIR, 'scan-conflicts.cjs')];
     case 'political-roi':
-      return [path.join(ROOT_SCRIPTS_DIR, 'compute-political-roi.js')];
+      return [path.join(ROOT_SCRIPTS_DIR, 'compute-political-roi.cjs')];
     case 'think-tanks':
-      return [path.join(ROOT_SCRIPTS_DIR, 'sync-think-tanks.js')];
+      return [path.join(ROOT_SCRIPTS_DIR, 'sync-think-tanks.cjs')];
     default:
       return null;
   }
