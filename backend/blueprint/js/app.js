@@ -614,13 +614,7 @@ function pageDebt(main) {
   const population = 336_500_000; // Census 2026 est
 
   function formatBigMoney(n) {
-    if (n >= 1e12) {
-      const t = n / 1e12;
-      const str = t.toFixed(9);
-      // Show as $XX,XXX,XXX,XXX,XXX format for visceral impact
-      const whole = Math.floor(n);
-      return '$' + whole.toLocaleString('en-US');
-    }
+    if (n >= 1e12) return '$' + (n / 1e12).toFixed(3) + ' Trillion';
     if (n >= 1e9) return '$' + (n / 1e9).toFixed(2) + ' billion';
     if (n >= 1e6) return '$' + (n / 1e6).toFixed(2) + ' million';
     return '$' + Math.floor(n).toLocaleString('en-US');

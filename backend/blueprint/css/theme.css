@@ -275,15 +275,15 @@ label { display: block; font-size: 0.875rem; font-weight: 600; color: var(--slat
 .policy-card p { font-size: 0.9375rem; color: var(--slate-600); margin: 0; }
 
 /* Debt counters */
-.counter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+.counter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
 .counter-card {
   background: linear-gradient(135deg, var(--navy-800), var(--navy-900));
   color: white; border-radius: 8px; padding: 1.5rem; text-align: center;
 }
 .counter-value {
-  font-size: clamp(1rem, 4vw, 1.75rem); font-weight: 700; font-family: 'Courier New', monospace;
+  font-size: 1.75rem; font-weight: 700; font-family: 'Courier New', monospace;
   margin-bottom: 0.25rem; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
-  overflow-wrap: break-word; word-break: break-word;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .counter-value.live { color: #fc8181; text-shadow: 0 0 20px rgba(252, 129, 129, 0.3); }
 .counter-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.7; }
