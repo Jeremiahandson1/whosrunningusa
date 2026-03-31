@@ -7,12 +7,78 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
+import DarkMoneyCallout from '../components/DarkMoneyCallout'
+import RubberStampBadge from '../components/RubberStampBadge'
+import PacPledgeBadge from '../components/PacPledgeBadge'
 import { formatDate, formatDateTime } from '../utils/dateFormat'
 import ConnectButton from '../components/ConnectButton'
 import CommunityNotes from '../components/CommunityNotes'
 import Breadcrumbs from '../components/Breadcrumbs'
 import { SkeletonProfile } from '../components/Skeleton'
 import { formatDisplayName } from '../utils/formatName'
+
+function PromisesTab({ candidateId }) {
+  const [promises, setPromises] = useState([])
+  const [score, setScore] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await api.get(`/promises/politician/${candidateId}`)
+        setPromises(data.promises || [])
+        setScore(data.score || null)
+      } catch { /* ignore */ }
+      setLoading(false)
+    }
+    load()
+  }, [candidateId])
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 32, color: '#475569' }}>Loading promises...</div>
+
+  const STATUS_COLORS = { kept: '#16a34a', broken: '#dc2626', in_progress: '#ca8a04', compromised: '#ea580c', pending: '#94a3b8' }
+  const STATUS_LABELS = { kept: 'Kept', broken: 'Broken', in_progress: 'In Progress', compromised: 'Compromised', pending: 'Pending' }
+
+  return (
+    <div>
+      <h2 style={{ marginBottom: '1.5rem' }}>Campaign Promises</h2>
+      {score && (
+        <div style={{ background: '#f8fafc', borderRadius: 12, padding: 16, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 36, fontWeight: 800, color: score.promise_score >= 75 ? '#16a34a' : score.promise_score >= 50 ? '#ca8a04' : '#dc2626' }}>{Math.round(score.promise_score)}%</div>
+            <div style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>PROMISE SCORE</div>
+          </div>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            {['kept', 'in_progress', 'broken', 'compromised', 'pending'].map(s => (
+              <div key={s} style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: STATUS_COLORS[s] }}>{score[s] || 0}</div>
+                <div style={{ fontSize: 11, color: '#475569' }}>{STATUS_LABELS[s]}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {promises.length === 0 ? (
+        <div className="empty-state"><p>No promises recorded yet.</p></div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {promises.map(p => (
+            <div key={p.id} style={{ background: '#fff', borderRadius: 8, padding: 16, border: '1px solid #e2e8f0', borderLeft: `4px solid ${STATUS_COLORS[p.status] || '#94a3b8'}` }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                <p style={{ margin: 0, flex: 1, lineHeight: 1.5 }}>{p.promise_text}</p>
+                <span style={{ padding: '2px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, background: `${STATUS_COLORS[p.status]}15`, color: STATUS_COLORS[p.status], whiteSpace: 'nowrap' }}>{STATUS_LABELS[p.status] || p.status}</span>
+              </div>
+              {p.status_explanation && <p style={{ margin: '8px 0 0', fontSize: 13, color: '#475569' }}>{p.status_explanation}</p>}
+              {p.auto_checks && p.auto_checks.length > 0 && (
+                <div style={{ marginTop: 8, fontSize: 12, color: '#6b7280', fontStyle: 'italic' }}>Auto-detected: {p.auto_checks[0].ai_reasoning}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function CandidatePage() {
   const { id } = useParams()
@@ -204,6 +270,7 @@ function CandidatePage() {
                     <CheckCircle size={12} /> Verified
                   </span>
                 )}
+                <PacPledgeBadge candidateId={id} />
               </div>
               <p style={{ fontSize: '1.25rem', opacity: 0.9, marginBottom: '0.5rem' }}>
                 {candidate.official_title || candidate.race_name || ''}
@@ -320,6 +387,7 @@ function CandidatePage() {
         {(() => {
           const tabList = [
             'positions',
+            'promises',
             'background',
             'finance',
             'accountability',
@@ -329,7 +397,7 @@ function CandidatePage() {
             'events',
             'endorsements',
           ]
-          const tabLabels = { qa: 'Q&A', record: 'Voting Record', bills: 'Bills & Sponsorships', background: 'Background', finance: 'Follow the Money', accountability: 'Accountability' }
+          const tabLabels = { qa: 'Q&A', record: 'Voting Record', bills: 'Bills & Sponsorships', background: 'Background', finance: 'Follow the Money', accountability: 'Accountability', promises: 'Promises' }
           const handleTabKeyDown = (e, tab) => {
             const idx = tabList.indexOf(tab)
             let newIdx
@@ -400,6 +468,10 @@ function CandidatePage() {
                   <div className="empty-state"><p>This candidate hasn't declared issue positions yet.</p></div>
                 )}
               </div>
+            )}
+
+            {activeTab === 'promises' && (
+              <PromisesTab candidateId={id} />
             )}
 
             {activeTab === 'background' && (
@@ -476,6 +548,7 @@ function CandidatePage() {
             {activeTab === 'finance' && (
               <div>
                 <h2 style={{ marginBottom: '1.5rem' }}>Follow the Money</h2>
+                <DarkMoneyCallout candidateId={id} />
                 {finance.length > 0 ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     {finance.map((f, idx) => (
@@ -845,6 +918,7 @@ function CandidatePage() {
             {activeTab === 'accountability' && (
               <div>
                 <h2 style={{ marginBottom: '1.5rem' }}>Accountability</h2>
+                <RubberStampBadge politicianId={id} />
                 {!accountabilityScore ? (
                   <div className="empty-state">
                     <AlertCircle size={32} style={{ color: 'var(--slate-400)', marginBottom: '0.75rem' }} />

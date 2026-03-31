@@ -329,6 +329,38 @@ class FECClient {
       _rawFecData: fecCandidate
     };
   }
+
+  /**
+   * Get independent expenditures (Schedule E) for a candidate
+   * Used by dark money tracking to find outside spending
+   */
+  async getIndependentExpenditures(candidateId, cycle, options = {}) {
+    return this.request('/schedules/schedule_e/', {
+      candidate_id: candidateId,
+      cycle,
+      per_page: options.perPage || 100,
+      page: options.page || 1,
+      sort: '-expenditure_amount',
+    });
+  }
+
+  /**
+   * Get committee details (used to classify 501c4, Super PAC, etc.)
+   */
+  async getCommitteeDetails(committeeId) {
+    return this.request(`/committee/${committeeId}/`);
+  }
+
+  /**
+   * Get total independent expenditures summarized by committee for a candidate
+   */
+  async getIETotalsByCandidate(candidateId, cycle) {
+    return this.request('/schedules/schedule_e/totals/by_candidate/', {
+      candidate_id: candidateId,
+      cycle,
+      per_page: 100,
+    });
+  }
 }
 
 module.exports = FECClient;

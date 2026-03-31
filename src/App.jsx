@@ -49,6 +49,19 @@ const TradingMonitorPage = lazy(() => import('./pages/TradingMonitorPage'))
 const TransparencyPage = lazy(() => import('./pages/TransparencyPage'))
 const FinanceMapPage = lazy(() => import('./pages/FinanceMapPage'))
 const ClaimProfilePage = lazy(() => import('./pages/ClaimProfilePage'))
+const ForeignAidPage = lazy(() => import('./pages/ForeignAidPage'))
+const DarkMoneyPage = lazy(() => import('./pages/DarkMoneyPage'))
+const ForeignInfluencePage = lazy(() => import('./pages/ForeignInfluencePage'))
+const RevenueViolationsPage = lazy(() => import('./pages/RevenueViolationsPage'))
+const PromiseTrackerPage = lazy(() => import('./pages/PromiseTrackerPage'))
+const CostCalculatorPage = lazy(() => import('./pages/CostCalculatorPage'))
+const ConflictsPage = lazy(() => import('./pages/ConflictsPage'))
+const RubberStampPage = lazy(() => import('./pages/RubberStampPage'))
+const BallotMeasuresPage = lazy(() => import('./pages/BallotMeasuresPage'))
+const GerrymanderingPage = lazy(() => import('./pages/GerrymanderingPage'))
+const VoterAccessPage = lazy(() => import('./pages/VoterAccessPage'))
+const PacPledgePage = lazy(() => import('./pages/PacPledgePage'))
+const WidgetGalleryPage = lazy(() => import('./pages/WidgetGalleryPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
 function PageLoader() {
@@ -114,6 +127,20 @@ function App() {
             <Route path="/transparency" element={<TransparencyPage />} />
             <Route path="/follow-the-money" element={<FinanceMapPage />} />
             <Route path="/claim-profile" element={<ClaimProfilePage />} />
+            <Route path="/foreign-aid" element={<ForeignAidPage />} />
+            <Route path="/foreign-aid/:countryCode" element={<ForeignAidPage />} />
+            <Route path="/dark-money" element={<DarkMoneyPage />} />
+            <Route path="/foreign-influence" element={<ForeignInfluencePage />} />
+            <Route path="/they-took-it" element={<RevenueViolationsPage />} />
+            <Route path="/promises" element={<PromiseTrackerPage />} />
+            <Route path="/cost-calculator" element={<CostCalculatorPage />} />
+            <Route path="/conflicts" element={<ConflictsPage />} />
+            <Route path="/rubber-stamp" element={<RubberStampPage />} />
+            <Route path="/ballot-measures" element={<BallotMeasuresPage />} />
+            <Route path="/gerrymandering" element={<GerrymanderingPage />} />
+            <Route path="/voter-access" element={<VoterAccessPage />} />
+            <Route path="/pac-pledge" element={<PacPledgePage />} />
+            <Route path="/widgets" element={<WidgetGalleryPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/mission" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />

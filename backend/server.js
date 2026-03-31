@@ -53,6 +53,13 @@ app.use(helmet({
     }
   }
 }));
+// Widget endpoints + widget-consumed APIs: open CORS for any origin (embeddable on any site)
+app.use('/api/widgets', cors({ origin: true, credentials: false }));
+app.use('/widgets', cors({ origin: true, credentials: false }));
+const widgetReadOnlyPaths = ['/api/cost-calculator', '/api/promises', '/api/dark-money', '/api/conflicts', '/api/rubber-stamp', '/api/foreign-aid'];
+widgetReadOnlyPaths.forEach(p => app.use(p, cors({ origin: true, credentials: false })));
+
+// Default CORS — restrict to frontend origin
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
@@ -95,6 +102,13 @@ if (process.env.NODE_ENV !== 'test') {
     message: { error: 'Too many uploads, please try again later.' }
   });
   app.use('/api/uploads', uploadLimiter);
+
+  const widgetEventLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 100,
+    message: { error: 'Widget rate limit exceeded' }
+  });
+  app.use('/api/widgets/event', widgetEventLimiter);
 }
 
 // Body parsing (skip for Stripe webhook which needs raw body)
@@ -115,8 +129,16 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
-// Serve uploaded files (local dev only; S3 in production)
+// Serve widget bundles with open CORS (embeddable on any site)
 const path = require('path');
+app.use('/widgets', express.static(path.join(__dirname, '..', 'dist', 'widgets'), {
+  maxAge: '1h',
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+  }
+}));
+
+// Serve uploaded files (local dev only; S3 in production)
 if (!process.env.AWS_ACCESS_KEY_ID) {
   app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 }
@@ -147,6 +169,20 @@ app.use('/api/trades', require('./routes/trades'));
 app.use('/api/transparency', require('./routes/transparency'));
 app.use('/api/finance-map', require('./routes/finance-map'));
 app.use('/api/blueprint', require('./routes/blueprint'));
+app.use('/api/foreign-aid', require('./routes/foreign-aid'));
+app.use('/api/dark-money', require('./routes/dark-money'));
+app.use('/api/foreign-influence', require('./routes/foreign-influence'));
+app.use('/api/revenue-violations', require('./routes/revenue-violations'));
+app.use('/api/promises', require('./routes/promises'));
+app.use('/api/cost-calculator', require('./routes/cost-calculator'));
+app.use('/api/conflicts', require('./routes/conflicts'));
+app.use('/api/rubber-stamp', require('./routes/rubber-stamp'));
+app.use('/api/ballot-measures', require('./routes/ballot-measures'));
+app.use('/api/gerrymandering', require('./routes/gerrymandering'));
+app.use('/api/local-government', require('./routes/local-government'));
+app.use('/api/voter-access', require('./routes/voter-access'));
+app.use('/api/pac-pledge', require('./routes/pac-pledge'));
+app.use('/api/widgets', require('./routes/widgets'));
 
 // Blueprint policy hub — hidden static site at /blueprint
 app.use('/blueprint', express.static(path.join(__dirname, 'blueprint'), { index: 'index.html' }));

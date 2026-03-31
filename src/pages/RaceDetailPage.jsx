@@ -4,6 +4,7 @@ import { Users, Calendar, CheckCircle, ArrowRight, ChevronRight, Bookmark } from
 import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
 import { formatDate } from '../utils/dateFormat'
+import FundingComparison from '../components/FundingComparison'
 
 function RaceDetailPage() {
   const { id } = useParams()
@@ -146,6 +147,9 @@ function RaceDetailPage() {
             </Link>
           )}
         </div>
+
+        {/* Funding Comparison */}
+        <FundingComparison raceId={id} />
 
         {candidates.length > 0 ? (
           <div className="candidate-grid">

@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:widgets": "node scripts/build-widgets.js",
+    "build:all": "vite build && node scripts/build-widgets.js",
     "preview": "vite preview",
     "lint": "eslint src/",
     "test": "vitest run",

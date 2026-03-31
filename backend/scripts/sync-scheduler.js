@@ -9,7 +9,9 @@
  * Environment variables:
  *   SYNC_STEPS       — Comma-separated steps to run (default: all)
  *                       Options: districts, fec, finance, bills, congress, openstates,
- *                                congress-legislators, wikidata, votesmart
+ *                                congress-legislators, wikidata, votesmart,
+ *                                transparency-seed, trades, revolving-door, compliance,
+ *                                explanations, donor-map, gaps
  *   SYNC_STATE       — Limit to a single state (e.g. "CA")
  *   SYNC_FEC_CYCLE   — FEC election cycle year (default: 2026)
  *   SYNC_TIMEOUT_MS  — Per-step timeout in ms (default: 600000 = 10 min)
@@ -26,12 +28,28 @@ const path = require('path');
 const db = require('../db');
 
 const SCRIPTS_DIR = __dirname;
+const ROOT_SCRIPTS_DIR = path.join(__dirname, '..', '..', 'scripts');
 const STEP_TIMEOUT = parseInt(process.env.SYNC_TIMEOUT_MS) || 1800000; // 30 min default
 
 // Steps in execution order
 // Order matters: bills before openstates since both share Open States API rate limit (250/day).
 // Bills (--recent) uses few calls; openstates uses 170+ and has resume logic.
-const ALL_STEPS = ['districts', 'fec', 'finance', 'bills', 'congress', 'openstates', 'congress-legislators', 'wikidata', 'votesmart'];
+// Platform feature scripts (trades, revolving-door, compliance, explanations, donor-map, gaps)
+// run after core data is synced since they depend on up-to-date candidate/vote data.
+const ALL_STEPS = [
+  'districts', 'fec', 'finance', 'bills', 'congress', 'openstates',
+  'congress-legislators', 'wikidata', 'votesmart',
+  // Platform feature syncs (root scripts/ dir)
+  'transparency-seed', 'trades', 'revolving-door', 'compliance',
+  // Module 6 new syncs
+  'foreign-aid', 'outside-spending', 'fara', 'think-tanks',
+  // Computation scripts (from existing data)
+  'promise-scores', 'rubber-stamp', 'pac-violations',
+  // ROI computation
+  'political-roi',
+  // AI-powered generation (requires ANTHROPIC_API_KEY)
+  'explanations', 'donor-map', 'gaps', 'auto-check-promises', 'scan-conflicts',
+];
 
 function getStepsToRun() {
   const envSteps = process.env.SYNC_STEPS;
@@ -64,6 +82,41 @@ function buildCommand(step) {
       return ['sync-votesmart.js', ...(state ? [`--state=${state}`] : [])];
     case 'finance':
       return ['sync-finance-incumbents.js', ...(state ? [`--state=${state}`] : [])];
+    // Platform feature scripts (live in root scripts/ dir)
+    case 'transparency-seed':
+      return [path.join(ROOT_SCRIPTS_DIR, 'seed-transparency-requirements.js')];
+    case 'trades':
+      return [path.join(ROOT_SCRIPTS_DIR, 'sync-stock-trades.js')];
+    case 'revolving-door':
+      return [path.join(ROOT_SCRIPTS_DIR, 'sync-revolving-door.js')];
+    case 'compliance':
+      return [path.join(ROOT_SCRIPTS_DIR, 'sync-compliance-records.js')];
+    case 'explanations':
+      return [path.join(ROOT_SCRIPTS_DIR, 'generate-vote-explanations.js')];
+    case 'donor-map':
+      return [path.join(ROOT_SCRIPTS_DIR, 'generate-donor-vote-map.js')];
+    case 'gaps':
+      return [path.join(ROOT_SCRIPTS_DIR, 'generate-accountability-gaps.js')];
+    case 'foreign-aid':
+      return [path.join(ROOT_SCRIPTS_DIR, 'sync-foreign-aid.js')];
+    case 'outside-spending':
+      return [path.join(ROOT_SCRIPTS_DIR, 'sync-outside-spending.js')];
+    case 'fara':
+      return [path.join(ROOT_SCRIPTS_DIR, 'sync-fara.js')];
+    case 'promise-scores':
+      return [path.join(ROOT_SCRIPTS_DIR, 'compute-promise-scores.js')];
+    case 'rubber-stamp':
+      return [path.join(ROOT_SCRIPTS_DIR, 'compute-rubber-stamp.js')];
+    case 'pac-violations':
+      return [path.join(ROOT_SCRIPTS_DIR, 'check-pac-violations.js')];
+    case 'auto-check-promises':
+      return [path.join(ROOT_SCRIPTS_DIR, 'auto-check-promises.js')];
+    case 'scan-conflicts':
+      return [path.join(ROOT_SCRIPTS_DIR, 'scan-conflicts.js')];
+    case 'political-roi':
+      return [path.join(ROOT_SCRIPTS_DIR, 'compute-political-roi.js')];
+    case 'think-tanks':
+      return [path.join(ROOT_SCRIPTS_DIR, 'sync-think-tanks.js')];
     default:
       return null;
   }
@@ -76,7 +129,8 @@ function runStep(step) {
       return reject(new Error(`Unknown step: ${step}`));
     }
 
-    const scriptPath = path.join(SCRIPTS_DIR, args[0]);
+    // If the script path is already absolute, use it directly; otherwise resolve from SCRIPTS_DIR
+    const scriptPath = path.isAbsolute(args[0]) ? args[0] : path.join(SCRIPTS_DIR, args[0]);
     const scriptArgs = args.slice(1);
 
     const child = spawn('node', [scriptPath, ...scriptArgs], {
@@ -240,7 +294,13 @@ async function main() {
 
   // Only exit non-zero if critical steps failed.
   // Non-critical: enrichment steps + rate-limited steps that resume on next run.
-  const NON_CRITICAL_STEPS = new Set(['votesmart', 'wikidata', 'openstates', 'bills', 'finance']);
+  const NON_CRITICAL_STEPS = new Set([
+    'votesmart', 'wikidata', 'openstates', 'bills', 'finance',
+    'transparency-seed', 'trades', 'revolving-door', 'compliance',
+    'foreign-aid', 'outside-spending', 'fara', 'think-tanks',
+    'promise-scores', 'rubber-stamp', 'pac-violations', 'political-roi',
+    'explanations', 'donor-map', 'gaps', 'auto-check-promises', 'scan-conflicts',
+  ]);
   const criticalFailures = Object.entries(stepResults)
     .filter(([name, r]) => r.status === 'failed' && !NON_CRITICAL_STEPS.has(name))
     .length;

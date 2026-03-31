@@ -314,4 +314,68 @@ router.post('/:id/watch', authenticate, async (req, res, next) => {
   }
 });
 
+// GET /:id/funding-comparison — funding comparison for all candidates in a race
+router.get('/:id/funding-comparison', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { cycle } = req.query;
+
+    const race = await db.query(`SELECT r.*, o.name as office_name FROM races r LEFT JOIN offices o ON o.id = r.office_id WHERE r.id = $1`, [id]);
+    if (race.rows.length === 0) {
+      return res.status(404).json({ error: 'Race not found' });
+    }
+
+    const cycleYear = cycle || new Date().getFullYear() + (new Date().getFullYear() % 2 === 0 ? 0 : 1);
+
+    const result = await db.query(
+      `SELECT
+        cp.id,
+        cp.display_name,
+        cp.party_affiliation as party,
+        cp.profile_photo_url,
+        c.filing_status,
+        c.result,
+        CASE WHEN r.incumbent_id = cp.id THEN true ELSE false END as is_incumbent,
+        cfs.total_raised,
+        cfs.total_spent,
+        cfs.cash_on_hand,
+        cfs.pac_contributions,
+        cfs.individual_contributions,
+        cfs.self_financing,
+        cfs.small_donor_percent,
+        cfs.total_contributors,
+        cfs.last_filed_date
+      FROM candidacies c
+      JOIN candidate_profiles cp ON cp.id = c.candidate_id
+      JOIN races r ON r.id = c.race_id
+      LEFT JOIN campaign_finance_summaries cfs ON cfs.candidate_id = cp.id AND cfs.election_cycle = $2
+      WHERE c.race_id = $1 AND c.filing_status NOT IN ('withdrawn')
+      ORDER BY COALESCE(cfs.total_raised, 0) DESC`,
+      [id, cycleYear]
+    );
+
+    const candidates = result.rows;
+    const incumbents = candidates.filter(c => c.is_incumbent);
+    const challengers = candidates.filter(c => !c.is_incumbent);
+
+    const totalRaised = candidates.reduce((sum, c) => sum + (parseFloat(c.total_raised) || 0), 0);
+    const incumbentTotal = incumbents.reduce((sum, c) => sum + (parseFloat(c.total_raised) || 0), 0);
+    const challengerTotal = challengers.reduce((sum, c) => sum + (parseFloat(c.total_raised) || 0), 0);
+
+    res.json({
+      race: race.rows[0],
+      candidates,
+      summary: {
+        totalRaised,
+        incumbentTotal,
+        challengerTotal,
+        fundingGap: incumbentTotal - challengerTotal,
+        candidateCount: candidates.length,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

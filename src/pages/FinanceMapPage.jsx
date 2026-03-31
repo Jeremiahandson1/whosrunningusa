@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { DollarSign, ArrowRight, Search, ChevronLeft, ChevronRight, Vote, CheckCircle, XCircle, Minus } from 'lucide-react'
 import api from '../utils/api'
+import DarkMoneyCallout from '../components/DarkMoneyCallout'
 
 const CORRELATION_COLORS = {
   aligned: { color: '#dc2626', bg: '#fef2f2', label: 'Donor-Aligned Vote' },
@@ -182,6 +183,13 @@ function FinanceMapPage() {
 
         {error && !loading && (
           <div style={{ padding: 24, background: '#fef2f2', borderRadius: 12, color: '#9f1239', textAlign: 'center' }}>{error}</div>
+        )}
+
+        {/* Dark Money Callout — show for the first politician in results */}
+        {!loading && !error && connections.length > 0 && connections[0]?.politician_id && (
+          <div style={{ marginBottom: 20 }}>
+            <DarkMoneyCallout candidateId={connections[0].politician_id} />
+          </div>
         )}
 
         {/* Results */}
