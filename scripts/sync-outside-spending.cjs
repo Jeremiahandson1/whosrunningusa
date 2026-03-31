@@ -18,7 +18,7 @@
  *   FEC_API_KEY
  */
 
-require('dotenv').config({ path: require('path').join(__dirname, '..', 'backend', '.env') });
+try { require('dotenv').config({ path: require('path').join(__dirname, '..', 'backend', '.env') }); } catch(_) {}
 
 const { Pool } = require('pg');
 const axios = require('axios');

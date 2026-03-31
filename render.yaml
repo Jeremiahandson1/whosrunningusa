@@ -100,7 +100,7 @@ services:
     runtime: node
     plan: starter
     rootDir: backend
-    buildCommand: npm install
+    buildCommand: npm install && cd .. && npm install --omit=dev && cd backend
     schedule: "0 2 * * *"
     startCommand: node scripts/migrate.js && node scripts/sync-scheduler.js
     envVars:

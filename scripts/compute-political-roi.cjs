@@ -18,7 +18,7 @@
  *   node scripts/compute-political-roi.js --cycle=2024
  */
 
-require('dotenv').config({ path: require('path').join(__dirname, '..', 'backend', '.env') });
+try { require('dotenv').config({ path: require('path').join(__dirname, '..', 'backend', '.env') }); } catch(_) {}
 
 const { Pool } = require('pg');
 

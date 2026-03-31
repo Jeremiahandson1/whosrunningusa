@@ -12,7 +12,7 @@
  *   ANTHROPIC_API_KEY — Anthropic API key
  */
 
-require('dotenv').config({ path: require('path').join(__dirname, '..', 'backend', '.env') });
+try { require('dotenv').config({ path: require('path').join(__dirname, '..', 'backend', '.env') }); } catch(_) {}
 
 const { Pool } = require('pg');
 const Anthropic = require('@anthropic-ai/sdk');
