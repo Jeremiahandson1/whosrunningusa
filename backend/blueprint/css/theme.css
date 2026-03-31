@@ -281,8 +281,9 @@ label { display: block; font-size: 0.875rem; font-weight: 600; color: var(--slat
   color: white; border-radius: 8px; padding: 1.5rem; text-align: center;
 }
 .counter-value {
-  font-size: 1.75rem; font-weight: 700; font-family: 'Courier New', monospace;
+  font-size: clamp(1rem, 4vw, 1.75rem); font-weight: 700; font-family: 'Courier New', monospace;
   margin-bottom: 0.25rem; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+  overflow-wrap: break-word; word-break: break-word;
 }
 .counter-value.live { color: #fc8181; text-shadow: 0 0 20px rgba(252, 129, 129, 0.3); }
 .counter-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.7; }
