@@ -16,9 +16,10 @@
 try { require('dotenv').config({ path: require('path').join(__dirname, '..', 'backend', '.env') }); } catch(_) {}
 
 const { Pool } = require('pg');
-const Anthropic = require('@anthropic-ai/sdk');
+let Anthropic; try { Anthropic = require('@anthropic-ai/sdk'); } catch(_) { console.log('Skipping: @anthropic-ai/sdk not installed'); process.exit(0); }
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+if (!process.env.ANTHROPIC_API_KEY) { console.log("Skipping: ANTHROPIC_API_KEY not set"); process.exit(0); }
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // Parse CLI flags
