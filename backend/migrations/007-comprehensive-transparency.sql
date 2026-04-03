@@ -6,7 +6,7 @@
 -- =============================================================================
 
 -- =============================================================================
--- PART 1: FIX EXISTING ENDORSEMENTS TABLE
+-- PART 1: FIX EXISTING ENDORSEMENTS ThhABLE
 -- =============================================================================
 
 -- Add missing columns to existing endorsements table
@@ -584,7 +584,8 @@ VALUES
   ('00000000-0000-0000-0000-000000000007', 'opensecrets', 'OpenSecrets/CRP', 'api', 'https://www.opensecrets.org/api', 'OPENSECRETS_API_KEY', 168)
 ON CONFLICT (name) DO UPDATE SET
   display_name = EXCLUDED.display_name,
-  base_url = EXCLUDED.base_url;
+  base_url = EXCLUDED.base_url
+ON CONFLICT (id) DO NOTHING;
 
 
 -- =============================================================================
