@@ -271,6 +271,9 @@ CREATE TABLE IF NOT EXISTS bill_sponsorships (
   UNIQUE(candidate_id, bill_id, sponsorship_type)
 );
 
+-- If bill_sponsorships already exists (from base schema), add columns it may lack
+ALTER TABLE bill_sponsorships ADD COLUMN IF NOT EXISTS vote_smart_id VARCHAR(50);
+
 CREATE INDEX IF NOT EXISTS idx_sponsorships_candidate ON bill_sponsorships(candidate_id);
 CREATE INDEX IF NOT EXISTS idx_sponsorships_bill ON bill_sponsorships(bill_id);
 CREATE INDEX IF NOT EXISTS idx_sponsorships_type ON bill_sponsorships(sponsorship_type);
@@ -328,6 +331,13 @@ CREATE TABLE IF NOT EXISTS vote_explanations (
   created_by UUID,
   UNIQUE(voting_record_id)
 );
+
+-- If vote_explanations already exists (from base schema) it may lack these columns.
+-- Add them so the index below and downstream queries work.
+ALTER TABLE vote_explanations ADD COLUMN IF NOT EXISTS candidate_id UUID REFERENCES candidate_profiles(id) ON DELETE CASCADE;
+ALTER TABLE vote_explanations ADD COLUMN IF NOT EXISTS voting_record_id UUID REFERENCES voting_records(id) ON DELETE CASCADE;
+ALTER TABLE vote_explanations ADD COLUMN IF NOT EXISTS explanation_text TEXT;
+ALTER TABLE vote_explanations ADD COLUMN IF NOT EXISTS created_by UUID;
 
 CREATE INDEX IF NOT EXISTS idx_vote_explanations_candidate ON vote_explanations(candidate_id);
 

@@ -8,12 +8,18 @@ DELETE FROM candidate_positions;
 -- Fake endorsements (seeded from populate script)
 DELETE FROM endorsements;
 
--- Fake interest group ratings + groups
-DELETE FROM interest_group_ratings;
-DELETE FROM interest_groups;
-
--- Fake transparency scores (entirely fabricated)
-DELETE FROM transparency_scores;
+-- Fake interest group ratings + groups (tables from migration 007)
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'interest_group_ratings') THEN
+    DELETE FROM interest_group_ratings;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'interest_groups') THEN
+    DELETE FROM interest_groups;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'transparency_scores') THEN
+    DELETE FROM transparency_scores;
+  END IF;
+END $$;
 
 -- Fake promises (seeded with template text)
 DELETE FROM promises;

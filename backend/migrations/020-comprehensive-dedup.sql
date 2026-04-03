@@ -138,27 +138,41 @@ WHERE candidate_source_links.candidate_id = dr.remove_id
       AND c2.external_id = candidate_source_links.external_id
   );
 
--- Step 5: Transfer education records
-UPDATE candidate_education SET candidate_id = dr.keep_id
-FROM dedup_remove dr
-WHERE candidate_education.candidate_id = dr.remove_id;
+-- Step 5: Transfer education records (table created by migration 007)
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'candidate_education') THEN
+    UPDATE candidate_education SET candidate_id = dr.keep_id
+    FROM dedup_remove dr
+    WHERE candidate_education.candidate_id = dr.remove_id;
+  END IF;
+END $$;
 
--- Step 6: Transfer interest group ratings
-UPDATE interest_group_ratings SET candidate_id = dr.keep_id
-FROM dedup_remove dr
-WHERE interest_group_ratings.candidate_id = dr.remove_id
-  AND NOT EXISTS (
-    SELECT 1 FROM interest_group_ratings r2
-    WHERE r2.candidate_id = dr.keep_id
-      AND r2.interest_group_id = interest_group_ratings.interest_group_id
-      AND r2.time_span = interest_group_ratings.time_span
-  );
+-- Step 6: Transfer interest group ratings (table created by migration 007)
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'interest_group_ratings') THEN
+    UPDATE interest_group_ratings SET candidate_id = dr.keep_id
+    FROM dedup_remove dr
+    WHERE interest_group_ratings.candidate_id = dr.remove_id
+      AND NOT EXISTS (
+        SELECT 1 FROM interest_group_ratings r2
+        WHERE r2.candidate_id = dr.keep_id
+          AND r2.interest_group_id = interest_group_ratings.interest_group_id
+          AND r2.time_span = interest_group_ratings.time_span
+      );
+  END IF;
+END $$;
 
 -- Step 7: Delete orphaned references to removed profiles
 DELETE FROM candidate_source_links WHERE candidate_id IN (SELECT remove_id FROM dedup_remove);
 DELETE FROM candidacies WHERE candidate_id IN (SELECT remove_id FROM dedup_remove);
-DELETE FROM candidate_education WHERE candidate_id IN (SELECT remove_id FROM dedup_remove);
-DELETE FROM interest_group_ratings WHERE candidate_id IN (SELECT remove_id FROM dedup_remove);
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'candidate_education') THEN
+    DELETE FROM candidate_education WHERE candidate_id IN (SELECT remove_id FROM dedup_remove);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'interest_group_ratings') THEN
+    DELETE FROM interest_group_ratings WHERE candidate_id IN (SELECT remove_id FROM dedup_remove);
+  END IF;
+END $$;
 
 -- Step 8: Delete the duplicate profiles
 DELETE FROM candidate_profiles WHERE id IN (SELECT remove_id FROM dedup_remove);

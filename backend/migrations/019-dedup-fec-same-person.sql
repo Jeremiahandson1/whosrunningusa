@@ -63,26 +63,31 @@ WHERE candidate_source_links.candidate_id = r.remove_id
   );
 
 -- Step 4: Transfer any enrichment data (education, experience, etc.)
-WITH dupes AS (
-  SELECT
-    display_name,
-    fec_state,
-    (ARRAY_AGG(id ORDER BY fec_candidate_id DESC))[1] AS keep_id,
-    ARRAY_AGG(id ORDER BY fec_candidate_id DESC) AS all_ids
-  FROM candidate_profiles
-  WHERE verification_source = 'fec'
-    AND fec_state IS NOT NULL
-    AND display_name IS NOT NULL
-  GROUP BY LOWER(display_name), display_name, fec_state
-  HAVING COUNT(*) > 1
-),
-removals AS (
-  SELECT keep_id, UNNEST(all_ids[2:]) AS remove_id
-  FROM dupes
-)
-UPDATE candidate_education SET candidate_id = r.keep_id
-FROM removals r
-WHERE candidate_education.candidate_id = r.remove_id;
+-- Only run if candidate_education table exists (created by migration 007)
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'candidate_education') THEN
+    WITH dupes AS (
+      SELECT
+        display_name,
+        fec_state,
+        (ARRAY_AGG(id ORDER BY fec_candidate_id DESC))[1] AS keep_id,
+        ARRAY_AGG(id ORDER BY fec_candidate_id DESC) AS all_ids
+      FROM candidate_profiles
+      WHERE verification_source = 'fec'
+        AND fec_state IS NOT NULL
+        AND display_name IS NOT NULL
+      GROUP BY LOWER(display_name), display_name, fec_state
+      HAVING COUNT(*) > 1
+    ),
+    removals AS (
+      SELECT keep_id, UNNEST(all_ids[2:]) AS remove_id
+      FROM dupes
+    )
+    UPDATE candidate_education SET candidate_id = r.keep_id
+    FROM removals r
+    WHERE candidate_education.candidate_id = r.remove_id;
+  END IF;
+END $$;
 
 -- Step 5: Delete duplicate profiles (keep the one with the newest FEC ID)
 WITH dupes AS (

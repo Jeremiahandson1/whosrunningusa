@@ -121,11 +121,35 @@ router.get('/', optionalAuth, async (req, res, next) => {
   }
 });
 
+// Check verification status (must be before /:id to avoid route conflict)
+router.get('/verify/status', authenticate, requireCandidate, async (req, res, next) => {
+  try {
+    const profileResult = await db.query(
+      'SELECT id, identity_verified FROM candidate_profiles WHERE user_id = $1',
+      [req.user.id]
+    );
+    if (profileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Candidate profile not found' });
+    }
+
+    res.json({
+      identityVerified: profileResult.rows[0].identity_verified,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get single candidate
 router.get('/:id', optionalAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
+    // Validate UUID format to prevent SQL errors on named routes like /featured, /search
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return res.status(404).json({ error: 'Candidate not found' });
+    }
+
     const result = await db.query(
       `SELECT cp.*, u.username, u.first_name, u.last_name, u.email_verified,
               u.profile_pic_url,
@@ -302,25 +326,6 @@ router.post('/verify/start', authenticate, requireCandidate, async (req, res, ne
     if (error.message === 'Stripe is not configured') {
       return res.status(503).json({ error: 'Identity verification is not available' });
     }
-    next(error);
-  }
-});
-
-// Check verification status
-router.get('/verify/status', authenticate, requireCandidate, async (req, res, next) => {
-  try {
-    const profileResult = await db.query(
-      'SELECT id, identity_verified FROM candidate_profiles WHERE user_id = $1',
-      [req.user.id]
-    );
-    if (profileResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Candidate profile not found' });
-    }
-
-    res.json({
-      identityVerified: profileResult.rows[0].identity_verified,
-    });
-  } catch (error) {
     next(error);
   }
 });

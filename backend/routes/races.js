@@ -89,7 +89,12 @@ router.get('/watching/list', authenticate, async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
+    // Validate UUID format to prevent SQL errors on named routes
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return res.status(404).json({ error: 'Race not found' });
+    }
+
     const raceResult = await db.query(
       `SELECT r.*, o.name as office_name, o.office_level, o.term_length_years,
               e.election_date, e.name as election_name, e.registration_deadline

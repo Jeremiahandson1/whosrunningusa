@@ -66,6 +66,11 @@ router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
 
+    // Validate UUID format to prevent SQL errors on named routes
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return res.status(404).json({ error: 'Election not found' });
+    }
+
     const electionResult = await db.query('SELECT * FROM elections WHERE id = $1', [id]);
 
     if (electionResult.rows.length === 0) {
