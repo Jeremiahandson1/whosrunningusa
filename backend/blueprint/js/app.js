@@ -132,6 +132,17 @@ function pageLanding(main) {
         </div>
       </div>
     </div>
+    <div class="section" style="background:var(--slate-50);"><div class="container">
+      <div class="calc-card" style="max-width:800px;margin:0 auto;">
+        <h2 style="margin-bottom:1rem;">Why I'm Running</h2>
+        <p style="color:var(--slate-700)">I'm not a politician. I've never held office. I don't have a war chest or a party machine behind me.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;">What I have is a story that starts in Memphis with police lights reflecting off a house window, moves through a foster home in San Diego, through a prison cell at nineteen, through thirty years of rebuilding, and arrives here.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;">I'm running because I can't stand the thought of innocent people suffering — especially when it isn't at their own doing. That's not a campaign slogan. That's the sentence that explains my entire life.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;">I was a foster kid. I know what it feels like to have the system decide what happens to you. I was a felon. I know what it feels like when one decision follows you for decades. I was broke. I know what it feels like to build something from nothing with no safety net underneath you.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;">I've been on the wrong side of every system in this platform. That's not a liability. That's a qualification.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;font-weight:600;">This is what I'm going to do about it.</p>
+      </div>
+    </div></div>
     <div class="section"><div class="container">
       <div style="text-align:center;margin-bottom:2rem;">
         <h2>All Policy Areas</h2>
@@ -796,6 +807,18 @@ function pageSeniors(main) {
       </div>
 
       <div class="calc-card">
+        <h3>Protecting American Pensions</h3>
+        <p style="color:var(--slate-700)">A pension is deferred compensation — wages already earned, already worked for, temporarily held by the employer. Under this platform:</p>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li><strong>The Earned Wages Principle:</strong> In any bankruptcy, pension obligations are reclassified as worker property — not creditor claims. Workers are made whole first.</li>
+          <li><strong>Pension Solvency Mandate:</strong> Every company must maintain full funding through a segregated trust or full PBGC coverage. Below 90% triggers automatic fines. Below 80% triggers executive compensation restrictions. Below 70% triggers federal receivership.</li>
+          <li><strong>Executive Clawback:</strong> If a company enters bankruptcy with an underfunded pension, executive compensation from the preceding seven years is subject to mandatory clawback to cover the shortfall.</li>
+          <li><strong>Federal Contract Conditions:</strong> Any company receiving federal contracts or bailout funding cannot reduce or discharge pension obligations. Period.</li>
+        </ul>
+        <p style="color:var(--slate-700);margin-top:0.75rem;"><strong>Public sector pensions:</strong> The Required Annual Contribution is a mandatory appropriation — comes off the top before anything else in the budget. Elected officials who authorize a budget that fails to include the full contribution are <em>personally financially liable</em> and subject to immediate removal from office.</p>
+      </div>
+
+      <div class="calc-card">
         <h3>SSA Restructuring</h3>
         <p style="color:var(--slate-700)">SSA restructures from ~60,000 to ~15,000 employees through buyouts and attrition. The people who remain ensure every eligible American receives their payment on time every month.</p>
       </div>
@@ -864,8 +887,18 @@ function pageHealthcare(main) {
       </div>
 
       <div class="calc-card">
+        <h3>Mental Health Parity</h3>
+        <p style="color:var(--slate-700)">Mental health care treated identically to physical health care. No separate deductibles. No separate limits. No insurance company deciding that ten therapy sessions is enough. A broken leg gets treated until it heals. A broken mind deserves the same standard.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>How It's Funded</h3>
+        <p style="color:var(--slate-700)">Pharmaceutical savings of $300–500 billion annually. Insurance overhead elimination — $500 billion (the 20–30% of every premium currently going to claims denial departments, prior authorization bureaucracies, and executive compensation). AEGIS fraud detection eliminating $80 billion in medical billing fraud annually. Dedicated NST revenue allocation. A healthier country costs less to treat. The math is cumulative and it works.</p>
+      </div>
+
+      <div class="calc-card">
         <h3>All-In Medical Pricing</h3>
-        <p style="color:var(--slate-700)">Every hospital publishes actual prices for every procedure. No surprise billing. AEGIS cross-references all billing against published prices automatically. Criminal charges for knowing billing fraud.</p>
+        <p style="color:var(--slate-700)">Every hospital, clinic, and medical provider publishes actual prices for every procedure publicly before treatment wherever possible. No surprise billing. The price shown is the price paid. AEGIS cross-references all medical billing against published prices automatically — a hospital billing $15,000 for a procedure listed at $3,000 is flagged instantly. Criminal charges for knowing billing fraud. Profit plus 10% clawed back.</p>
       </div>
     `
   });
@@ -938,8 +971,19 @@ function pageLoans(main) {
       </div>
 
       <div class="calc-card">
+        <h3>The Iceland Banking Model — Failed Banks Fail</h3>
+        <p style="color:var(--slate-700)">In 2008 America bailed out the banks. The banks survived. Eight million Americans lost their homes anyway. Iceland let their banks fail, jailed the bankers, protected ordinary depositors, and recovered faster than any country that chose bailout.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;">Under this platform: failed banks fail. Domestic depositors protected through FDIC. Good assets transferred to new restructured institutions. Bad assets stay in the failed entity and get unwound. Predatory mortgages restructured to benefit homeowners: principal reduced to actual market value, interest capped at 15%, payments reset to affordable levels. The bank is gone. The banker goes to jail. The homeowner keeps their house.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Corporate Stock Ownership Prohibition</h3>
+        <p style="color:var(--slate-700)">Corporations cannot own stock. Only human beings can own stock. A corporation is a legal fiction created by government charter. It can conduct business. It cannot accumulate ownership of other businesses. Three-year divestment period for existing corporate equity holdings. Investment vehicles managed for the direct benefit of individual human beneficiaries — pension funds, mutual funds — are exempt.</p>
+      </div>
+
+      <div class="calc-card">
         <h3>Student Loan Reform</h3>
-        <p style="color:var(--slate-700)">Federal loan rates capped at 1%. Expanded income-based repayment. Structured relief for existing borrowers.</p>
+        <p style="color:var(--slate-700)">Federal loan rates capped at 1%. Expanded income-based repayment. Structured relief for existing borrowers. The American Public University System (Chapter 40) replaces the predatory private institution model entirely — ending the need for student loans at all.</p>
       </div>
     `
   });
@@ -986,8 +1030,13 @@ function pageHousing(main) {
       </div>
 
       <div class="calc-card">
+        <h3>Housing Is Not a Business</h3>
+        <p style="color:var(--slate-700)">Prisons aren't businesses. Hospitals aren't businesses. Schools aren't businesses. The moment we decided that the roof over an American family's head was an asset class to be traded we started losing. A home is a home. Not a portfolio.</p>
+      </div>
+
+      <div class="calc-card">
         <h3>Corporate Ownership — Banned</h3>
-        <p style="color:var(--slate-700)">No corporation, hedge fund, REIT, or investment firm may own single-family residential properties.</p>
+        <p style="color:var(--slate-700)">No corporation, hedge fund, REIT, or investment firm may own single-family residential properties. A corporation is not a person and does not need a home.</p>
         <table class="data-table" style="margin-top:1rem;">
           <thead><tr><th>Timeline</th><th>Action</th></tr></thead>
           <tbody>
@@ -1011,7 +1060,18 @@ function pageHousing(main) {
 
       <div class="calc-card">
         <h3>Used Homes — NST Exempt</h3>
-        <p style="color:var(--slate-700)">Used homes are exempt from the National Sales Tax. No double taxation on secondhand property. The most common path to homeownership stays affordable.</p>
+        <p style="color:var(--slate-700)">Used homes are exempt from the National Sales Tax. No double taxation on secondhand property transactions. You buy a home that was previously owned — no NST. This encourages real transactions over speculation and protects working families from being taxed on the most common path to homeownership.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Mineral Rights Reform</h3>
+        <p style="color:var(--slate-700)">The severance of mineral rights from surface rights — the mechanism by which a corporation may own what lies beneath land owned by another — ends. A family may own their land and a corporation arrives to drill beneath it, extract from it, damage it, and profit from it while the surface owner bears all the environmental risk.</p>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;margin-top:0.75rem;">
+          <li>New severances of mineral rights from surface rights prohibited immediately</li>
+          <li>Existing severances enter a mandatory ten-year resolution period</li>
+          <li>Surface owners have the right to purchase mineral rights at fair market value</li>
+          <li>At ten years, unresolved severances revert to surface owner ownership through compensated federal acquisition</li>
+        </ul>
       </div>
     `
   });
@@ -1054,14 +1114,35 @@ function pageMilitary(main) {
       </div>
 
       <div class="calc-card">
+        <h3>The China Efficiency Gap</h3>
+        <p style="color:var(--slate-700)">China is closing the military capability gap with America while spending approximately one-third as much. This is not because China is more efficient. It is because America extracts 30–40% of every defense dollar in contractor profit before it reaches an actual weapon. A reformed $550 billion military procurement system with competitive bidding and open book accounting buys equivalent or superior capability to the current $960 billion system.</p>
+      </div>
+
+      <div class="calc-card">
         <h3>Procurement Reform</h3>
         <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
           <li>End all cost-plus contracts — every contract is fixed-price, competitively bid</li>
-          <li>Open book accounting mandatory</li>
-          <li>Minimum two competing manufacturers for every major system</li>
-          <li>Payment upon delivery — not upon billing</li>
-          <li>AEGIS monitors every contract in real time</li>
-          <li>Criminal liability for executives who knowingly overbill</li>
+          <li>Open book accounting mandatory — every contractor shows actual cost vs. billed amount</li>
+          <li>Sole source monopolies eliminated — minimum two competing manufacturers for every major system</li>
+          <li>Performance-based contracts — payment upon delivery of working capability, not upon billing</li>
+          <li>AEGIS monitors every contract in real time — flags any invoice above documented cost plus defined margin</li>
+          <li>Criminal liability for executives who knowingly overbill — profit plus 10% clawed back, personal prosecution</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>Strategic Rebalancing</h3>
+        <p style="color:var(--slate-700)">America's military mission under this platform is clear: <strong>nuclear deterrence, Pacific fleet capability, cyber warfare leadership, space-based intelligence, and rapid deployable special operations forces.</strong></p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;">America is not the world's policeman. Allies that have been free-riding on American protection for decades — particularly European NATO members who now collectively spend $454 billion — carry their own weight or American forward presence scales proportionally.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Ethics & Accountability</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>Two-year ban on military officials entering contracting firms they oversaw</li>
+          <li>All defense contractor lobbying recorded and published publicly</li>
+          <li>Citizen Oversight Commission on Defense Procurement</li>
+          <li>AEGIS real-time monitoring of all procurement contracts</li>
         </ul>
       </div>
     `
@@ -1178,9 +1259,46 @@ function pageCriminalJustice(main) {
     title: 'Criminal Justice Reform', subtitle: '5% of the world\'s population. 25% of the world\'s prisoners.', icon: '⚖️',
     impactId: 'cj-impact', impactFn: () => ({ level: 'affects', message: 'Criminal justice reform affects every community: ending private prisons saves $80B/year, ending qualified immunity creates real police accountability, decriminalizing drug possession redirects $50B to treatment.' }),
     content: `
-      <div class="stats-row"><div class="stat-card"><div class="stat-value">2M</div><div class="stat-label">People Behind Bars</div></div><div class="stat-card"><div class="stat-value">$80B</div><div class="stat-label">Annual Prison Spending</div></div><div class="stat-card"><div class="stat-value">60%</div><div class="stat-label">Non-Violent Offenders</div></div></div>
-      <div class="calc-card"><h3>Core Reforms</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li>End private prisons entirely — prison is not a profit center</li><li>End qualified immunity — officers sued personally for civil rights violations</li><li>Mandatory body cameras — always on, tampering is a crime</li><li>National misconduct registry — follows officers across states permanently</li><li>Department liability for patterns of misconduct</li><li>Personal liability insurance for officers</li><li>Drug possession decriminalized — users get help, not prison (Ch 27)</li><li>Prison labor: voluntary, community use only, real wages, vocational credentials</li></ul></div>
-      <div class="calc-card"><h3>Statutes of Limitations — Eliminated</h3><p style="color:var(--slate-700)">Statutes of limitations are eliminated for <strong>all crimes</strong>. Every crime. No exceptions.</p><p style="color:var(--slate-700);margin-top:0.75rem;">Created in an era when evidence degraded — witnesses died, documents faded. That era is over. AEGIS monitors every transaction in real time. Digital records are permanent. Evidence doesn't degrade — it accumulates.</p><p style="color:var(--slate-700);margin-top:0.75rem;font-style:italic;">"The clock doesn't run out. Justice doesn't have an expiration date. If you did it and we can prove it — you answer for it. Period."</p></div>
+      <div class="calc-card">
+        <h3>A Personal Note</h3>
+        <p style="color:var(--slate-700)">I'm a felon. I was in prison at nineteen. I had a drug charge at twenty-seven. I know what the system looks like from the inside — and what it looks like from the inside has very little to do with justice. That's not a disqualification. That's a qualification.</p>
+      </div>
+
+      <div class="stats-row"><div class="stat-card"><div class="stat-value">2M</div><div class="stat-label">People Behind Bars</div></div><div class="stat-card"><div class="stat-value">$80B</div><div class="stat-label">Annual Prison Spending</div></div><div class="stat-card"><div class="stat-value">60%</div><div class="stat-label">Non-Violent Offenders</div></div><div class="stat-card"><div class="stat-value">5%/25%</div><div class="stat-label">World Population / World Prisoners</div></div></div>
+
+      <div class="calc-card">
+        <h3>End Private Prisons Entirely</h3>
+        <p style="color:var(--slate-700)">Private prisons are banned. Prison is not a profit center. Every incarcerated person is housed in a public facility accountable to public oversight.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>End Qualified Immunity</h3>
+        <p style="color:var(--slate-700)">Officers can be sued personally for civil rights violations. The Supreme Court invented qualified immunity in 1967. It is not in the Constitution. It is not in any statute. Nine justices created it. We end it.</p>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>Mandatory body cameras — always on, footage preserved, tampering is a serious crime, footage stored on independent server</li>
+          <li>Misconduct registry — follows officers across all departments and states permanently</li>
+          <li>Department liability — cities and departments face consequences for patterns of misconduct</li>
+          <li>Personal liability insurance — officers carry coverage like doctors carry malpractice insurance</li>
+          <li>Chain of command accountability — chiefs and cities liable for officer conduct</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>Prison Labor Reform — Community Use Only</h3>
+        <p style="color:var(--slate-700)">Voluntary participation, community use only, real wages deposited into a personal reentry fund, vocational credentials built during service. <strong>Not one dollar of prison labor goes to a private corporation. Ever.</strong></p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Drug Policy — Health Not Crime</h3>
+        <p style="color:var(--slate-700)">Drug possession for personal use is decriminalized. Users are not criminals. They are people who need help. The $50 billion annually spent on drug prosecution redirects entirely to treatment infrastructure. See the Drug Policy page for the complete framework.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Corporate Criminal Accountability</h3>
+        <p style="color:var(--slate-700)">The same accountability standards that apply to street crime apply to corporate crime. A CEO who knowingly designed a system to extract money from vulnerable people through fraud faces personal criminal prosecution — not a fine negotiated by lawyers. The profit plus 10% penalty applies universally. Nobody hides behind a corporate structure.</p>
+      </div>
+
+      <div class="calc-card"><h3>Statutes of Limitations — Eliminated</h3><p style="color:var(--slate-700)">Statutes of limitations are eliminated for <strong>all crimes</strong>. Every crime. No exceptions.</p><p style="color:var(--slate-700);margin-top:0.75rem;">Created in an era when evidence degraded — witnesses died, documents faded. That era is over. AEGIS monitors every transaction in real time. Digital records are permanent. Evidence doesn't degrade — it accumulates.</p><p style="color:var(--slate-700);margin-top:0.75rem;">If you committed fraud in 1987 and we can prove it today — you answer for it today. If a doctor's negligence caused harm discovered a decade later — the victim has the same right to accountability.</p><p style="color:var(--slate-700);margin-top:0.75rem;font-style:italic;">"The clock doesn't run out. Justice doesn't have an expiration date. If you did it and we can prove it — you answer for it. Period."</p></div>
     `
   });
 }
@@ -1190,18 +1308,75 @@ function pageImmigration(main) {
     title: 'The Welcome America Immigration System', subtitle: '"Name one job an immigrant took that affected you personally."', icon: '🗽',
     impactId: 'imm-impact', impactFn: () => ({ level: 'affects', message: 'Immigration adds $8.9T to GDP over the next decade and $1.2T in federal tax revenue. Immigrants pay $383B in federal taxes and $196B in state/local taxes annually.' }),
     content: `
-      <div class="calc-card"><h3>How It Works</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
-        <li>Immediate moratorium on non-violent deportations for 2+ year residents</li>
-        <li>10-year residents with no violent record → immediate citizenship path</li>
-        <li>Annual Capacity Assessment — economic, housing, infrastructure, humanitarian, fiscal</li>
-        <li>Fair lottery system — family size adds entries</li>
-        <li>Immediate work authorization on Day 1</li>
-        <li>60-day transitional support connected to job placement</li>
-        <li>Regional distribution to where workers are needed</li>
-        <li>AI-assisted asylum system — decisions within 30 days, max 120 days total</li>
-        <li>Violent criminals: jail, serve time, then deportation</li>
-        <li>Full benefits after 5 years of work and tax contribution</li>
-      </ul></div>
+      <div class="calc-card">
+        <h3>The Foundation</h3>
+        <p style="color:var(--slate-700)">America is a nation of immigrants. Anyone trying to make a better life for themselves and their family is welcome. The question is not whether to welcome people — it is how to do it fairly, transparently, and sustainably.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;">The data is clear: immigration is not an invasion. Over 35% of people encountered at the border in recent years were families with children — overwhelmingly from Central and South American countries fleeing poverty, gang violence, political persecution, and economic collapse.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>The Economic Case</h3>
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-value">$8.9T</div><div class="stat-label">GDP Boost Over Next Decade (CBO)</div></div>
+          <div class="stat-card"><div class="stat-value">$1.2T</div><div class="stat-label">Added Federal Tax Revenue</div></div>
+          <div class="stat-card"><div class="stat-value">$383B</div><div class="stat-label">Federal Taxes Paid Annually</div></div>
+          <div class="stat-card"><div class="stat-value">46%</div><div class="stat-label">Fortune 500 Founded by Immigrants</div></div>
+        </div>
+        <p style="font-size:0.875rem;color:var(--slate-600);margin-top:0.75rem;">Deportation of undocumented immigrants would reduce US real GDP by as much as 7% by 2028. Immigrants produced 23% of all patents despite comprising 16% of the inventor workforce.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Immediate Moratorium on Non-Violent Deportations</h3>
+        <p style="color:var(--slate-700)">Immediate moratorium on deportations for anyone who has been in the country more than two years with no violent criminal record. They stay. They receive a work permit immediately. They begin a five-year path to permanent residency. After permanent residency, five more years to citizenship if they choose it.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Ten-Year Resident Citizenship Path</h3>
+        <p style="color:var(--slate-700)">Anyone who has been in this country continuously for ten or more years with no violent criminal record receives an immediate and permanent path to citizenship. You grew up here. This is your country. The paperwork your parents didn't file when you were eight years old does not define your American identity.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>The Annual Capacity Assessment</h3>
+        <p style="color:var(--slate-700)">No fixed annual immigration number. Every year the federal government publishes a transparent public assessment through OpenLedger covering five factors:</p>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li><strong>Economic capacity</strong> — current labor market gaps by industry and region</li>
+          <li><strong>Housing capacity</strong> — available housing units nationally and regionally</li>
+          <li><strong>Infrastructure capacity</strong> — schools, hospitals, roads, public services</li>
+          <li><strong>Humanitarian obligation</strong> — global crisis situations creating moral obligation</li>
+          <li><strong>Fiscal capacity</strong> — what the transitional support program can actually fund</li>
+        </ul>
+        <p style="color:var(--slate-700);margin-top:0.75rem;">Congress votes on the resulting annual number. Citizens can see exactly how it was calculated. No politics. No ideology. Just math and humanity.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>The Lottery System</h3>
+        <p style="color:var(--slate-700)">Applications enter a national lottery. Every person gets one entry. Every dependent family member adds one entry to that family's application — a family of four has four entries, giving larger families proportionally better odds which reflects humanitarian reality. The lottery is run publicly and transparently. No backroom decisions. No preference for wealthy applicants. No preference based on country of origin. Pure fairness.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Immediate Work Authorization & Transitional Support</h3>
+        <p style="color:var(--slate-700)">Every person who enters through the legal lottery pathway receives <strong>immediate work authorization on Day 1</strong>. Not after months of processing. Day one. They can work, earn, and support themselves from the moment they arrive.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;"><strong>60 days of transitional support</strong> — basic shelter, basic food, connection to employers with open positions. After 60 days they are working, paying taxes, and self-sufficient. The construction industry alone faces a shortage of 500,000 workers. There are jobs waiting.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;"><strong>Regional distribution</strong> connects people to regions where they are actually needed. Rural Midwestern counties with declining population, empty houses, labor shortages, and good schools have enormous capacity.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>AI-Assisted Asylum System</h3>
+        <p style="color:var(--slate-700)">The current 1.5 million case backlog exists because there are not enough decision-makers. The answer is not more judges — it is a faster system.</p>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>Same-day intake interview with trained officers</li>
+          <li>AI translation in real time across any language</li>
+          <li>Cross-referencing claims against continuously updated global country conditions database</li>
+          <li>Decision within 30 days, one appeal with 30-day review window</li>
+          <li>Total maximum timeline: <strong>120 days</strong> from presentation to final decision</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>Violent Criminals & Benefit Eligibility</h3>
+        <p style="color:var(--slate-700)"><strong>Violent criminals:</strong> You commit a violent crime in America — you go to jail. Same as any American. You serve your time. After serving your sentence — deportation to country of origin.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;"><strong>Five-year benefit eligibility:</strong> Full benefit eligibility after five years of documented work and tax contribution. You pay in before you draw out — the same deal every working American has.</p>
+      </div>
     `
   });
 }
@@ -1213,8 +1388,48 @@ function pageGovernment(main) {
     content: `
       <div class="calc-card"><h3>Ending Corporate Influence</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li>Ban all corporate and PAC donations to political campaigns</li><li><strong>Lifetime ban</strong> on lobbying for all former federal government officials</li><li>Publicly funded elections with small-donor matching</li><li>Full real-time disclosure of all political spending</li></ul></div>
       <div class="calc-card"><h3>The Lobbying Location Requirement</h3><p style="color:var(--slate-700)">All official contact between lobbyists and federal elected officials must occur in the official's <strong>home state district office</strong>. Not in Washington. Not on K Street. Not over dinner at a Georgetown restaurant. Not on a golf course.</p><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;margin-top:0.75rem;"><li>Every visit logged, every visitor signs in</li><li>Meeting purpose documented and published through OpenLedger within 24 hours</li><li>Representatives spend more time where their constituents are</li><li>A union organizing members to contact their senator = democracy (protected)</li><li>A former senator paid $2M/yr by a defense contractor to call colleagues = corruption (lifetime ban)</li></ul></div>
-      <div class="calc-card"><h3>Accountability</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li>No trading individual financial instruments during service or 2 years after</li><li>Criminal liability for knowing violations</li><li>Strengthened independent ethics commission</li><li>Term limits: Senate 2 terms (12 yrs), House 4 terms (8 yrs)</li><li>Return to Civilian Life: former Congress members must move home within 90 days</li></ul></div>
+      <div class="calc-card">
+        <h3>Public Service Financial Integrity Act</h3>
+        <p style="color:var(--slate-700)">The single most corrupting force in American government is not bribery — it is the legal, normalized practice of officials using their access to non-public policy information to enrich themselves through financial markets.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;"><strong>The No-Trading Rule:</strong> Any person holding federal elected office, any appointed official, any senior executive branch employee, and any member of their immediate household is prohibited from purchasing or selling individual stocks, bonds, options, or derivatives for the duration of their service and for <strong>two years after</strong>.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;"><strong>What is permitted:</strong> Widely diversified index funds in a blind trust. Government bonds. Real property. You may participate in the broad success of the American economy. You may not trade on your knowledge of what the government is about to do.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;">All financial holdings disclosed in real time through OpenLedger. AEGIS cross-references financial disclosure against market data. Violations are referred for <strong>criminal prosecution</strong> — not an ethics committee referral.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;font-style:italic;">"You want to serve the American people? Prove it. Put your portfolio in a blind trust, step away from the trading terminal, and govern."</p>
+      </div>
+
+      <div class="calc-card"><h3>Accountability</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li>Criminal liability for knowing violations</li><li>Strengthened independent ethics commission with real consequences</li><li>Term limits: Senate 2 terms (12 yrs), House 4 terms (8 yrs)</li></ul></div>
       <div class="calc-card"><h3>Fair Elections</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li>Ranked-choice voting nationwide</li><li>Election Day as national holiday</li><li>Nonpartisan redistricting commissions</li><li>Enhanced cybersecurity for election infrastructure</li></ul></div>
+
+      <div class="calc-card">
+        <h3>Transparency & Open Government</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>All government meetings involving public money or policy decisions recorded and published</li>
+          <li>All bills written in plain language and made public 30 days before voting</li>
+          <li>OpenLedger — every government contract and expenditure publicly searchable in real time</li>
+          <li>Body cameras on all government officials in official capacity</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>The Return to Civilian Life Provision</h3>
+        <p style="color:var(--slate-700)">Any former member of Congress must return to their home state and establish primary residence there within 90 days of leaving office. You make the laws. You go home and live under the laws. That is not a burden — that is the point.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;font-style:italic;">"The moment a politician knows they're going home to live under their own laws — they start writing better laws."</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Reducing Redundant Agencies</h3>
+        <p style="color:var(--slate-700)">The federal government has accumulated agencies the way old houses accumulate furniture — one piece at a time until nobody remembers why half of it is there. We're clearing the house.</p>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>Presidential Reorganization Office established in Year 1</li>
+          <li>Top-to-bottom audit of every federal agency within 18 months</li>
+          <li>47 separate job training programs across 9 agencies → consolidated</li>
+          <li>Food safety split between USDA and FDA → unified</li>
+          <li>Housing assistance fragmented across HUD, USDA, Treasury → unified</li>
+          <li>Independent annual audits for all agencies above $1B budget</li>
+          <li>Savings: <strong>$100 billion annually</strong></li>
+        </ul>
+        <p style="color:var(--slate-700);margin-top:0.75rem;">This is not about gutting services. People who need food assistance, housing support, job training, and emergency help will still receive those things — from a system that actually works. We're cutting overhead. We're not cutting people.</p>
+      </div>
     `
   });
 }
@@ -1234,7 +1449,23 @@ function pageInfrastructure(main) {
         <tr><td>Lead pipe replacement</td><td>$200B</td></tr>
         <tr><td>Fiber-optic broadband (100%)</td><td>$150B</td></tr>
       </tbody></table></div>
-      <div class="calc-card"><h3>CivicSignal Connection</h3><p style="color:var(--slate-700)">Citizens report infrastructure problems directly through CivicSignal — GPS-tagged, publicly visible, mandatory response timelines. Small local contractors get first priority on jobs under $500,000.</p></div>
+      <div class="calc-card">
+        <h3>CivicSignal Connection</h3>
+        <p style="color:var(--slate-700)">Citizens report infrastructure problems directly through CivicSignal — the national citizen reporting platform. Every pothole, every broken streetlight, every dangerous intersection, GPS-tagged and publicly visible. Government agencies receive direct notification. Small local contractors get first priority on jobs under $500,000. The system connects citizen-identified problems to local solutions without political gatekeeping.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Energy Independence</h3>
+        <p style="color:var(--slate-700)">Energy independence is national security. Dependence on foreign oil is dependence on governments that do not share our values. Massive investment in renewable energy alongside existing sources. Grid modernization. Domestic battery and semiconductor manufacturing. Energy efficiency standards that reduce consumption without mandating lifestyle changes.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Water Safety & Broadband</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li><strong>$200 billion</strong> to replace all lead-contaminated pipes nationwide</li>
+          <li><strong>$150 billion</strong> to deliver high-speed fiber-optic broadband to 100% of American homes</li>
+        </ul>
+      </div>
     `
   });
 }
@@ -1244,9 +1475,52 @@ function pageBusiness(main) {
     title: 'Small Business & Entrepreneurship', subtitle: '99.9% of businesses are small businesses. Built one from nothing.', icon: '🏪',
     impactId: 'biz-impact', impactFn: () => ({ level: 'affects', message: 'Zero-interest microloans up to $50K, simplified regulations for businesses under 20 employees, first priority on government contracts under $500K.' }),
     content: `
-      <div class="calc-card"><h3>Capital Access</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li>Zero-interest microloans up to $50,000</li><li>Low-interest loans up to $500,000</li><li>Public Business Development Banks</li><li>Federal matching for community-focused VC</li></ul></div>
-      <div class="calc-card"><h3>Cut Red Tape</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li>One-Stop National Business Startup Portal</li><li>Simplified reporting for businesses under 20 employees</li><li>Automatic 10-year sunset reviews of regulations</li></ul></div>
-      <div class="calc-card"><h3>Break Monopolies</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li>Strengthen antitrust enforcement</li><li>Ban vertical integration across supply chains</li><li>Small contractors get first priority on government jobs under $500K</li></ul></div>
+      <div class="calc-card">
+        <h3>I Built One From Nothing</h3>
+        <p style="color:var(--slate-700)">99.9% of all businesses in America are small businesses. I built one from nothing. No degree, no investors, no roadmap. Self-taught. Bootstrapped. I know exactly what the system does to small business owners — and what it could do for them if it actually worked.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Capital Access Reform</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li><strong>National Community Lending Program:</strong> zero-interest microloans up to $50,000, low-interest loans up to $500,000</li>
+          <li>Public Business Development Banks modeled after North Dakota</li>
+          <li>Venture Capital Parity: federal matching funds for community-focused VC</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>Cut Red Tape</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li><strong>One-Stop National Business Startup Portal:</strong> unified licensing and compliance</li>
+          <li><strong>Regulatory Safe Harbor:</strong> simplified reporting for businesses under 20 employees</li>
+          <li><strong>Sunset Review:</strong> automatic 10-year reviews of federal business regulations</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>Break Corporate Monopolies</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>Strengthen antitrust enforcement</li>
+          <li>Ban vertical integration across supply chains</li>
+          <li>Competitive bidding mandates for federal procurement — small contractors get first priority on government jobs under $500,000</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>Tax Code Reform</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>Lower effective tax rates for businesses under $10M revenue</li>
+          <li>Ban offshore profit shifting for large corporations</li>
+          <li>Enhanced depreciation and reinvestment credits for small businesses</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>Licensing Reform</h3>
+        <p style="color:var(--slate-700)">Government licensing exists for one purpose — demonstrable public safety. Where licensing meets that standard it is retained and made equitable: fees at actual cost only, national reciprocity so a license in one state is valid in all fifty, renewal only where genuinely needed.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;">Where licensing does not meet the public safety standard it is eliminated. Interior decorators, hair braiders, tour guides, florists — these requirements protect incumbent businesses from competition, not the public from harm.</p>
+      </div>
     `
   });
 }
@@ -1256,7 +1530,44 @@ function pageAgriculture(main) {
     title: 'Agricultural Reform & Food System Overhaul', subtitle: 'The cheapest food in America is the worst food. We fix that.', icon: '🌾',
     impactId: 'ag-impact', impactFn: p => ({ level: 'affects', message: 'Agricultural reform saves every household $100–200/month on groceries by redirecting subsidies to fresh produce and breaking up the top 4 processors controlling 80%+ of beef.' }),
     content: `
-      <div class="calc-card"><h3>Key Reforms</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li>End commodity crop subsidies → redirect to fresh produce and family farming</li><li>No corporation controls >25% of any agricultural market</li><li>Ban corporate farmland ownership beyond operational needs</li><li>Ban all EU-banned pesticides and herbicides</li><li>Phase out glyphosate, atrazine, chlorpyrifos</li><li>Real organic certification — zero synthetic, third-party verified, QR tracking</li><li>Phase out worst factory farming practices over 10 years</li></ul></div>
+      <div class="calc-card">
+        <h3>A Food System Built for Profit, Not People</h3>
+        <p style="color:var(--slate-700)">The cheapest food in America is the worst food in America. And we wonder why we're sick. The top 4 beef processors control over 80% of the market. Federal subsidies overwhelmingly fund corn, soy, and wheat — the raw ingredients of junk food. The U.S. allows hundreds of pesticides and herbicides banned in Europe.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Redirect Agricultural Subsidies</h3>
+        <p style="color:var(--slate-700)">End commodity crop subsidies. Redirect to fresh produce, fruits, vegetables, and sustainable family farming. Transition support for farmers moving to natural farming — nobody gets left behind.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Break Up Corporate Agricultural Monopolies</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>No single corporation controls more than 25% of any agricultural market</li>
+          <li>Ban corporate ownership of farmland beyond operational needs</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>Eliminate Harmful Chemicals</h3>
+        <p style="color:var(--slate-700)">Ban all pesticides and herbicides currently banned in the European Union. Phase out glyphosate, atrazine, and chlorpyrifos on a clear timeline. Corporate farms get a deadline — no extensions, no lobbying exemptions.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Real Organic Certification</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>Zero synthetic pesticides. Zero synthetic fertilizers. Zero GMO inputs. No exceptions.</li>
+          <li>Third-party independent verification</li>
+          <li>Criminal penalties for fraudulent organic labeling</li>
+          <li>QR code farm-to-shelf tracking</li>
+        </ul>
+        <p style="color:var(--slate-700);margin-top:0.75rem;font-style:italic;">"Organic should mean something. Right now it's a sticker you buy. Under this administration it will mean what your grandmother thought it meant."</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Phase Out Factory Farming</h3>
+        <p style="color:var(--slate-700)">National animal welfare standards — every animal deserves space, light, and a life worth living. Ten-year phase-out of the most inhumane practices. Full transparency labeling on every animal product.</p>
+      </div>
     `
   });
 }
@@ -1266,7 +1577,48 @@ function pageChildren(main) {
     title: 'Child Protection & Missing Children Prevention', subtitle: 'No child ages out of foster care into nothing.', icon: '🧒',
     impactId: 'child-impact', impactFn: () => ({ level: 'affects', message: 'Child protection reform creates federal rapid response for missing children, keeps siblings together in foster care, and connects aging-out youth directly to community infrastructure.' }),
     content: `
-      <div class="calc-card"><h3>Core Programs</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li>National Missing Children Command Center with AI-powered search</li><li>Amber Alert 2.0 — AI license plate recognition, cross-state coordination</li><li>Federal Child Welfare Oversight Board auditing state CPS</li><li>Siblings kept together — always</li><li>Aging out at 18 → community infrastructure pipeline (job training, mentorship, path to ownership)</li><li>Public transparency dashboards for child welfare performance</li></ul></div>
+      <div class="calc-card">
+        <h3>A Personal Note</h3>
+        <p style="color:var(--slate-700)">My sister was molested by a family member. I was eight years old when we were taken into foster care. I know what it means for the system to intervene in a child's life — and I know what it means when it doesn't intervene soon enough. I also know what happens when kids age out of that system. Under my administration, no child ages out of foster care into nothing.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>National Missing Children Command Center</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>Federal command center with full-time investigators, analysts, and AI-powered search tools</li>
+          <li>Fully integrated federal, state, and local law enforcement databases</li>
+          <li>Nationalized rapid deployment team for any jurisdiction immediately upon a missing child report</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>Amber Alert 2.0</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>AI-powered license plate recognition scans</li>
+          <li>National highway, airport, bus terminal, and port coordination</li>
+          <li>Instant cell phone alerts that cross state lines</li>
+          <li>Automatic federal notification when a child crosses state lines</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>Federal Child Welfare Oversight Board</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>Audit state CPS agencies for performance, case backlog, and child outcomes</li>
+          <li>National standards for foster care safety, reporting, and licensing</li>
+          <li>Public transparency dashboards tracking child welfare agency performance</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>Keeping Siblings Together — Always</h3>
+        <p style="color:var(--slate-700)">My sister and I went into foster care together. That mattered. The system often separates siblings. We keep them together — always. Siblings are each other's only family in a system that has removed them from everything else.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Aging Out — The Pipeline to Community</h3>
+        <p style="color:var(--slate-700)">Every child who ages out of foster care at 18 enters the community infrastructure pipeline. Not a shelter — a community. Job training. Mentorship from people who've been where they are. A path to ownership as they stabilize. Fully funded enrollment in the American Public University System — degree or vocational certification — with no age cap.</p>
+      </div>
     `
   });
 }
@@ -1276,8 +1628,44 @@ function pageTechnology(main) {
     title: 'Technology, AI & Space Leadership', subtitle: 'The 21st century battlefield is a semiconductor. China has $1.4T invested. We have a committee.', icon: '🤖',
     impactId: 'tech-impact', impactFn: () => ({ level: 'affects', message: '$500B AI fund, $250B domestic chip manufacturing, $200B cybersecurity shield, $100B NASA investment. The country that leads in AI sets the rules for everything else.' }),
     content: `
+      <div class="calc-card">
+        <h3>The Race We Cannot Lose</h3>
+        <p style="color:var(--slate-700)">The 21st century battlefield is not a field. It's a semiconductor. It's an algorithm. It's a satellite. The country that leads in artificial intelligence, quantum computing, and space will set the rules for everything else. China has a $1.4 trillion AI and technology investment fund. We have a committee.</p>
+      </div>
+
       <div class="stats-row"><div class="stat-card"><div class="stat-value">$500B</div><div class="stat-label">AI R&D Fund</div></div><div class="stat-card"><div class="stat-value">$250B</div><div class="stat-label">Chip Manufacturing</div></div><div class="stat-card"><div class="stat-value">$200B</div><div class="stat-label">Cybersecurity Shield</div></div><div class="stat-card"><div class="stat-value">$100B</div><div class="stat-label">NASA & Space</div></div></div>
-      <div class="calc-card"><h3>Programs</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li>National AI Workforce Initiative for retraining</li><li>AI Ethics & Accountability Standards</li><li>Algorithmic Transparency Law</li><li>Rare Earth & Mineral Security Act</li><li>Space Defense Command</li><li>AEGIS as national security infrastructure</li></ul></div>
+
+      <div class="calc-card">
+        <h3>National AI Leadership & Workforce Transition</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li><strong>$500 billion AI R&D Investment Fund</strong> — the largest single investment in AI in world history</li>
+          <li>National AI Workforce Initiative for worker retraining — preparing Americans for the jobs AI creates, not just the ones it displaces</li>
+          <li>AI Ethics & Accountability Standards — ensuring AI serves people, not the other way around</li>
+          <li>National Algorithmic Transparency Law — if an algorithm makes decisions about your life, you have the right to know how</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>Semiconductor Sovereignty</h3>
+        <p style="color:var(--slate-700)"><strong>$250 billion Domestic Chip Manufacturing Fund.</strong> America cannot remain dependent on Taiwan for 90% of the world's most advanced semiconductors — one geopolitical crisis away from catastrophic supply chain failure.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;"><strong>Rare Earth & Mineral Security Act</strong> — secure domestic supply chains for the materials that power every advanced technology.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Cybersecurity & Space</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li><strong>$200 billion National Cybersecurity Shield</strong> — protect U.S. networks and critical infrastructure</li>
+          <li>Digital Infrastructure Sovereignty to secure U.S. networks from foreign interference</li>
+          <li><strong>$100 billion NASA & Space Industry Investment</strong></li>
+          <li>National Space Resources Sovereignty Act</li>
+          <li>Space Defense Command</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>AEGIS as National Security Infrastructure</h3>
+        <p style="color:var(--slate-700)">The same AI-powered monitoring system that tracks government financial transactions serves as early warning infrastructure for economic threats. AEGIS cross-references all financial flows for foreign interference patterns, monitors critical infrastructure contract awards for suspicious connections, and flags supply chain vulnerabilities in real time. National security and fiscal accountability are the same infrastructure.</p>
+      </div>
     `
   });
 }
@@ -1294,7 +1682,17 @@ function pageForeignPolicy(main) {
         <li><strong>Nuclear Deterrence Non-Negotiable</strong> — triad fully funded, zero cuts</li>
         <li><strong>Diplomacy Reduces Military Necessity</strong> — rebuild State Department, a diplomat costs $150K/yr vs. billions for a war</li>
       </ol></div>
-      <div class="calc-card"><h3>China Strategy</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li>Ban Chinese ownership of critical US infrastructure and tech</li><li>Full tech export controls</li><li>Counter Belt and Road with allied development financing</li><li>New supply chains outside authoritarian regions</li><li>Concentrated Indo-Pacific fleet</li></ul></div>
+      <div class="calc-card"><h3>Strategic Rivalry with China</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li>Ban Chinese ownership of critical U.S. infrastructure, technology, and media outlets</li><li>Maintain full technological export controls on semiconductors, AI, and quantum technologies</li><li>Counter Belt and Road debt diplomacy with allied development financing alternatives</li><li>Build new global supply chains outside authoritarian-controlled regions</li><li>Concentrated Indo-Pacific military capability rather than dispersed global presence</li></ul></div>
+
+      <div class="calc-card">
+        <h3>Global Anti-Corruption & Humanitarian Leadership</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>Global Anti-Corruption Initiative targeting offshore tax havens and transnational bribery</li>
+          <li>Sanction foreign oligarchs who exploit global loopholes</li>
+          <li>Rebuild America's global health leadership through pandemic preparedness</li>
+          <li>Strengthen international refugee systems with improved vetting and accountability</li>
+        </ul>
+      </div>
     `
   });
 }
@@ -1304,7 +1702,46 @@ function pageEnvironment(main) {
     title: 'Climate & Environment', subtitle: 'You don\'t need a climate debate to know you shouldn\'t poison the water people drink.', icon: '🌿',
     impactId: 'env-impact', impactFn: () => ({ level: 'affects', message: 'Clean energy is economic and national security policy. Corporate emission accountability through AEGIS. No personal mandates — no gas stove bans, no vehicle mandates.' }),
     content: `
-      <div class="calc-card"><h3>Approach</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li>Carbon fee on corporations above emission threshold — collected by AEGIS</li><li>Environmental violations are crimes — executives go to jail</li><li>Federal buildings → renewable energy within 10 years</li><li>Nuclear power back on table (small modular reactors)</li><li>70% renewable electricity by 2035</li><li>No personal mandates of any kind</li><li>Mandatory recycling with corporate packaging responsibility</li><li>Ban single-use plastics with no recycling pathway</li></ul></div>
+      <div class="calc-card">
+        <h3>The Philosophy</h3>
+        <p style="color:var(--slate-700)">You don't need a debate about climate science to know you shouldn't poison the water people drink or the air people breathe. Clean energy is economic policy and national security policy. Every dollar spent on foreign energy is a dollar sent to governments that don't share our values. Every clean energy job is an American job.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Corporate Emission Accountability Through AEGIS</h3>
+        <p style="color:var(--slate-700)">A carbon fee applies to corporations above a defined emission threshold — collected through AEGIS automatically. No lobbying exemptions. No offset games. No self-reporting. AEGIS monitors emissions data, cross-references reported figures against energy consumption and production data, flags discrepancies in real time.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;"><strong>Environmental violations are crimes</strong> — executives go to jail, not just companies paying fines they write off. Profit plus 10% clawed back on all proceeds from pollution-generating activities.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Clean Energy Infrastructure</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>Federal buildings converted to renewable energy within 10 years through reformed contracting — competitive bidding, no cost-plus, small contractors first</li>
+          <li>New federal construction: zero emission standard mandatory</li>
+          <li>Electric grid modernization treated as national security infrastructure</li>
+          <li>70% renewable electricity by 2035</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>Nuclear Power — Back on the Table</h3>
+        <p style="color:var(--slate-700)">Modern small modular reactors, not 1970s technology. Nuclear provides reliable baseload power that solar and wind cannot provide alone. A serious clean energy policy that excludes nuclear is not serious.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>No Personal Mandates</h3>
+        <p style="color:var(--slate-700)">The government does not tell people how to live in their homes. No bans on gas stoves. No mandated vehicle choices. No lifestyle mandates of any kind. The government regulates corporations that pollute and incentivizes clean energy through market mechanisms. Individual Americans make their own choices.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Strict Recycling</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>National recycling standards — mandatory, not voluntary</li>
+          <li>Corporate responsibility for packaging waste</li>
+          <li>Investment in recycling infrastructure so the system actually works</li>
+          <li>Ban single-use plastics that have no recycling pathway</li>
+        </ul>
+      </div>
     `
   });
 }
@@ -1314,8 +1751,38 @@ function pageCommunity(main) {
     title: 'Community Infrastructure Investment', subtitle: '"We\'re building cities within cities. Owned by the people who live there."', icon: '🏘️',
     impactId: 'comm-impact', impactFn: () => ({ level: 'affects', message: 'Community investment builds city blocks owned by residents — manufacturing co-ops, affordable condos, storefronts, daycare, healthcare clinics. No outside investors. No corporate landlords.' }),
     content: `
-      <div class="calc-card"><h3>The Block</h3><p style="color:var(--slate-700)">A city block. Purchased, developed, owned as a community asset. Manufacturing co-op at base, residential condos above, storefronts at street level, daycare inside, healthcare clinic on site, park in the middle.</p></div>
-      <div class="calc-card"><h3>The Ownership Ladder</h3><ol style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li><strong>The Block</strong> — arrive with nothing, stabilize, build first equity through sweat equity</li><li><strong>The Neighborhood</strong> — move outward into rehabilitated houses, sell block condo at modest profit for down payment</li><li><strong>Generational Wealth</strong> — house appreciates as neighborhood improves. The cycle breaks completely.</li></ol></div>
+      <div class="calc-card">
+        <h3>The Original Idea</h3>
+        <p style="color:var(--slate-700)">I looked at what disenfranchised communities were missing and designed what filling that gap would actually look like. Not a check. Not a program. A place. The government funds football stadiums so billionaires can own them. I'm using the same mechanism — but this time the people who live there own it.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>The Block</h3>
+        <p style="color:var(--slate-700)">A city block. Purchased, developed, and owned as a community asset. Square building wrapping the perimeter:</p>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>Manufacturing cooperative at the base — worker-owned, profits distributed to worker owners</li>
+          <li>Residential condos above — purchased through affordable entry programs and sweat equity</li>
+          <li>Storefronts at street level — owned or leased by residents at below-market rates</li>
+          <li>Daycare inside the building</li>
+          <li>Healthcare clinic on site</li>
+          <li>Park in the middle</li>
+        </ul>
+        <p style="color:var(--slate-700);margin-top:0.75rem;"><strong>No outside investors. No corporate landlords. No flipping. Ever.</strong></p>
+      </div>
+
+      <div class="calc-card">
+        <h3>The Ownership Ladder</h3>
+        <ol style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li><strong>Step 1 — The Blocks:</strong> Arrive with nothing, stabilize, build first equity through sweat equity and affordable entry programs.</li>
+          <li><strong>Step 2 — The Surrounding Neighborhood:</strong> Move outward into rehabilitated houses. Sell your block condo at a modest profit for your down payment.</li>
+          <li><strong>Step 3 — Generational Wealth:</strong> Your house appreciates as the neighborhood improves. The cycle breaks completely.</li>
+        </ol>
+      </div>
+
+      <div class="calc-card">
+        <h3>Reparations — Infrastructure Over Checks</h3>
+        <p style="color:var(--slate-700)">This is the most honest and effective form of reparations this country has ever proposed — targeted investment in the communities that were deliberately stripped of wealth for generations. Not a payment for the past. An investment in the future.</p>
+      </div>
     `
   });
 }
@@ -1361,8 +1828,42 @@ function pageGuns(main) {
     title: 'Gun Policy', subtitle: '"We\'ve been arguing about the weapon for thirty years while ignoring the wound."', icon: '🎯',
     impactId: 'gun-impact', impactFn: () => ({ level: 'affects', message: 'Gun policy focuses on root causes: mental health access, community connection, economic security. Plus universal background checks and red flag laws with due process.' }),
     content: `
-      <div class="calc-card"><h3>What Actually Reduces Violence</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li>Communities where people feel they belong</li><li>Accessible, affordable, destigmatized mental health care</li><li>Economic security</li><li>Montessori-informed education that sees every child</li><li>A society that doesn't stay quiet about bullying</li></ul></div>
-      <div class="calc-card"><h3>Policy Framework</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li>Universal background checks — no exceptions</li><li>Red flag laws with full due process</li><li>Mandatory gun safety education in schools</li><li>Responsible ownership protected — no confiscation, no blanket bans</li></ul></div>
+      <div class="calc-card">
+        <h3>My Position</h3>
+        <p style="color:var(--slate-700)">I personally hate guns. I believe they exist to kill. I also understand that it is not my place to impose that belief on 330 million Americans.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>The Real Problem</h3>
+        <p style="color:var(--slate-700)">Mass shooters feel invisible. Disconnected. The gun is the last chapter. The disconnect is the whole book.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;font-style:italic;">"We've been arguing about the weapon for thirty years while ignoring the wound. I'm done with that argument. We're treating the wound."</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>What Actually Reduces Violence</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>A society that doesn't stay quiet about bullying</li>
+          <li>Communities where people feel they belong — Montessori education builds this from day one</li>
+          <li>Mental health care that is accessible, affordable, and destigmatized</li>
+          <li>Economic security — desperation and hopelessness are violence risk factors</li>
+          <li>Montessori-informed education that sees every child as capable</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>The Policy Framework</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>Universal background checks — no exceptions, no loopholes</li>
+          <li>Red flag laws with full due process</li>
+          <li>Mandatory gun safety education in schools throughout all grade levels — knowing the truth about something makes you safer around it</li>
+          <li>Responsible ownership protected — no confiscation, no blanket bans</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>A Note on My Own Status</h3>
+        <p style="color:var(--slate-700)">I am a felon. I am federally prohibited from owning a firearm. I write this from the position of someone who has been on the wrong side of the system and understands what it actually does to people.</p>
+      </div>
     `
   });
 }
@@ -1372,9 +1873,35 @@ function pageReproductive(main) {
     title: 'Reproductive Rights', subtitle: '"I\'m pro-life. All of it. Before the birth and after it."', icon: '🤰',
     impactId: 'repro-impact', impactFn: () => ({ level: 'affects', message: 'The full platform IS the pro-life position: universal healthcare, pre-K, community infrastructure, affordable food, senior UBI. Pro-life from conception through old age.' }),
     content: `
-      <div class="calc-card"><h3>Position</h3><p style="color:var(--slate-700)">"If you're only pro-life until the cord is cut, you're not pro-life — you're pro-birth. Those aren't the same thing."</p>
-      <p style="color:var(--slate-700);margin-top:1rem;">Extenuating circumstances — rape, incest, life of the mother — the choice belongs to the woman. Not the government.</p></div>
-      <div class="calc-card"><h3>The Full Platform as the Real Pro-Life Position</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li>Universal healthcare</li><li>Universal pre-K</li><li>Community infrastructure for aging-out foster kids</li><li>Affordable healthy food</li><li>Senior UBI</li><li>Every other chapter in this handbook</li></ul></div>
+      <div class="calc-card">
+        <h3>My Position</h3>
+        <p style="color:var(--slate-700)">I believe life begins at conception. That is my genuine belief — not a political position adopted to win votes. If someone punches a pregnant woman and kills the baby we charge them with murder. We cannot say it is a life in that moment and not a life in every other moment. That inconsistency is not logic — it is politics.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>The Hypocrisies — Both Sides</h3>
+        <p style="color:var(--slate-700)"><strong>The left</strong> says "my body my choice" — but calls it a double homicide when someone kills a pregnant woman. You cannot have it both ways.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;"><strong>The right</strong> says they are pro-life. But the moment that baby is born they cut every program that would actually keep it alive. No universal healthcare. No childcare support. No housing assistance. No food security. They fight for the birth and abandon the child.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;font-style:italic;">"I'm pro-life. All of it. Before the birth and after it. If you're only pro-life until the cord is cut you're not pro-life — you're pro-birth. Those aren't the same thing."</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Extenuating Circumstances</h3>
+        <p style="color:var(--slate-700)">Rape. Incest — which is still rape. A pregnancy that will kill the mother. In these circumstances the choice belongs to the woman. Not the government. Not a committee. The woman.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>The Full Platform as the Real Pro-Life Position</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>Universal healthcare</li>
+          <li>Universal pre-K</li>
+          <li>Community infrastructure for aging-out foster kids</li>
+          <li>Affordable healthy food through agricultural reform</li>
+          <li>Senior UBI — dignity through old age</li>
+          <li>Every other chapter in this handbook is part of this one</li>
+        </ul>
+        <p style="color:var(--slate-700);margin-top:0.75rem;">That is pro-life from conception through old age.</p>
+      </div>
     `
   });
 }
@@ -1426,7 +1953,23 @@ function pageFed(main) {
         <tr><td>Money Supply</td><td>Treasury issuance managed directly, published in real time on OpenLedger</td></tr>
         <tr><td>Lending Oversight</td><td>Administers 15% consumer lending cap through AEGIS</td></tr>
       </tbody></table></div>
-      <div class="calc-card"><h3>Mandatory Full Remittance</h3><p style="color:var(--slate-700)">All profits from Treasury holdings remitted to Treasury automatically and in full. No discretionary retention. No withholding. Formula published. Transfer automatic. Public verification through OpenLedger.</p></div>
+      <div class="calc-card">
+        <h3>The Problem</h3>
+        <p style="color:var(--slate-700)">The Federal Reserve was designed in 1913 by bankers, for bankers, in a secret meeting on Jekyll Island in Georgia. That is not conspiracy theory — that is documented history. A group of the most powerful bankers in America met in secret, drafted the Federal Reserve Act, and handed it to Congress to pass.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;">The circular interest payment relationship: the government pays the Fed interest on Treasury bonds the Fed holds. The Fed covers its operating costs and returns most of the remainder to the Treasury — but not all of it, not reliably, and not with any predictability. In 2022 and 2023 the Fed stopped remitting anything because rising interest rates created accounting losses. The government paid interest and got nothing back. That relationship ends.</p>
+      </div>
+
+      <div class="calc-card"><h3>Mandatory Full Remittance</h3><p style="color:var(--slate-700)">All profits generated by the AMA from Treasury security holdings are remitted to the Treasury automatically and in full. No discretionary retention. No withholding in years of accounting losses. The formula is published. The transfer is automatic. The public can verify it through OpenLedger.</p></div>
+
+      <div class="calc-card">
+        <h3>Crisis Prevention Through AEGIS</h3>
+        <p style="color:var(--slate-700)">The best emergency power is the one you never have to use. The 2008 crisis didn't appear overnight. The toxic assets were building for years. AEGIS would have flagged the pattern in 2005 or 2006 — giving years of warning before the collapse. The AMA has time to act deliberately: raise capital requirements, restrict dangerous instruments, require divestment of concentrated positions. No emergency powers needed because AEGIS eliminates the surprises that require emergency response.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Predatory Lending — The 15% Cap Connection</h3>
+        <p style="color:var(--slate-700)">The AMA administers the 15% national consumer lending cap. Every consumer lending product — credit cards, personal loans, auto loans — is capped at 15% total cost of credit calculated as APR including all fees. The AMA monitors compliance through AEGIS, which cross-references all consumer lending rates against the cap in real time. Any lender exceeding the cap gets flagged and referred to the Corporate Accountability Division.</p>
+      </div>
     `
   });
 }
@@ -1441,7 +1984,72 @@ function pagePoverty(main) {
       return { level: 'partial', message: 'Anti-poverty reforms strengthen every community: living wage, affordable childcare, paid leave, baby bonds at birth, and ending the poverty penalty in courts.' };
     },
     content: `
-      <div class="calc-card"><h3>Core Programs</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li>National Living Wage tied to local cost-of-living, adjusting every 2 years</li><li>Childcare capped at 7% of income</li><li>12 weeks national paid family leave</li><li>15% interest rate cap eliminating predatory lending</li><li>Universal Retirement Accounts with federal matching</li><li>Employee Ownership Incentives (ESOPs)</li><li>Ban cash bail for nonviolent offenses</li><li>Cap court fees, end poverty-based license suspensions</li><li>Fully fund public defender systems</li></ul></div>
+      <div class="calc-card">
+        <h3>The Truth About Poverty</h3>
+        <p style="color:var(--slate-700)">Poverty in America is not a moral failure of individuals. It is a failure of systems, policies, and priorities. Over 38 million Americans live below the poverty line. Nearly 60% of Americans live paycheck to paycheck. We don't need to shame poor people. We need to fix the systems that keep them poor.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>The Minimum Wage Under This Platform</h3>
+        <p style="color:var(--slate-700)">$15 per hour federal minimum wage. Mandatory cost-of-living adjustments every two years tied to local indexes. No state may fall below the federal floor.</p>
+        <table class="data-table" style="margin-top:1rem;">
+          <thead><tr><th>$15/hr</th><th>Current System</th><th>Under This Platform</th></tr></thead>
+          <tbody>
+            <tr><td>Gross Monthly</td><td>$2,600</td><td>$2,600</td></tr>
+            <tr><td>Federal Income Tax</td><td>-$260</td><td class="text-success"><strong>$0 — eliminated</strong></td></tr>
+            <tr><td>Payroll Tax</td><td>-$199</td><td class="text-success"><strong>$0 — eliminated</strong></td></tr>
+            <tr><td>Healthcare Premiums</td><td>-$400</td><td class="text-success"><strong>$0 — universal coverage</strong></td></tr>
+            <tr style="background:var(--success-bg)"><td><strong>Take Home</strong></td><td>~$1,741/mo</td><td><strong>~$2,600/mo</strong></td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:0.875rem;color:var(--slate-600);margin-top:0.75rem;">That's <strong>$859 more per month</strong> in real purchasing power without raising the wage a single dollar. Add agricultural reform saving $100–200/month on groceries, housing reform stabilizing rents, and prescription drugs at negotiated prices. The real value of $15/hour under this platform is closer to $19–20/hour under the current system.</p>
+        <p style="font-size:0.875rem;color:var(--slate-600);margin-top:0.5rem;font-style:italic;">"Politicians argue about the minimum wage number. I'm showing you the math. $15 an hour under this platform puts more money in your pocket than $20 an hour does today."</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Guaranteed Work Should Equal Guaranteed Stability</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>National Living Wage Standard tied to local cost-of-living indexes, adjusting every two years</li>
+          <li>Affordable Childcare Guarantee: cap childcare costs at <strong>7% of income</strong></li>
+          <li>National Paid Family Leave: <strong>12 weeks</strong> paid leave for all workers</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>Affordable Housing & Homeownership</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>Massive Workforce Housing Investment via public-private partnerships</li>
+          <li>Down Payment Assistance Programs for first-time buyers</li>
+          <li>Corporate housing ban freeing millions of homes for actual families</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>End Predatory Financial Practices</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>National cap on consumer interest rates at <strong>15% APR</strong> — total cost of credit including all fees</li>
+          <li>Payday loans — eliminated entirely (business model requires 300%+ to survive)</li>
+          <li>Auto lending reform banning abusive dealer practices</li>
+          <li>Medical billing transparency — all-in pricing, no surprise bills</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>Build Wealth for Working Families</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>Universal Retirement Accounts for all workers with federal matching</li>
+          <li>Employee Ownership Incentives to promote ESOPs and cooperatives</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>End the Poverty Penalty in the Legal System</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>Ban cash bail for nonviolent offenses</li>
+          <li>Cap court fees and eliminate poverty-based license suspensions</li>
+          <li>Fully fund public defender systems</li>
+        </ul>
+      </div>
     `
   });
 }
@@ -1451,15 +2059,40 @@ function pageDemocracy(main) {
     title: 'Democracy Reform', subtitle: '"You should be making decisions for future generations while you still have skin in the game."', icon: '🗳️',
     impactId: 'dem-impact', impactFn: () => ({ level: 'affects', message: 'Democracy reform: term limits for all, age fitness assessments, proportional Electoral College, ranked-choice voting, blind application system, Supreme Court 18-year terms.' }),
     content: `
-      <div class="calc-card"><h3>The 65 Rule</h3><p style="color:var(--slate-700)">No one begins a new term if they'll reach 65 before it concludes. Constitutional amendment pursued + immediate Federal Fitness Assessment Act: mandatory annual cognitive/physical assessment for officials over 70, results published publicly.</p></div>
+      <div class="calc-card">
+        <h3>The 65 Rule — Two Tracks</h3>
+        <p style="color:var(--slate-700)">No one should begin a new term of federal service if they will reach the age of 65 before that term concludes.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;"><strong>Track 1 — Constitutional Amendment:</strong> Advocated from day one. No person may begin a new term of federal elected office or begin a new federal judicial appointment if they will reach 65 before that term concludes. Requires two-thirds of both houses and three-quarters of states. A long road. We walk it anyway.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;"><strong>Track 2 — Federal Fitness Assessment Act:</strong> Immediate statutory implementation. Every person holding federal elected office or federal judicial appointment above age 70 undergoes a mandatory annual cognitive and physical fitness assessment administered by an independent medical panel — Mayo Clinic, Johns Hopkins, Cleveland Clinic. Results published publicly through OpenLedger. No political appointments. No administration control.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;font-style:italic;">"I can't pass a law today saying you can't start a new term if you'll be 65 before it ends — the Constitution doesn't allow that without an amendment. So I'm doing two things. I'm starting the amendment process on day one because the principle is right. And while that process runs I'm making sure every American knows whether the person voting on their future can still pass a basic cognitive assessment."</p>
+      </div>
       <div class="calc-card"><h3>Term Limits</h3><table class="data-table"><thead><tr><th>Office</th><th>Limit</th></tr></thead><tbody>
         <tr><td>Senate</td><td>2 terms (12 years)</td></tr>
         <tr><td>House</td><td>4 terms (8 years)</td></tr>
         <tr><td>President</td><td>2 terms (existing)</td></tr>
         <tr><td>Supreme Court</td><td>18-year staggered terms — 2 appointments per president per term</td></tr>
       </tbody></table></div>
-      <div class="calc-card"><h3>Electoral College Reform</h3><p style="color:var(--slate-700)">Proportional allocation by congressional district (like Maine & Nebraska). Every district competitive. Every vote matters. Rural districts in blue states matter. Urban districts in red states matter.</p></div>
-      <div class="calc-card"><h3>Other Reforms</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li>Blind Application System — name, race, gender, age removed from federal job/college apps</li><li>Death penalty only when guilt is undisputable (not just beyond reasonable doubt)</li><li>LGBTQ rights — same rights as everyone, no more, no less</li><li>Reparations through community infrastructure investment (Ch 29)</li></ul></div>
+      <div class="calc-card">
+        <h3>Electoral College Reform — Proportional by Congressional District</h3>
+        <p style="color:var(--slate-700)">Pure popular vote means three metropolitan areas decide every election. The current winner-take-all Electoral College creates a swing state stranglehold where six states get all the attention and the other forty-four are ignored.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;"><strong>The solution:</strong> Proportional Electoral College allocation by congressional district. Maine and Nebraska already do this. Win a district, earn that electoral vote. The two senate bonus votes go to the statewide popular vote winner. Every district competitive. Every vote matters. Rural districts in blue states matter. Urban districts in red states matter. Every American matters — not just those in six swing states.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>The Blind Application System</h3>
+        <p style="color:var(--slate-700)">Every application for federal employment, college admission receiving federal funds, and government contracting gets assigned a number. Name removed. Race removed. Gender removed. Age removed. Address removed. Evaluators see only qualifications, experience, and merit.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Death Penalty Reform</h3>
+        <p style="color:var(--slate-700)">I support the death penalty — but only when guilt is <strong>undisputable</strong>. Not beyond a reasonable doubt. Undisputable. Multiple independent forms of evidence required simultaneously.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;"><strong>Qualifying offenses:</strong> child rape, murder with undisputable evidence, corporate and institutional leaders whose knowing decisions directly caused mass death, human trafficking leadership.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>LGBTQ Rights</h3>
+        <p style="color:var(--slate-700)">LGBTQ Americans are Americans. They have the same rights as every other American — no more, no less. This administration will not legislate who people are. Everyone deserves to be treated with dignity regardless of who they love.</p>
+      </div>
     `
   });
 }
@@ -1471,7 +2104,26 @@ function pageConsumer(main) {
     content: `
       <div class="calc-card"><h3>The All-In Pricing Law</h3><ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;"><li>Airlines — total price including all fees before purchase</li><li>Hotels — total including resort/cleaning fees</li><li>Ticket platforms — no service fees at checkout</li><li>Car dealers — no documentation/preparation/market adjustment fees</li><li>Cable/internet — no broadcast/regulatory/enhancement fees</li><li>Only addition at checkout: government sales tax</li></ul></div>
       <div class="calc-card"><h3>Subscription Transparency</h3><p style="color:var(--slate-700)">Cancel as easily as you signed up. Same method, same time. No retention calls. 60-day written notice for price increases with clear opt-out. No silent mid-cycle increases.</p></div>
-      <div class="calc-card"><h3>No Drug Advertising</h3><p style="color:var(--slate-700)">Ban direct-to-consumer prescription drug advertising. Your doctor decides medication — not a commercial. Saves $6–7B/yr embedded in drug prices.</p></div>
+      <div class="calc-card">
+        <h3>No Direct-to-Consumer Drug Advertising</h3>
+        <p style="color:var(--slate-700)">Prescription drug advertising to the general public is banned. The United States and New Zealand are the only two developed nations that allow it. Your doctor should tell you what medication you need — not a commercial with a golden retriever and a warning that the drug may cause death.</p>
+        <p style="color:var(--slate-700);margin-top:0.75rem;">The $6–7 billion pharmaceutical companies spend annually on consumer advertising — a cost embedded in drug prices — is eliminated. Drug companies may advertise to medical professionals through appropriate medical channels. They may not advertise prescription medications to the general public.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Medical Price Transparency</h3>
+        <p style="color:var(--slate-700)">Every hospital, clinic, and medical provider publishes actual prices for every procedure publicly. AEGIS cross-references all medical billing against published prices automatically — a hospital billing $15,000 for a procedure listed at $3,000 is flagged instantly and <em>before payment is made</em>. Criminal charges for knowing billing fraud. Profit plus 10% clawed back.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>The 15% National Interest Rate Cap</h3>
+        <p style="color:var(--slate-700)">A national interest rate cap of 15% applies to all consumer lending. Total cost of credit — every fee, every charge, every point — calculated as APR. The 15% ceiling covers all of it with no exceptions. A lender making 15% on money they're lending is making an extraordinary return — 3x the risk-free rate. That's a healthy profitable lending business. Anything above that isn't lending — it's extraction.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Corporate Criminal Accountability for Consumer Fraud</h3>
+        <p style="color:var(--slate-700)">An executive who knowingly designs a hidden fee structure that manipulates consumers is not an aggressive business operator — they are a thief with a good lawyer. The executive who sat in the meeting, saw the research, approved the policy, and signed off on it faces personal criminal prosecution. Profit plus 10% clawed back from the company, plus criminal charges for the individuals who made the decision.</p>
+      </div>
     `
   });
 }
