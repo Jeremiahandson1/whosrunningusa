@@ -2,11 +2,13 @@ const request = require('supertest');
 const app = require('../server');
 
 describe('Health check', () => {
-  test('GET /api/health returns 200 with status ok', async () => {
+  test('GET /api/health returns status + timestamp + db field', async () => {
     const res = await request(app).get('/api/health');
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe('ok');
+    // 200 when DB is reachable, 503 when it's not — both are valid outcomes
+    expect([200, 503]).toContain(res.status);
+    expect(['ok', 'degraded']).toContain(res.body.status);
     expect(res.body.timestamp).toBeDefined();
+    expect(res.body.db).toBeDefined();
   });
 
   test('GET /api/nonexistent returns 404', async () => {

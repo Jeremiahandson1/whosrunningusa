@@ -66,8 +66,19 @@ app.use(cors({
 }));
 
 // Health check — placed before rate limiter so Render health checks never get 429'd
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+const db = require('./db');
+app.get('/api/health', async (req, res) => {
+  const body = { status: 'ok', timestamp: new Date().toISOString(), db: 'unknown' };
+  try {
+    const r = await db.query('SELECT 1 AS ok');
+    body.db = r.rows[0].ok === 1 ? 'ok' : 'unexpected';
+  } catch (err) {
+    body.status = 'degraded';
+    body.db = 'error';
+    body.db_error = err.message;
+    return res.status(503).json(body);
+  }
+  res.json(body);
 });
 
 // Rate limiting (disabled in test environment)
