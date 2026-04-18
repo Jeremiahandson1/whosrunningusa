@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { XCircle, CheckCircle, Shield, Filter, ChevronLeft, ChevronRight, DollarSign } from 'lucide-react'
+import { XCircle, CheckCircle, Shield, Filter, ChevronLeft, ChevronRight, DollarSign, HandCoins } from 'lucide-react'
 import api from '../utils/api'
 import SourceCitation from '../components/SourceCitation'
 
@@ -146,7 +146,7 @@ export default function PacPledgePage() {
         background: 'linear-gradient(135deg, #1e3a5f 0%, #2d5a8e 100%)',
         borderRadius: 16, color: '#fff',
       }}>
-        <XCircle size={48} style={{ marginBottom: 12 }} />
+        <HandCoins size={48} style={{ marginBottom: 12 }} />
         <h1 style={{ fontSize: 28, fontWeight: 800, margin: '0 0 10px' }}>Corporate PAC Pledge Tracker</h1>
         <p style={{ fontSize: 15, maxWidth: 600, margin: '0 auto', opacity: 0.9, lineHeight: 1.5 }}>
           Who pledged to reject corporate PAC money. Who kept the pledge. Who broke it.

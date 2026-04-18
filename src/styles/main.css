@@ -92,6 +92,63 @@ body {
   background-color: var(--slate-50);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* App shell — ensures the document is always at least one viewport tall
+   so lazy/Suspense fallbacks don't shrink the document below the current
+   scroll position (which causes the "blank above, navbar mid-screen" bug). */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  flex: 1;
+}
+
+.app > main {
+  flex: 1 0 auto;
+}
+
+.app > .footer {
+  flex-shrink: 0;
+}
+
+/* Homepage scroll-down indicator */
+.hero-scroll-indicator {
+  margin-top: 2.5rem;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: none;
+  color: var(--slate-600);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  animation: hero-scroll-bounce 2s ease-in-out infinite;
+}
+
+.hero-scroll-indicator:hover {
+  color: var(--navy-700);
+}
+
+@keyframes hero-scroll-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-scroll-indicator { animation: none; }
 }
 
 /* Typography */
@@ -99,8 +156,12 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
   font-weight: 700;
   line-height: 1.2;
-  color: var(--navy-800);
+  color: inherit;
 }
+
+/* Default heading color falls through from body (--slate-800).
+   Pages with dark backgrounds set their own `color: #fff` on the
+   parent section, and headings now inherit that correctly. */
 
 h1 { font-size: 2.5rem; }
 h2 { font-size: 2rem; }

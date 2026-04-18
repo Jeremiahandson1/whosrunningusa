@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Calendar, MapPin, Users, ChevronRight, ChevronDown, Search, X, Loader } from 'lucide-react'
+import { Calendar, MapPin, Users, ChevronRight, ChevronDown, Search, X, Loader, ArrowRight, Vote } from 'lucide-react'
 import api from '../utils/api'
 import { formatDate } from '../utils/dateFormat'
 import { SkeletonCard } from '../components/Skeleton'
@@ -200,8 +200,15 @@ function RacesPage() {
 
         {!loading && races.length === 0 && !error && (
           <div className="empty-state">
-            <h3>No races found</h3>
-            <p>Check back soon as we add more races to the database, or try a different filter.</p>
+            <Vote size={48} style={{ color: 'var(--slate-400)', marginBottom: '1rem' }} />
+            <h3>No races match your filters</h3>
+            <p style={{ maxWidth: 480, margin: '0 auto 1rem' }}>
+              We&apos;re actively adding new races for the upcoming election cycle. Try broadening your filters, or browse candidates directly while we catch up.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap', marginTop: '1rem' }}>
+              <Link to="/explore" className="btn btn-primary">Browse Candidates <ArrowRight size={18} /></Link>
+              <Link to="/find-my-ballot" className="btn btn-secondary">Find My Ballot</Link>
+            </div>
           </div>
         )}
       </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  Search, MapPin, ChevronRight, Building2,
+  Search, MapPin, ChevronRight, ChevronDown, Building2,
   Calendar, CheckCircle, ArrowRight, PlayCircle, Globe,
   MessageCircle, FileText, Shield, Users, Eye, ThumbsUp,
   Target, DollarSign, Heart, Megaphone, Vote
@@ -76,9 +76,22 @@ function HomePage() {
                 I'm Running for Office
               </Link>
             </div>
+            <button
+              type="button"
+              className="hero-scroll-indicator"
+              aria-label="Scroll to learn more"
+              onClick={() => {
+                const next = document.getElementById('home-next-section')
+                if (next) next.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }}
+            >
+              <span>Learn more</span>
+              <ChevronDown size={20} />
+            </button>
           </div>
         </div>
       </section>
+      <div id="home-next-section" aria-hidden="true" />
 
       {/* The Problem */}
       <section style={{ background: 'var(--slate-50)', padding: '3.5rem 0' }}>

@@ -337,11 +337,14 @@ function IssueMatchPage() {
 
         {allIssues.length === 0 && !loading && (
           <div className="empty-state">
-            <h3>No issues available yet</h3>
-            <p>Check back later as we add more issues to match on.</p>
-            <Link to="/explore" className="btn btn-primary" style={{ marginTop: '1rem' }}>
-              Browse Candidates <ArrowRight size={18} />
-            </Link>
+            <h3>Issue matching is warming up</h3>
+            <p style={{ maxWidth: 500, margin: '0 auto 1rem' }}>
+              We&apos;re building out our issue database as candidates publish their positions. In the meantime, you can find candidates by location, name, or office.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap', marginTop: '1rem' }}>
+              <Link to="/find-my-ballot" className="btn btn-primary">Find My Ballot <ArrowRight size={18} /></Link>
+              <Link to="/compare" className="btn btn-secondary">Compare Candidates</Link>
+            </div>
           </div>
         )}
       </div>

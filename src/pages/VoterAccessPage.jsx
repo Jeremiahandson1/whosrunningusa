@@ -278,18 +278,15 @@ export default function VoterAccessPage() {
         </div>
       </div>
 
-      {/* Error / Loading */}
-      {error && (
-        <div style={{
-          padding: 16, background: '#fef2f2', color: '#dc2626',
-          borderRadius: 8, marginBottom: 20, fontSize: 14,
-        }}>
-          {error}
-        </div>
-      )}
-
       {loading ? (
         <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>Loading state data...</div>
+      ) : error ? (
+        <div style={{
+          padding: '24px 20px', background: '#fef2f2', color: '#dc2626',
+          borderRadius: 8, marginBottom: 20, fontSize: 14, textAlign: 'center',
+        }}>
+          We couldn't load voter access data right now. Please try again in a moment.
+        </div>
       ) : filteredStates.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>
           {search ? 'No states match your search.' : 'No voter access data available.'}
