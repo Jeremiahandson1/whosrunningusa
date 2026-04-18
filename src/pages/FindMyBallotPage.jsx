@@ -24,6 +24,7 @@ function FindMyBallotPage() {
   const [races, setRaces] = useState([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
+  const [validationError, setValidationError] = useState('')
 
   useEffect(() => {
     if (!state) {
@@ -35,8 +36,13 @@ function FindMyBallotPage() {
       .catch(() => [])
   }, [state])
 
-  const handleSearch = async () => {
-    if (!state) return
+  const handleSearch = async (e) => {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault()
+    if (!state) {
+      setValidationError('Please select a state to find candidates on your ballot.')
+      return
+    }
+    setValidationError('')
     setLoading(true)
     setSearched(true)
     try {
@@ -91,12 +97,13 @@ function FindMyBallotPage() {
             <h2 style={{ margin: 0 }}>Enter Your Location</h2>
           </div>
 
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <form onSubmit={handleSearch} style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div style={{ flex: 1, minWidth: 200 }}>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.375rem' }}>
+              <label htmlFor="ballot-state" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.375rem' }}>
                 State *
               </label>
               <select
+                id="ballot-state"
                 value={state}
                 onChange={(e) => { setState(e.target.value); setCounty(''); setSearched(false) }}
                 style={{ width: '100%' }}
@@ -109,10 +116,11 @@ function FindMyBallotPage() {
             </div>
 
             <div style={{ flex: 1, minWidth: 200 }}>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.375rem' }}>
+              <label htmlFor="ballot-county" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.375rem' }}>
                 County (optional)
               </label>
               <input
+                id="ballot-county"
                 type="text"
                 value={county}
                 onChange={(e) => setCounty(e.target.value)}
@@ -122,14 +130,19 @@ function FindMyBallotPage() {
             </div>
 
             <button
+              type="submit"
               className="btn btn-primary"
-              onClick={handleSearch}
-              disabled={!state || loading}
+              disabled={loading}
               style={{ padding: '0.75rem 1.5rem', whiteSpace: 'nowrap' }}
             >
               <Search size={18} /> {loading ? 'Searching...' : 'Find My Ballot'}
             </button>
-          </div>
+          </form>
+          {validationError && (
+            <div role="alert" aria-live="assertive" style={{ marginTop: '1rem', padding: '0.75rem 1rem', background: 'rgba(197,48,48,0.08)', borderRadius: 6, color: 'var(--error)', fontSize: '0.875rem' }}>
+              {validationError}
+            </div>
+          )}
         </div>
 
         {/* Results */}

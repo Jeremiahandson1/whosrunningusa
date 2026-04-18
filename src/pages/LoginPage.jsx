@@ -12,16 +12,35 @@ function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const successMessage = location.state?.message
+  const redirectTo = new URLSearchParams(location.search).get('redirect') || '/'
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+
+    const trimmedEmail = email.trim()
+    if (!trimmedEmail || !password) {
+      setError('Please enter both your email and password.')
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError('That doesn\'t look like a valid email address.')
+      return
+    }
+
     setLoading(true)
     try {
-      await login(email, password)
-      navigate('/')
+      await login(trimmedEmail, password)
+      navigate(redirectTo)
     } catch (err) {
-      setError(err.message || 'Invalid email or password')
+      const msg = (err && err.message) || ''
+      if (/failed to fetch|networkerror|network request failed/i.test(msg)) {
+        setError("We couldn't reach our servers. Please check your connection and try again in a moment.")
+      } else if (/invalid|unauthor|credential|password/i.test(msg)) {
+        setError('Incorrect email or password. Please try again.')
+      } else {
+        setError(msg || 'Sign-in failed. Please try again.')
+      }
     } finally {
       setLoading(false)
     }

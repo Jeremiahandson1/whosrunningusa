@@ -153,16 +153,18 @@ function RegisterPage() {
                 </div>
               </div>
 
-              {accountType === 'voter' && (
-                <div style={{ marginBottom: '1.25rem' }}>
-                  <label htmlFor="reg-username" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Username</label>
-                  <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-500)', fontWeight: 500 }}>@</span>
-                    <input id="reg-username" type="text" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} placeholder="username" style={{ paddingLeft: '2.5rem' }} required />
-                  </div>
-                  <p style={{ fontSize: '0.8125rem', color: 'var(--slate-500)', marginTop: '0.375rem' }}>This is how you'll appear in Q&A and discussions</p>
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label htmlFor="reg-username" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Username</label>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-500)', fontWeight: 500 }}>@</span>
+                  <input id="reg-username" type="text" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} placeholder="username" style={{ paddingLeft: '2.5rem' }} required />
                 </div>
-              )}
+                <p style={{ fontSize: '0.8125rem', color: 'var(--slate-500)', marginTop: '0.375rem' }}>
+                  {accountType === 'candidate'
+                    ? 'Your public handle — voters use this to find your profile'
+                    : "This is how you'll appear in Q&A and discussions"}
+                </p>
+              </div>
 
               <div style={{ marginBottom: '1.25rem' }}>
                 <label htmlFor="reg-email" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Email Address</label>
@@ -175,11 +177,11 @@ function RegisterPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
                 <div>
                   <label htmlFor="reg-city" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>City</label>
-                  <input id="reg-city" type="text" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} placeholder="Eau Claire" required />
+                  <input id="reg-city" type="text" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} placeholder="Your city" autoComplete="address-level2" required />
                 </div>
                 <div>
                   <label htmlFor="reg-state" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>State</label>
-                  <input id="reg-state" type="text" value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value.toUpperCase().slice(0, 2) })} placeholder="WI" maxLength={2} required />
+                  <input id="reg-state" type="text" value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value.toUpperCase().slice(0, 2) })} placeholder="e.g. CA" maxLength={2} autoComplete="address-level1" required />
                 </div>
               </div>
 

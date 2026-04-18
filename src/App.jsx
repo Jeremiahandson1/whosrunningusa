@@ -62,11 +62,27 @@ const GerrymanderingPage = lazy(() => import('./pages/GerrymanderingPage'))
 const VoterAccessPage = lazy(() => import('./pages/VoterAccessPage'))
 const PacPledgePage = lazy(() => import('./pages/PacPledgePage'))
 const WidgetGalleryPage = lazy(() => import('./pages/WidgetGalleryPage'))
+const MissionPage = lazy(() => import('./pages/MissionPage'))
+const PlatformFeaturesPage = lazy(() => import('./pages/PlatformFeaturesPage'))
+const CandidateFAQPage = lazy(() => import('./pages/CandidateFAQPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
 function PageLoader() {
   return (
-    <div className="loading-state" aria-live="polite" role="status" style={{ padding: '4rem 0', textAlign: 'center' }}>
+    <div
+      className="loading-state"
+      aria-live="polite"
+      role="status"
+      style={{
+        minHeight: '60vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '4rem 1rem',
+        textAlign: 'center',
+      }}
+    >
       <div className="loading-spinner" />
       Loading...
     </div>
@@ -126,6 +142,7 @@ function App() {
             <Route path="/trading-monitor" element={<TradingMonitorPage />} />
             <Route path="/transparency" element={<TransparencyPage />} />
             <Route path="/follow-the-money" element={<FinanceMapPage />} />
+            <Route path="/finance-map" element={<FinanceMapPage />} />
             <Route path="/claim-profile" element={<ClaimProfilePage />} />
             <Route path="/foreign-aid" element={<ForeignAidPage />} />
             <Route path="/foreign-aid/:countryCode" element={<ForeignAidPage />} />
@@ -142,15 +159,20 @@ function App() {
             <Route path="/pac-pledge" element={<PacPledgePage />} />
             <Route path="/widgets" element={<WidgetGalleryPage />} />
             <Route path="/about" element={<AboutPage />} />
-            <Route path="/mission" element={<AboutPage />} />
+            <Route path="/mission" element={<MissionPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
-            <Route path="/candidate-features" element={<RunForOfficePage />} />
-            <Route path="/faq-candidates" element={<RunForOfficePage />} />
+            <Route path="/candidate-features" element={<PlatformFeaturesPage />} />
+            <Route path="/faq-candidates" element={<CandidateFAQPage />} />
+
+            {/* Legacy slug aliases — keep old links working */}
+            <Route path="/promise-tracker" element={<PromiseTrackerPage />} />
+            <Route path="/cost-to-you" element={<CostCalculatorPage />} />
+            <Route path="/conflict-scanner" element={<ConflictsPage />} />
 
             {/* Admin */}
             <Route path="/admin" element={<AdminDashboard />} />

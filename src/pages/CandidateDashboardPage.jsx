@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { Users, MessageSquare, CheckCircle, Megaphone, Target, Edit, ExternalLink, ArrowRight, Send, ThumbsUp, Clock, BarChart3, TrendingUp, SortAsc, Eye } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
@@ -178,7 +178,11 @@ function CandidateDashboardPage() {
     )
   }
 
-  if (!user || user.user_type !== 'candidate') {
+  if (!user) {
+    return <Navigate to="/login?redirect=/dashboard" replace />
+  }
+
+  if (user.user_type !== 'candidate') {
     return (
       <div className="container" style={{ padding: '4rem 0', textAlign: 'center' }}>
         <div className="empty-state">

@@ -384,8 +384,6 @@ function AccountabilityPage() {
 
   return (
     <div style={styles.page}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-
       {/* Hero */}
       <div style={styles.hero}>
         <h1 style={styles.heroTitle}>
@@ -446,11 +444,22 @@ function AccountabilityPage() {
           </select>
 
           <button
-            style={styles.sortToggle}
+            style={{ ...styles.sortToggle, opacity: loading ? 0.6 : 1, cursor: loading ? 'wait' : 'pointer' }}
             onClick={() => updateFilter('sort', sort === 'desc' ? 'asc' : 'desc')}
+            disabled={loading}
+            aria-busy={loading}
           >
-            {sort === 'desc' ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-            {sort === 'desc' ? 'Most Consistent' : 'Least Consistent'}
+            {loading ? (
+              <>
+                <div style={{ ...styles.spinner, width: 14, height: 14, borderWidth: 2, margin: 0 }} />
+                Sorting...
+              </>
+            ) : (
+              <>
+                {sort === 'desc' ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+                {sort === 'desc' ? 'Most Consistent' : 'Least Consistent'}
+              </>
+            )}
           </button>
         </div>
 
