@@ -4,14 +4,30 @@
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
+// Date-only strings like "2026-11-03" parse as UTC midnight, which shifts
+// one day earlier in US timezones. Read them with UTC getters. Anything
+// with a time component is an actual timestamp and stays in local time.
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/
+function getParts(dateString) {
+  const d = new Date(dateString)
+  if (isNaN(d.getTime())) return null
+  const utc = typeof dateString === 'string' && DATE_ONLY_RE.test(dateString)
+  return {
+    year: utc ? d.getUTCFullYear() : d.getFullYear(),
+    month: utc ? d.getUTCMonth() : d.getMonth(),
+    day: utc ? d.getUTCDate() : d.getDate(),
+    date: d,
+  }
+}
+
 /**
  * Format a date string as "Mar 13, 2026"
  */
 export function formatDate(dateString) {
   if (!dateString) return ''
-  const d = new Date(dateString)
-  if (isNaN(d.getTime())) return ''
-  return `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
+  const p = getParts(dateString)
+  if (!p) return ''
+  return `${MONTHS_SHORT[p.month]} ${p.day}, ${p.year}`
 }
 
 /**

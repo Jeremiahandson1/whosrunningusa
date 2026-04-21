@@ -115,10 +115,19 @@ function officeExplainer(c) {
 
 function daysUntil(dateStr) {
   if (!dateStr) return null
+  // Date-only strings parse as UTC; anchor both sides to UTC midnight so
+  // the day count lines up with the formatted calendar date.
+  const dateOnly = typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)
   const target = new Date(dateStr)
   if (isNaN(target.getTime())) return null
-  const diff = target - new Date()
-  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+  const now = new Date()
+  const targetMs = dateOnly
+    ? Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate())
+    : target.getTime()
+  const nowMs = dateOnly
+    ? Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+    : now.getTime()
+  return Math.ceil((targetMs - nowMs) / (1000 * 60 * 60 * 24))
 }
 
 function CandidatePage() {
