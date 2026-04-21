@@ -221,6 +221,32 @@ router.get('/candidates/by-location', async (req, res, next) => {
   }
 });
 
+// Get available counties for a state — powers the Find My Ballot county dropdown
+router.get('/locations/counties', async (req, res) => {
+  try {
+    const { state } = req.query;
+    if (!state) return res.status(400).json({ error: 'state is required' });
+
+    // Pull counties from both the reference `counties` table (gold source) and
+    // from any offices that have a county set, so we cover state/local offices
+    // even if the reference table is incomplete.
+    const result = await db.query(
+      `SELECT DISTINCT county_name AS name
+       FROM (
+         SELECT county_name FROM counties WHERE state_abbr = $1 AND county_name IS NOT NULL
+         UNION
+         SELECT county FROM offices WHERE state = $1 AND county IS NOT NULL AND county <> ''
+       ) merged
+       ORDER BY name`,
+      [state]
+    );
+    res.json(result.rows.map(r => r.name));
+  } catch (error) {
+    console.warn('/search/locations/counties fallback:', error.message);
+    res.json([]);
+  }
+});
+
 // Get available cities for a state/county
 router.get('/locations/cities', async (req, res, next) => {
   try {

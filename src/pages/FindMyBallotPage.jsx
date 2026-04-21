@@ -32,8 +32,9 @@ function FindMyBallotPage() {
       setCounty('')
       return
     }
-    api.get(`/search/locations/cities?state=${state}`)
-      .catch(() => [])
+    api.get(`/search/locations/counties?state=${state}`)
+      .then(list => setCounties(Array.isArray(list) ? list : []))
+      .catch(() => setCounties([]))
   }, [state])
 
   const handleSearch = async (e) => {
@@ -119,14 +120,20 @@ function FindMyBallotPage() {
               <label htmlFor="ballot-county" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.375rem' }}>
                 County (optional)
               </label>
-              <input
+              <select
                 id="ballot-county"
-                type="text"
                 value={county}
                 onChange={(e) => setCounty(e.target.value)}
-                placeholder="e.g. Los Angeles"
+                disabled={!state || counties.length === 0}
                 style={{ width: '100%' }}
-              />
+              >
+                <option value="">
+                  {!state ? 'Select a state first' : counties.length === 0 ? 'No counties available' : 'All counties'}
+                </option>
+                {counties.map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
             </div>
 
             <button
