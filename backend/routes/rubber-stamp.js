@@ -2,8 +2,36 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
+// GET /rubber-stamp/stats — aggregate rubber-stamp stats (must come before /:id routes)
+router.get('/stats', async (req, res) => {
+  try {
+    const cycle = parseInt(req.query.cycle || '2026', 10);
+    const r = await db.query(`
+      SELECT
+        COUNT(*)::int AS tracked,
+        COALESCE(ROUND(AVG(party_loyalty_pct), 2), 0) AS avg_party_loyalty,
+        COALESCE(ROUND(AVG(donor_alignment_pct), 2), 0) AS avg_donor_alignment,
+        COALESCE(SUM(independent_votes), 0)::int AS total_independent_votes,
+        COALESCE(SUM(party_line_votes), 0)::int AS total_party_line_votes
+      FROM rubber_stamp_scores
+      WHERE cycle_year = $1
+    `, [cycle]);
+    const row = r.rows[0];
+    res.json({
+      tracked: row.tracked,
+      avgPartyLoyalty: parseFloat(row.avg_party_loyalty),
+      avgDonorAlignment: parseFloat(row.avg_donor_alignment),
+      totalIndependentVotes: row.total_independent_votes,
+      totalPartyLineVotes: row.total_party_line_votes,
+    });
+  } catch (error) {
+    console.warn('/rubber-stamp/stats fallback:', error.message);
+    res.json({ tracked: 0, avgPartyLoyalty: 0, avgDonorAlignment: 0, totalIndependentVotes: 0, totalPartyLineVotes: 0 });
+  }
+});
+
 // GET /rubber-stamp/leaderboard — Politicians ranked by party loyalty or donor alignment
-router.get('/leaderboard', async (req, res, next) => {
+const leaderboardHandler = async (req, res) => {
   try {
     const { party, chamber, state, cycle = '2026', sort = 'party_loyalty', page = 1 } = req.query;
     const limit = 20;
@@ -71,9 +99,12 @@ router.get('/leaderboard', async (req, res, next) => {
       totalPages: Math.ceil(total / limit)
     });
   } catch (error) {
-    next(error);
+    console.warn('/rubber-stamp leaderboard fallback:', error.message);
+    res.json({ politicians: [], total: 0, page: parseInt(req.query.page || 1), totalPages: 0 });
   }
-});
+};
+router.get('/leaderboard', leaderboardHandler);
+router.get('/', leaderboardHandler);
 
 // GET /rubber-stamp/politician/:id — Scores for one politician across all cycles
 router.get('/politician/:id', async (req, res, next) => {

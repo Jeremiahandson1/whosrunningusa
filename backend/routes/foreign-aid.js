@@ -66,7 +66,13 @@ router.get('/', async (req, res, next) => {
 });
 
 // GET /stats — Aggregate statistics
-router.get('/stats', async (req, res, next) => {
+const EMPTY_FOREIGN_AID_STATS = {
+  totalCountries: 0,
+  totalObligation: 0,
+  byCategory: { military: 0, economic: 0, humanitarian: 0, democracy: 0, health: 0, other: 0 },
+  topRecipients: [],
+};
+router.get('/stats', async (req, res) => {
   try {
     const totals = await db.query(`
       SELECT
@@ -113,7 +119,8 @@ router.get('/stats', async (req, res, next) => {
       topRecipients,
     });
   } catch (error) {
-    next(error);
+    console.warn('/foreign-aid/stats fallback:', error.message);
+    res.json(EMPTY_FOREIGN_AID_STATS);
   }
 });
 

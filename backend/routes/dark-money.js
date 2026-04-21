@@ -67,12 +67,20 @@ router.get('/', async (req, res, next) => {
       totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
-    next(error);
+    console.warn('/dark-money fallback:', error.message);
+    res.json({ candidates: [], total: 0, page: parseInt(req.query.page || 1), totalPages: 0 });
   }
 });
 
 // GET /dark-money/stats — aggregate dark money statistics
-router.get('/stats', async (req, res, next) => {
+const EMPTY_DARK_MONEY_STATS = {
+  totalOutsideSpending: 0,
+  totalUnaccounted: 0,
+  candidatesTracked: 0,
+  avgDarkMoneyPct: 0,
+  topGroups: [],
+};
+router.get('/stats', async (req, res) => {
   try {
     const cycle = req.query.cycle || '2026';
 
@@ -105,7 +113,8 @@ router.get('/stats', async (req, res, next) => {
       topGroups: topGroupsResult.rows,
     });
   } catch (error) {
-    next(error);
+    console.warn('/dark-money/stats fallback:', error.message);
+    res.json(EMPTY_DARK_MONEY_STATS);
   }
 });
 

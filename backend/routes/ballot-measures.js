@@ -87,7 +87,36 @@ router.get('/', async (req, res, next) => {
       totalPages: Math.ceil(total / limit)
     });
   } catch (error) {
-    next(error);
+    console.warn('/ballot-measures fallback:', error.message);
+    res.json({ measures: [], total: 0, page: parseInt(req.query.page || 1), totalPages: 0 });
+  }
+});
+
+// GET /ballot-measures/stats — aggregate stats (must come before /:id)
+router.get('/stats', async (req, res) => {
+  try {
+    const r = await db.query(`
+      SELECT
+        COUNT(*)::int AS total_measures,
+        COUNT(*) FILTER (WHERE status = 'passed')::int AS passed,
+        COUNT(*) FILTER (WHERE status = 'failed')::int AS failed,
+        COUNT(*) FILTER (WHERE status = 'pending')::int AS pending
+      FROM ballot_measures
+    `);
+    const funding = await db.query(`
+      SELECT COALESCE(SUM(amount), 0)::bigint AS total_funding
+      FROM ballot_measure_funding
+    `).catch(() => ({ rows: [{ total_funding: 0 }] }));
+    res.json({
+      totalMeasures: r.rows[0].total_measures,
+      passed: r.rows[0].passed,
+      failed: r.rows[0].failed,
+      pending: r.rows[0].pending,
+      totalFunding: Number(funding.rows[0].total_funding),
+    });
+  } catch (error) {
+    console.warn('/ballot-measures/stats fallback:', error.message);
+    res.json({ totalMeasures: 0, passed: 0, failed: 0, pending: 0, totalFunding: 0 });
   }
 });
 
