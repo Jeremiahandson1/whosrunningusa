@@ -102,43 +102,64 @@ class USASpendingClient {
   }
 
   /**
+   * Foreign-assistance award_type_codes grouped the way USASpending now
+   * requires — the API rejects any request that mixes codes from more
+   * than one group, so we split into sequential calls and merge.
+   */
+  static ASSISTANCE_GROUPS = {
+    grants: ['02', '03', '04', '05'],
+    other_financial_assistance: ['06', '10'],
+    direct_payments: ['09', '11'],
+    loans: ['07', '08'],
+  };
+
+  /**
    * Get spending by country for foreign assistance awards in a fiscal year.
+   * Runs one request per assistance group (API restriction) and concatenates
+   * the results.
    * @param {number} fiscalYear - Federal fiscal year (e.g. 2025)
-   * @returns {Promise<Object>} Spending results grouped by country
+   * @returns {Promise<Object>} { results: [...] } merged across groups
    */
   async getSpendingByCountry(fiscalYear) {
-    return this.request('/search/spending_by_award/', {
-      filters: {
-        time_period: [
-          {
-            start_date: `${fiscalYear - 1}-10-01`,
-            end_date: `${fiscalYear}-09-30`,
-          },
+    const merged = [];
+    for (const codes of Object.values(USASpendingClient.ASSISTANCE_GROUPS)) {
+      const response = await this.request('/search/spending_by_award/', {
+        filters: {
+          time_period: [
+            {
+              start_date: `${fiscalYear - 1}-10-01`,
+              end_date: `${fiscalYear}-09-30`,
+            },
+          ],
+          award_type_codes: codes,
+          place_of_performance_locations: [
+            { country: 'FOREIGN' },
+          ],
+        },
+        fields: [
+          'Award ID',
+          'Recipient Name',
+          'Place of Performance Country Code',
+          'Place of Performance Country Name',
+          'Award Amount',
+          'Total Outlays',
+          'CFDA Number',
+          'Awarding Agency',
+          'Awarding Sub Agency',
+          'Description',
+          'Start Date',
+          'End Date',
         ],
-        award_type_codes: ['02', '03', '04', '05', '06', '07', '08', '09', '10', '11'],
-        place_of_performance_locations: [
-          { country: 'FOREIGN' },
-        ],
-      },
-      fields: [
-        'Award ID',
-        'Recipient Name',
-        'Place of Performance Country Code',
-        'Place of Performance Country Name',
-        'Award Amount',
-        'Total Outlays',
-        'CFDA Number',
-        'Awarding Agency',
-        'Awarding Sub Agency',
-        'Description',
-        'Start Date',
-        'End Date',
-      ],
-      limit: 100,
-      page: 1,
-      sort: 'Award Amount',
-      order: 'desc',
-    }, 'POST');
+        limit: 100,
+        page: 1,
+        sort: 'Award Amount',
+        order: 'desc',
+      }, 'POST');
+      if (response && Array.isArray(response.results)) {
+        merged.push(...response.results);
+      }
+    }
+    return { results: merged };
   }
 
   /**
@@ -149,39 +170,48 @@ class USASpendingClient {
    * @returns {Promise<Object>} Award results for the specified country
    */
   async getAwardsByCountry(countryCode, fiscalYear, page = 1) {
-    return this.request('/search/spending_by_award/', {
-      filters: {
-        time_period: [
-          {
-            start_date: `${fiscalYear - 1}-10-01`,
-            end_date: `${fiscalYear}-09-30`,
-          },
+    const merged = [];
+    let pageMetadata = null;
+    for (const codes of Object.values(USASpendingClient.ASSISTANCE_GROUPS)) {
+      const response = await this.request('/search/spending_by_award/', {
+        filters: {
+          time_period: [
+            {
+              start_date: `${fiscalYear - 1}-10-01`,
+              end_date: `${fiscalYear}-09-30`,
+            },
+          ],
+          award_type_codes: codes,
+          place_of_performance_locations: [
+            { country: countryCode },
+          ],
+        },
+        fields: [
+          'Award ID',
+          'Recipient Name',
+          'Place of Performance Country Code',
+          'Place of Performance Country Name',
+          'Award Amount',
+          'Total Outlays',
+          'CFDA Number',
+          'Awarding Agency',
+          'Awarding Sub Agency',
+          'Description',
+          'Start Date',
+          'End Date',
+          'generated_internal_id',
         ],
-        award_type_codes: ['02', '03', '04', '05', '06', '07', '08', '09', '10', '11'],
-        place_of_performance_locations: [
-          { country: countryCode },
-        ],
-      },
-      fields: [
-        'Award ID',
-        'Recipient Name',
-        'Place of Performance Country Code',
-        'Place of Performance Country Name',
-        'Award Amount',
-        'Total Outlays',
-        'CFDA Number',
-        'Awarding Agency',
-        'Awarding Sub Agency',
-        'Description',
-        'Start Date',
-        'End Date',
-        'generated_internal_id',
-      ],
-      limit: 100,
-      page,
-      sort: 'Award Amount',
-      order: 'desc',
-    }, 'POST');
+        limit: 100,
+        page,
+        sort: 'Award Amount',
+        order: 'desc',
+      }, 'POST');
+      if (response && Array.isArray(response.results)) {
+        merged.push(...response.results);
+      }
+      if (response && response.page_metadata) pageMetadata = response.page_metadata;
+    }
+    return { results: merged, page_metadata: pageMetadata };
   }
 
   /**
