@@ -166,10 +166,21 @@ class IngestionService {
    */
   async upsertFECCandidate(fecCandidate, dataSourceId) {
     const transformed = this.fec.transformCandidate(fecCandidate);
-    
+
+    // Use the clean fields from fec-client's transformer, which already pull
+    // office/state/district straight from the API response. Fall back to
+    // substring parsing of the candidate_id only if needed.
+    const fecOfficeType = fecCandidate.office || fecCandidate.candidate_id?.[0] || null;
+    const fecState = fecCandidate.state || fecCandidate.candidate_id?.substring(2, 4) || null;
+    const fecDistrict = fecCandidate.office === 'H'
+      ? (fecCandidate.district || fecCandidate.candidate_id?.substring(4, 6) || null)
+      : null;
+    // Human-readable office_level used by /search/candidates/by-location
+    const officeLevel = 'federal';
+
     // Check if we already have this candidate linked
     const existingLink = await db.query(
-      `SELECT candidate_id FROM candidate_source_links 
+      `SELECT candidate_id FROM candidate_source_links
        WHERE data_source_id = $1 AND external_id = $2`,
       [dataSourceId, fecCandidate.candidate_id]
     );
@@ -177,11 +188,14 @@ class IngestionService {
     if (existingLink.rows.length > 0) {
       // Update existing candidate
       const candidateId = existingLink.rows[0].candidate_id;
-      
+
       await db.query(
         `UPDATE candidate_profiles SET
           party_affiliation = COALESCE($2, party_affiliation),
           fec_candidate_id = $3,
+          fec_office_type = COALESCE($4, fec_office_type),
+          fec_state = COALESCE($5, fec_state),
+          fec_district = COALESCE($6, fec_district),
           verification_source = 'fec',
           verification_external_id = $3,
           verification_last_checked = NOW(),
@@ -189,7 +203,8 @@ class IngestionService {
           candidate_verified_at = COALESCE(candidate_verified_at, NOW()),
           updated_at = NOW()
          WHERE id = $1`,
-        [candidateId, transformed.partyAffiliation, fecCandidate.candidate_id]
+        [candidateId, transformed.partyAffiliation, fecCandidate.candidate_id,
+         fecOfficeType, fecState, fecDistrict]
       );
 
       // Update the source link
@@ -222,11 +237,14 @@ class IngestionService {
     if (nameMatch.rows.length > 0) {
       // Link to existing candidate
       candidateId = nameMatch.rows[0].id;
-      
+
       await db.query(
         `UPDATE candidate_profiles SET
           party_affiliation = COALESCE($2, party_affiliation),
           fec_candidate_id = $3,
+          fec_office_type = COALESCE($4, fec_office_type),
+          fec_state = COALESCE($5, fec_state),
+          fec_district = COALESCE($6, fec_district),
           verification_source = 'fec',
           verification_external_id = $3,
           verification_last_checked = NOW(),
@@ -234,7 +252,8 @@ class IngestionService {
           candidate_verified_at = COALESCE(candidate_verified_at, NOW()),
           updated_at = NOW()
          WHERE id = $1`,
-        [candidateId, transformed.partyAffiliation, fecCandidate.candidate_id]
+        [candidateId, transformed.partyAffiliation, fecCandidate.candidate_id,
+         fecOfficeType, fecState, fecDistrict]
       );
     } else {
       // Create new candidate
@@ -249,9 +268,7 @@ class IngestionService {
         RETURNING id`,
         [
           transformed.displayName, transformed.partyAffiliation, fecCandidate.candidate_id,
-          fecCandidate.candidate_id?.[0] || null,
-          fecCandidate.candidate_id?.substring(2, 4) || null,
-          fecCandidate.candidate_id?.[0] === 'H' ? fecCandidate.candidate_id?.substring(4, 6) : null,
+          fecOfficeType, fecState, fecDistrict,
         ]
       );
       candidateId = insertResult.rows[0].id;
