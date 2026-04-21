@@ -683,11 +683,12 @@ router.delete('/promises/:promiseId', authenticate, requireCandidate, async (req
 });
 
 // Get candidate's voting record
-router.get('/:id/voting-record', async (req, res, next) => {
+router.get('/:id/voting-record', async (req, res) => {
+  const { id } = req.params;
+  const { limit = 50, offset = 0 } = req.query;
+  const emptyStats = { total_votes: 0, yes_votes: 0, no_votes: 0, missed_votes: 0 };
+
   try {
-    const { id } = req.params;
-    const { limit = 50, offset = 0 } = req.query;
-    
     const result = await db.query(
       `SELECT
         vr.id, vr.candidate_id, vr.vote_event_id, vr.bill_id, vr.vote,
@@ -705,11 +706,13 @@ router.get('/:id/voting-record', async (req, res, next) => {
        ORDER BY ve.vote_date DESC NULLS LAST
        LIMIT $2 OFFSET $3`,
       [id, parseInt(limit), parseInt(offset)]
-    );
-    
-    // Get summary stats
+    ).catch((err) => {
+      console.warn(`voting-record votes query failed for ${id}:`, err.message);
+      return { rows: [] };
+    });
+
     const statsResult = await db.query(
-      `SELECT 
+      `SELECT
         COUNT(*) as total_votes,
         COUNT(*) FILTER (WHERE vote = 'yes') as yes_votes,
         COUNT(*) FILTER (WHERE vote = 'no') as no_votes,
@@ -717,16 +720,20 @@ router.get('/:id/voting-record', async (req, res, next) => {
        FROM voting_records
        WHERE candidate_id = $1`,
       [id]
-    );
-    
+    ).catch((err) => {
+      console.warn(`voting-record stats query failed for ${id}:`, err.message);
+      return { rows: [emptyStats] };
+    });
+
     res.json({
       votes: result.rows,
-      stats: statsResult.rows[0],
+      stats: statsResult.rows[0] || emptyStats,
       limit: parseInt(limit),
       offset: parseInt(offset)
     });
   } catch (error) {
-    next(error);
+    console.warn(`voting-record fallback for ${id}:`, error.message);
+    res.json({ votes: [], stats: emptyStats, limit: parseInt(limit), offset: parseInt(offset) });
   }
 });
 
@@ -890,30 +897,32 @@ router.get('/:id/transparency', async (req, res, next) => {
 });
 
 // Get candidate's background (education, experience, committees)
-router.get('/:id/background', async (req, res, next) => {
-  try {
-    const { id } = req.params;
+router.get('/:id/background', async (req, res) => {
+  const { id } = req.params;
 
+  const safe = (q, args) => db.query(q, args).catch((err) => {
+    console.warn(`background sub-query failed for ${id}:`, err.message);
+    return { rows: [] };
+  });
+
+  try {
     const [educationResult, experienceResult, committeesResult] = await Promise.all([
-      db.query(
+      safe(
         `SELECT * FROM candidate_education WHERE candidate_id = $1 ORDER BY year DESC NULLS LAST`,
         [id]
       ),
-      db.query(
+      safe(
         `SELECT * FROM candidate_professional_experience WHERE candidate_id = $1 ORDER BY start_year DESC NULLS LAST`,
         [id]
       ),
-      db.query(
+      safe(
         `SELECT cm.*, c.name as committee_name, c.chamber, c.parent_committee_id
          FROM committee_memberships cm
          JOIN legislative_committees c ON cm.committee_id = c.id
          WHERE cm.candidate_id = $1
          ORDER BY c.name`,
         [id]
-      ).catch((err) => {
-        console.error('Error fetching committee memberships:', err.message);
-        return { rows: [] };
-      }),
+      ),
     ]);
 
     res.json({
@@ -922,7 +931,8 @@ router.get('/:id/background', async (req, res, next) => {
       committees: committeesResult.rows,
     });
   } catch (error) {
-    next(error);
+    console.warn(`background fallback for ${id}:`, error.message);
+    res.json({ education: [], experience: [], committees: [] });
   }
 });
 
