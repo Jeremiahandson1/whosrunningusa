@@ -112,15 +112,26 @@ class IngestionService {
     };
 
     try {
+      // Fail loudly if the API key is missing so the failure shows up in
+      // sync_logs instead of silently returning 0 candidates.
+      if (!process.env.FEC_API_KEY) {
+        throw new Error(
+          'FEC_API_KEY environment variable is not set. Set it on the ' +
+          'whosrunningusa-sync cron service in Render (env vars are not ' +
+          'shared across services — setting it on the API service alone ' +
+          'has no effect on the nightly sync).'
+        );
+      }
+
       console.log(`Starting FEC sync for cycle ${cycle}${state ? `, state ${state}` : ''}`);
-      
+
       // Fetch candidates
       const options = { cycle, isActiveCandidate: true };
       if (state) options.state = state;
-      
+
       let page = 1;
       let hasMore = true;
-      
+
       while (hasMore) {
         const response = await this.fec.getCandidates({ ...options, page, perPage: 100 });
         const candidates = response.results || [];
@@ -459,8 +470,16 @@ class IngestionService {
     };
 
     try {
+      if (!process.env.OPEN_STATES_API_KEY) {
+        throw new Error(
+          'OPEN_STATES_API_KEY environment variable is not set. Set it on ' +
+          'the whosrunningusa-sync cron service in Render (env vars are ' +
+          'not shared across services).'
+        );
+      }
+
       console.log(`Starting Open States sync${state ? ` for ${state}` : ' for all states'}...`);
-      
+
       if (state) {
         // Sync single state
         const legislators = await this.openStates.getStateLegislators(state);
