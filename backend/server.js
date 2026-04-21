@@ -59,9 +59,25 @@ app.use('/widgets', cors({ origin: true, credentials: false }));
 const widgetReadOnlyPaths = ['/api/cost-calculator', '/api/promises', '/api/dark-money', '/api/conflicts', '/api/rubber-stamp', '/api/foreign-aid'];
 widgetReadOnlyPaths.forEach(p => app.use(p, cors({ origin: true, credentials: false })));
 
-// Default CORS — restrict to frontend origin
+// Default CORS — allow the configured frontend plus any additional origins
+// listed in FRONTEND_URLS (comma-separated). Covers custom domain + the
+// .onrender.com subdomain, which are different origins to the browser.
+const allowedOrigins = new Set(
+  [
+    process.env.FRONTEND_URL || 'http://localhost:3000',
+    ...(process.env.FRONTEND_URLS ? process.env.FRONTEND_URLS.split(',').map(s => s.trim()) : []),
+    'https://whosrunningusa.com',
+    'https://www.whosrunningusa.com',
+    'https://whosrunningusa.onrender.com',
+  ].filter(Boolean)
+);
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, cb) => {
+    // Allow same-origin / non-browser requests (no Origin header)
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.has(origin)) return cb(null, true);
+    return cb(new Error(`CORS: origin ${origin} not allowed`));
+  },
   credentials: true
 }));
 
