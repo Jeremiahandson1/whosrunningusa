@@ -70,6 +70,36 @@ router.get('/sync-logs', adminAuth, async (req, res) => {
 });
 
 /**
+ * POST /api/admin/trigger-sync
+ * Body: { steps: 'fec,congress,congress-bills,congress-sponsorships,committees' }
+ * Runs the sync-scheduler as a child process so logs land in sync_logs.
+ * Fire-and-forget — returns immediately with a job id; poll /sync-logs to watch.
+ */
+const { spawn } = require('child_process');
+const path = require('path');
+router.post('/trigger-sync', adminAuth, async (req, res) => {
+  const steps = (req.body?.steps || '').trim();
+  const env = { ...process.env };
+  if (steps) env.SYNC_STEPS = steps;
+
+  const scriptPath = path.join(__dirname, '..', 'scripts', 'sync-scheduler.js');
+  const child = spawn('node', [scriptPath], {
+    cwd: path.join(__dirname, '..', 'scripts'),
+    env,
+    detached: true,
+    stdio: 'ignore',
+  });
+  child.unref();
+
+  res.json({
+    message: 'Sync started',
+    pid: child.pid,
+    steps: steps || '(all steps)',
+    note: 'Poll GET /api/admin/sync-logs?limit=1 to see progress/result.',
+  });
+});
+
+/**
  * GET /api/admin/data-stats — quick counts for diagnosing sparse data
  */
 router.get('/data-stats', adminAuth, async (req, res) => {

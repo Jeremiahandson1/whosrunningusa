@@ -37,8 +37,9 @@ const STEP_TIMEOUT = parseInt(process.env.SYNC_TIMEOUT_MS) || 1800000; // 30 min
 // Platform feature scripts (trades, revolving-door, compliance, explanations, donor-map, gaps)
 // run after core data is synced since they depend on up-to-date candidate/vote data.
 const ALL_STEPS = [
-  'districts', 'fec', 'finance', 'bills', 'congress', 'openstates',
-  'congress-legislators', 'wikidata', 'votesmart',
+  'districts', 'fec', 'finance', 'bills', 'congress', 'congress-bills',
+  'congress-sponsorships', 'openstates',
+  'congress-legislators', 'committees', 'wikidata', 'votesmart',
   // Platform feature syncs (root scripts/ dir)
   'transparency-seed', 'trades', 'revolving-door', 'compliance',
   // Module 6 new syncs
@@ -72,6 +73,12 @@ function buildCommand(step) {
       return ['sync-open-states.js', ...(state ? [state] : [])];
     case 'congress':
       return ['sync-congress-gov.js', '--members', ...(state ? [`--state=${state}`] : [])];
+    case 'congress-bills':
+      return ['sync-congress-gov.js', '--bills'];
+    case 'congress-sponsorships':
+      return ['sync-congress-gov.js', '--sponsorships'];
+    case 'committees':
+      return ['sync-committees.js'];
     case 'bills':
       return ['sync-open-states-bills.js', ...(state ? [state] : []), '--recent'];
     case 'congress-legislators':
