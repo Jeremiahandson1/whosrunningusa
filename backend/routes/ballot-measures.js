@@ -93,6 +93,15 @@ router.get('/', async (req, res, next) => {
 });
 
 // GET /ballot-measures/stats — aggregate stats (must come before /:id)
+const EMPTY_BALLOT_STATS = {
+  total_measures: 0,
+  passed: 0,
+  failed: 0,
+  pending: 0,
+  total_funding: 0,
+  corporate_spending: 0,
+  states_count: 0,
+};
 router.get('/stats', async (req, res) => {
   try {
     const r = await db.query(`
@@ -100,23 +109,28 @@ router.get('/stats', async (req, res) => {
         COUNT(*)::int AS total_measures,
         COUNT(*) FILTER (WHERE status = 'passed')::int AS passed,
         COUNT(*) FILTER (WHERE status = 'failed')::int AS failed,
-        COUNT(*) FILTER (WHERE status = 'pending')::int AS pending
+        COUNT(*) FILTER (WHERE status = 'pending')::int AS pending,
+        COUNT(DISTINCT state)::int AS states_count
       FROM ballot_measures
     `);
     const funding = await db.query(`
-      SELECT COALESCE(SUM(amount), 0)::bigint AS total_funding
+      SELECT
+        COALESCE(SUM(amount), 0)::bigint AS total_funding,
+        COALESCE(SUM(amount) FILTER (WHERE funder_type = 'corporate'), 0)::bigint AS corporate_spending
       FROM ballot_measure_funding
-    `).catch(() => ({ rows: [{ total_funding: 0 }] }));
+    `).catch(() => ({ rows: [{ total_funding: 0, corporate_spending: 0 }] }));
     res.json({
-      totalMeasures: r.rows[0].total_measures,
+      total_measures: r.rows[0].total_measures,
       passed: r.rows[0].passed,
       failed: r.rows[0].failed,
       pending: r.rows[0].pending,
-      totalFunding: Number(funding.rows[0].total_funding),
+      states_count: r.rows[0].states_count,
+      total_funding: Number(funding.rows[0].total_funding),
+      corporate_spending: Number(funding.rows[0].corporate_spending),
     });
   } catch (error) {
     console.warn('/ballot-measures/stats fallback:', error.message);
-    res.json({ totalMeasures: 0, passed: 0, failed: 0, pending: 0, totalFunding: 0 });
+    res.json(EMPTY_BALLOT_STATS);
   }
 });
 

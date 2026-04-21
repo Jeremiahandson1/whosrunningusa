@@ -2,6 +2,26 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
+// pg returns NUMERIC as strings; the frontend calls .toFixed() on these,
+// so coerce the known numeric fields to real numbers before responding.
+const NUMERIC_FIELDS = [
+  'dem_vote_share', 'rep_vote_share', 'dem_seat_share', 'rep_seat_share',
+  'efficiency_gap', 'seats_votes_gap', 'partisan_advantage',
+  'margin', 'dem_votes', 'rep_votes',
+];
+function coerceNumeric(row) {
+  if (!row || typeof row !== 'object') return row;
+  const out = { ...row };
+  for (const k of NUMERIC_FIELDS) {
+    if (out[k] !== undefined && out[k] !== null) {
+      const n = parseFloat(out[k]);
+      out[k] = Number.isFinite(n) ? n : null;
+    }
+  }
+  return out;
+}
+const coerceRows = (rows) => (rows || []).map(coerceNumeric);
+
 // GET /gerrymandering/states (and root alias) — all state metrics for an election year
 const statesHandler = async (req, res) => {
   try {
@@ -39,7 +59,7 @@ const statesHandler = async (req, res) => {
       : await db.query(`SELECT MAX(election_year) as election_year FROM gerrymandering_metrics`);
 
     res.json({
-      states: result.rows,
+      states: coerceRows(result.rows),
       electionYear: yearResult.rows[0]?.election_year || null
     });
   } catch (error) {
@@ -108,7 +128,7 @@ router.get('/worst', async (req, res, next) => {
       : await db.query(`SELECT MAX(election_year) as election_year FROM gerrymandering_metrics`);
 
     res.json({
-      states: result.rows,
+      states: coerceRows(result.rows),
       electionYear: yearResult.rows[0]?.election_year || null
     });
   } catch (error) {
@@ -153,7 +173,7 @@ router.get('/:stateAbbr', async (req, res, next) => {
       [metrics.state_fips, metrics.election_year]
     ).catch(() => ({ rows: [] }));
 
-    res.json({ metrics, districts: districtsResult.rows });
+    res.json({ metrics: coerceNumeric(metrics), districts: coerceRows(districtsResult.rows) });
   } catch (error) {
     console.warn('/gerrymandering/:stateAbbr fallback:', error.message);
     res.json({ metrics: null, districts: [] });
@@ -199,8 +219,8 @@ router.get('/state/:fips', async (req, res, next) => {
     );
 
     res.json({
-      metrics,
-      districts: districtsResult.rows
+      metrics: coerceNumeric(metrics),
+      districts: coerceRows(districtsResult.rows)
     });
   } catch (error) {
     next(error);

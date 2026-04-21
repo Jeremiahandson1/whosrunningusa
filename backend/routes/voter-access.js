@@ -17,14 +17,17 @@ router.get('/states', async (req, res, next) => {
     const orderCol = allowedSorts[sort] || allowedSorts.overall;
 
     const result = await db.query(
-      `SELECT vas.*
+      `SELECT vas.*,
+              vas.state AS state_code,
+              vas.state_name AS name
        FROM voter_access_state_scores vas
        ORDER BY ${orderCol} DESC`
     );
 
     res.json({ states: result.rows });
   } catch (error) {
-    next(error);
+    console.warn('/voter-access/states fallback:', error.message);
+    res.json({ states: [] });
   }
 });
 
