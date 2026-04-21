@@ -48,6 +48,63 @@ router.get('/ingestion/status', adminAuth, async (req, res, next) => {
 });
 
 /**
+ * GET /api/admin/sync-logs — last N runs from sync_logs (default 20)
+ * Use this to see what the nightly Render cron actually ran + where it failed.
+ */
+router.get('/sync-logs', adminAuth, async (req, res) => {
+  try {
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const r = await db.query(
+      `SELECT id, job_type, status, started_at, finished_at, duration_ms,
+              steps_total, steps_completed, steps_failed, steps_skipped,
+              details, error_message
+         FROM sync_logs
+         ORDER BY started_at DESC
+         LIMIT $1`,
+      [limit]
+    );
+    res.json({ logs: r.rows });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/admin/data-stats — quick counts for diagnosing sparse data
+ */
+router.get('/data-stats', adminAuth, async (req, res) => {
+  try {
+    const queries = await Promise.all([
+      db.query(`SELECT COUNT(*)::int AS n FROM candidate_profiles`),
+      db.query(`SELECT COUNT(*)::int AS n FROM candidate_profiles WHERE fec_candidate_id IS NOT NULL`),
+      db.query(`SELECT COUNT(*)::int AS n FROM candidate_profiles WHERE is_active = TRUE`),
+      db.query(`SELECT COUNT(*)::int AS n FROM races`),
+      db.query(`SELECT COUNT(*)::int AS n FROM elections`),
+      db.query(`SELECT fec_state AS state, COUNT(*)::int AS n
+                FROM candidate_profiles
+                WHERE fec_state IS NOT NULL
+                GROUP BY fec_state
+                ORDER BY n DESC`),
+      db.query(`SELECT office_level, COUNT(*)::int AS n
+                FROM offices
+                GROUP BY office_level
+                ORDER BY n DESC`).catch(() => ({ rows: [] })),
+    ]);
+    res.json({
+      candidates_total: queries[0].rows[0].n,
+      candidates_with_fec_id: queries[1].rows[0].n,
+      candidates_active: queries[2].rows[0].n,
+      races_total: queries[3].rows[0].n,
+      elections_total: queries[4].rows[0].n,
+      candidates_by_state: queries[5].rows,
+      offices_by_level: queries[6].rows,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * POST /api/admin/ingestion/sync/fec
  */
 router.post('/ingestion/sync/fec', adminAuth, async (req, res, next) => {
