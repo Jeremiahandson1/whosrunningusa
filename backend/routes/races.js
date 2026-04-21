@@ -6,8 +6,8 @@ const { authenticate, requireCandidate } = require('../middleware/auth');
 // Get races with filters
 router.get('/', async (req, res, next) => {
   try {
-    const { electionId, officeLevel, state, county, city, limit = 20, offset = 0 } = req.query;
-    
+    const { electionId, officeLevel, state, county, city, incumbent_id, upcoming, limit = 20, offset = 0 } = req.query;
+
     let query = `
       SELECT r.*, o.name as office_name, o.office_level, o.state, o.county, o.city,
              e.election_date, e.name as election_name,
@@ -20,40 +20,56 @@ router.get('/', async (req, res, next) => {
     `;
     const params = [];
     let paramIndex = 1;
-    
+
     if (electionId) {
       query += ` AND r.election_id = $${paramIndex}`;
       params.push(electionId);
       paramIndex++;
     }
-    
+
     if (officeLevel) {
       query += ` AND o.office_level = $${paramIndex}`;
       params.push(officeLevel);
       paramIndex++;
     }
-    
+
     if (state) {
       query += ` AND (o.state = $${paramIndex} OR o.office_level = 'federal')`;
       params.push(state);
       paramIndex++;
     }
-    
+
     if (county) {
       query += ` AND o.county = $${paramIndex}`;
       params.push(county);
       paramIndex++;
     }
-    
+
     if (city) {
       query += ` AND o.city = $${paramIndex}`;
       params.push(city);
       paramIndex++;
     }
-    
+
+    // Filter to races where a given candidate is either the incumbent or a filed candidate.
+    // Used by the profile page to show the next election when the candidate row
+    // itself doesn't have a race_id set (e.g. shadow profiles for sitting officials).
+    if (incumbent_id) {
+      query += ` AND (r.incumbent_id = $${paramIndex} OR EXISTS (
+        SELECT 1 FROM candidacies c2 WHERE c2.race_id = r.id AND c2.candidate_id = $${paramIndex}
+      ))`;
+      params.push(incumbent_id);
+      paramIndex++;
+    }
+
+    // Restrict to elections whose date is today or later
+    if (upcoming === 'true' || upcoming === '1') {
+      query += ` AND e.election_date >= CURRENT_DATE`;
+    }
+
     query += ` GROUP BY r.id, o.id, e.id ORDER BY e.election_date, o.sort_order LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     params.push(parseInt(limit), parseInt(offset));
-    
+
     const result = await db.query(query, params);
     res.json({ races: result.rows });
   } catch (error) {

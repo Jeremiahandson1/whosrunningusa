@@ -92,15 +92,22 @@ const OFFICE_EXPLAINERS = {
 }
 function officeExplainer(c) {
   if (!c) return null
-  if (c.office_level === 'federal') {
+  const title = c.official_title || c.race_name || ''
+  const t = title.toLowerCase()
+
+  // Title-based detection first — works even when office_level/fec_office_type are null
+  if (/president/.test(t) && !/vice/.test(t)) return OFFICE_EXPLAINERS['federal:P']
+  if (/u\.?s\.?\s*senat|united states senat/.test(t)) return OFFICE_EXPLAINERS['federal:S']
+  if (/u\.?s\.?\s*(house|representative)|united states (house|representative)/.test(t)) return OFFICE_EXPLAINERS['federal:H']
+  if (/governor/.test(t)) return OFFICE_EXPLAINERS['state:governor']
+
+  // Then structured fields
+  if (c.office_level === 'federal' || c.fec_office_type) {
     if (c.fec_office_type === 'P') return OFFICE_EXPLAINERS['federal:P']
     if (c.fec_office_type === 'S') return OFFICE_EXPLAINERS['federal:S']
     if (c.fec_office_type === 'H') return OFFICE_EXPLAINERS['federal:H']
   }
-  if (c.office_level === 'state') {
-    if (/governor/i.test(c.official_title || '')) return OFFICE_EXPLAINERS['state:governor']
-    return OFFICE_EXPLAINERS['state:']
-  }
+  if (c.office_level === 'state') return OFFICE_EXPLAINERS['state:']
   if (c.office_level === 'county') return OFFICE_EXPLAINERS['county:']
   if (c.office_level === 'local') return OFFICE_EXPLAINERS['local:']
   return null
@@ -172,7 +179,10 @@ function CandidatePage() {
       setAccountabilityGaps(gapsData?.gaps || [])
       setDonorIndustries(donorsData?.donors || [])
       if (c?.isFollowing) setFollowing(true)
-      // Fetch related candidates + race details (for election date) from the same race
+      // Fetch related candidates + race details (for election date).
+      // Shadow profiles (sitting officials ingested from congress-legislators
+      // etc.) often lack race_id on the candidate row, so fall back to
+      // /races?incumbent_id=... to find their upcoming race.
       if (c?.race_id) {
         api.get(`/candidates?raceId=${c.race_id}`).then(data => {
           const others = (data.candidates || []).filter(rc => rc.id !== c.id)
@@ -180,6 +190,11 @@ function CandidatePage() {
         }).catch(() => setRelatedCandidates([]))
         api.get(`/races/${c.race_id}`).then(data => {
           setRace(data?.race || data)
+        }).catch(() => setRace(null))
+      } else if (c?.id) {
+        setRelatedCandidates([])
+        api.get(`/races?incumbent_id=${c.id}&upcoming=true&limit=1`).then(data => {
+          setRace((data?.races && data.races[0]) || null)
         }).catch(() => setRace(null))
       } else {
         setRelatedCandidates([])
