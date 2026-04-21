@@ -67,7 +67,8 @@ router.get('/items', async (req, res, next) => {
 router.get('/brackets', async (req, res, next) => {
   try {
     const result = await db.query(
-      `SELECT id, bracket_label, min_income, max_income, tax_share_pct, household_count
+      `SELECT id, bracket_label, bracket_label AS label,
+              min_income, max_income, tax_share_pct, household_count
        FROM income_brackets
        ORDER BY min_income`
     );

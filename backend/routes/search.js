@@ -215,11 +215,28 @@ router.get('/candidates/by-location', async (req, res, next) => {
       paramIndex += 3;
     }
     
-    query += ` ORDER BY display_name LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    // The UNION above deduplicates only when every column matches, but a
+    // candidate matching both Query 1 (local office chain) and Query 2/3
+    // (FEC lookups) gets a different office_name/source and slips through.
+    // Wrap in a subquery and keep the single best row per candidate id.
+    const wrapped = `
+      SELECT * FROM (
+        SELECT DISTINCT ON (id) *
+        FROM ( ${query} ) raw
+        ORDER BY id,
+                 CASE source
+                   WHEN 'local' THEN 0
+                   WHEN 'fec_district' THEN 1
+                   ELSE 2
+                 END
+      ) deduped
+      ORDER BY display_name
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
     params.push(parseInt(limit));
     params.push(parseInt(offset));
 
-    const result = await db.query(query, params);
+    const result = await db.query(wrapped, params);
     res.json({ candidates: result.rows });
   } catch (error) {
     console.error('Error in candidates by-location:', error);
