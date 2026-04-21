@@ -10,7 +10,7 @@ import api from '../utils/api'
 import DarkMoneyCallout from '../components/DarkMoneyCallout'
 import RubberStampBadge from '../components/RubberStampBadge'
 import PacPledgeBadge from '../components/PacPledgeBadge'
-import { formatDate, formatDateTime } from '../utils/dateFormat'
+import { formatDate, formatDateTime, isCalendarDate } from '../utils/dateFormat'
 import ConnectButton from '../components/ConnectButton'
 import CommunityNotes from '../components/CommunityNotes'
 import Breadcrumbs from '../components/Breadcrumbs'
@@ -115,16 +115,16 @@ function officeExplainer(c) {
 
 function daysUntil(dateStr) {
   if (!dateStr) return null
-  // Date-only strings parse as UTC; anchor both sides to UTC midnight so
-  // the day count lines up with the formatted calendar date.
-  const dateOnly = typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)
+  // Calendar-day values (DB `date` columns) are anchored to UTC midnight.
+  // Compare both ends at UTC midnight so the printed date and day count agree.
+  const calendar = isCalendarDate(dateStr)
   const target = new Date(dateStr)
   if (isNaN(target.getTime())) return null
   const now = new Date()
-  const targetMs = dateOnly
+  const targetMs = calendar
     ? Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate())
     : target.getTime()
-  const nowMs = dateOnly
+  const nowMs = calendar
     ? Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
     : now.getTime()
   return Math.ceil((targetMs - nowMs) / (1000 * 60 * 60 * 24))

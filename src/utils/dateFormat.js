@@ -4,14 +4,21 @@
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-// Date-only strings like "2026-11-03" parse as UTC midnight, which shifts
-// one day earlier in US timezones. Read them with UTC getters. Anything
-// with a time component is an actual timestamp and stays in local time.
+// Postgres `date` columns come back two different ways depending on driver
+// config: as a bare string "2026-11-03" OR an ISO timestamp pinned to UTC
+// midnight "2026-11-03T00:00:00.000Z". Both represent a calendar day, not a
+// moment in time. Read those with UTC getters so US timezones don't print
+// Nov 2 for what the DB thinks is Nov 3. Anything else is a real instant
+// and stays in local time.
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/
+const UTC_MIDNIGHT_RE = /^\d{4}-\d{2}-\d{2}T00:00:00(?:\.0{1,3})?Z$/
+function isCalendarDate(s) {
+  return typeof s === 'string' && (DATE_ONLY_RE.test(s) || UTC_MIDNIGHT_RE.test(s))
+}
 function getParts(dateString) {
   const d = new Date(dateString)
   if (isNaN(d.getTime())) return null
-  const utc = typeof dateString === 'string' && DATE_ONLY_RE.test(dateString)
+  const utc = isCalendarDate(dateString)
   return {
     year: utc ? d.getUTCFullYear() : d.getFullYear(),
     month: utc ? d.getUTCMonth() : d.getMonth(),
@@ -19,6 +26,7 @@ function getParts(dateString) {
     date: d,
   }
 }
+export { isCalendarDate }
 
 /**
  * Format a date string as "Mar 13, 2026"
