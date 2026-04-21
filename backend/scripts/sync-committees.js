@@ -19,8 +19,8 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const db = require('../db');
 
-const COMMITTEES_URL = 'https://raw.githubusercontent.com/unitedstates/congress-legislators/main/committees-current.json';
-const MEMBERSHIP_URL = 'https://raw.githubusercontent.com/unitedstates/congress-legislators/main/committee-membership-current.json';
+const COMMITTEES_URL = 'https://unitedstates.github.io/congress-legislators/committees-current.json';
+const MEMBERSHIP_URL = 'https://unitedstates.github.io/congress-legislators/committee-membership-current.json';
 
 async function fetchJson(url) {
   const res = await fetch(url);

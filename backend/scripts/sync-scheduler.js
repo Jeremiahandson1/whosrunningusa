@@ -38,7 +38,7 @@ const STEP_TIMEOUT = parseInt(process.env.SYNC_TIMEOUT_MS) || 1800000; // 30 min
 // run after core data is synced since they depend on up-to-date candidate/vote data.
 const ALL_STEPS = [
   'districts', 'fec', 'finance', 'bills', 'congress', 'congress-bills',
-  'congress-sponsorships', 'openstates',
+  'congress-sponsorships', 'votes', 'openstates',
   'congress-legislators', 'committees', 'wikidata', 'votesmart',
   // Platform feature syncs (root scripts/ dir)
   'transparency-seed', 'trades', 'revolving-door', 'compliance',
@@ -79,6 +79,8 @@ function buildCommand(step) {
       return ['sync-congress-gov.js', '--sponsorships'];
     case 'committees':
       return ['sync-committees.js'];
+    case 'votes':
+      return ['sync-votes.js', '--chamber=house'];
     case 'bills':
       return ['sync-open-states-bills.js', ...(state ? [state] : []), '--recent'];
     case 'congress-legislators':
