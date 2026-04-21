@@ -80,6 +80,40 @@ function PromisesTab({ candidateId }) {
   )
 }
 
+// Short, neutral explainers keyed on office_level + fec_office_type
+const OFFICE_EXPLAINERS = {
+  'federal:P': 'The President leads the executive branch, signs or vetoes legislation, and commands the armed forces. Elected every four years.',
+  'federal:S': 'A U.S. Senator represents their entire state in Washington, serving six-year terms. The Senate confirms federal judges, ratifies treaties, and must pass every bill before it becomes law.',
+  'federal:H': 'A U.S. Representative represents a single congressional district and serves a two-year term. The House originates all federal revenue (tax) bills and must pass every bill before it becomes law.',
+  'state:governor': 'The Governor leads the state\'s executive branch, signs or vetoes state legislation, and sets the budget agenda.',
+  'state:': 'A state-level elected official works on laws and policy inside a single state, including budgets, schools, roads, courts, and everything not reserved to the federal government.',
+  'county:': 'A county-level elected official oversees county services — usually some combination of courts, elections, property records, public safety, or roads.',
+  'local:': 'A local elected official oversees city or town services such as zoning, utilities, public safety, parks, and the local budget.',
+}
+function officeExplainer(c) {
+  if (!c) return null
+  if (c.office_level === 'federal') {
+    if (c.fec_office_type === 'P') return OFFICE_EXPLAINERS['federal:P']
+    if (c.fec_office_type === 'S') return OFFICE_EXPLAINERS['federal:S']
+    if (c.fec_office_type === 'H') return OFFICE_EXPLAINERS['federal:H']
+  }
+  if (c.office_level === 'state') {
+    if (/governor/i.test(c.official_title || '')) return OFFICE_EXPLAINERS['state:governor']
+    return OFFICE_EXPLAINERS['state:']
+  }
+  if (c.office_level === 'county') return OFFICE_EXPLAINERS['county:']
+  if (c.office_level === 'local') return OFFICE_EXPLAINERS['local:']
+  return null
+}
+
+function daysUntil(dateStr) {
+  if (!dateStr) return null
+  const target = new Date(dateStr)
+  if (isNaN(target.getTime())) return null
+  const diff = target - new Date()
+  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+}
+
 function CandidatePage() {
   const { id } = useParams()
   const { user } = useAuth()
@@ -106,6 +140,7 @@ function CandidatePage() {
   const [accountabilityScore, setAccountabilityScore] = useState(null)
   const [accountabilityGaps, setAccountabilityGaps] = useState([])
   const [donorIndustries, setDonorIndustries] = useState([])
+  const [race, setRace] = useState(null)
 
   useEffect(() => {
     setLoading(true)
@@ -137,14 +172,18 @@ function CandidatePage() {
       setAccountabilityGaps(gapsData?.gaps || [])
       setDonorIndustries(donorsData?.donors || [])
       if (c?.isFollowing) setFollowing(true)
-      // Fetch related candidates from the same race
+      // Fetch related candidates + race details (for election date) from the same race
       if (c?.race_id) {
         api.get(`/candidates?raceId=${c.race_id}`).then(data => {
           const others = (data.candidates || []).filter(rc => rc.id !== c.id)
           setRelatedCandidates(others)
         }).catch(() => setRelatedCandidates([]))
+        api.get(`/races/${c.race_id}`).then(data => {
+          setRace(data?.race || data)
+        }).catch(() => setRace(null))
       } else {
         setRelatedCandidates([])
+        setRace(null)
       }
     }).finally(() => setLoading(false))
   }, [id])
@@ -287,6 +326,21 @@ function CandidatePage() {
                   </span>
                 )}
               </div>
+              {race?.election_date && (() => {
+                const d = daysUntil(race.election_date)
+                const dateLabel = formatDate(race.election_date)
+                if (d === null) return null
+                const future = d >= 0
+                return (
+                  <div style={{ marginTop: '1rem', display: 'inline-flex', alignItems: 'center', gap: '0.625rem', padding: '0.5rem 0.875rem', borderRadius: 999, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', fontSize: '0.875rem' }}>
+                    <Calendar size={15} />
+                    {future
+                      ? <>Next election: <strong style={{ marginLeft: 4 }}>{dateLabel}</strong> <span style={{ opacity: 0.75 }}>({d === 0 ? 'today' : `${d} day${d === 1 ? '' : 's'} away`})</span></>
+                      : <>Last election: <strong style={{ marginLeft: 4 }}>{dateLabel}</strong></>
+                    }
+                  </div>
+                )
+              })()}
               {candidate.full_bio && (
                 <p style={{ marginTop: '1rem', maxWidth: '600px', lineHeight: 1.6, opacity: 0.9 }}>
                   {candidate.full_bio}
@@ -1186,6 +1240,56 @@ function CandidatePage() {
               {sidebarOpen ? 'Hide Details' : 'View Details'}
             </button>
             <div style={sidebarOpen ? {} : {}} className={`sidebar-content ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
+            {/* What This Office Does — short neutral explainer */}
+            {(() => {
+              const explainer = officeExplainer(candidate)
+              if (!explainer) return null
+              return (
+                <div className="card" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.5rem', background: 'var(--slate-50)', borderLeft: '3px solid var(--navy-600)' }}>
+                  <h4 style={{ marginBottom: '0.5rem', fontSize: '0.9375rem' }}>About this office</h4>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--slate-700)', lineHeight: 1.55, margin: 0 }}>{explainer}</p>
+                </div>
+              )
+            })()}
+
+            {/* Contact This Official — consolidated */}
+            {(candidate.campaign_website || candidate.campaign_phone || candidate.campaign_email || candidate.office_phone || candidate.office_address) && (
+              <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
+                <h4 style={{ marginBottom: '0.75rem' }}>Contact</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.875rem' }}>
+                  {candidate.campaign_website && (
+                    <a href={candidate.campaign_website.startsWith('http') ? candidate.campaign_website : `https://${candidate.campaign_website}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--navy-700)', textDecoration: 'none' }}>
+                      <ExternalLink size={15} /> Campaign website
+                    </a>
+                  )}
+                  {candidate.campaign_phone && (
+                    <a href={`tel:${candidate.campaign_phone}`} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--slate-700)', textDecoration: 'none' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--slate-500)', minWidth: 15 }}>☎</span>
+                      {candidate.campaign_phone}
+                    </a>
+                  )}
+                  {candidate.campaign_email && (
+                    <a href={`mailto:${candidate.campaign_email}`} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--slate-700)', textDecoration: 'none' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--slate-500)', minWidth: 15 }}>✉</span>
+                      {candidate.campaign_email}
+                    </a>
+                  )}
+                  {candidate.office_phone && candidate.office_phone !== candidate.campaign_phone && (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', color: 'var(--slate-600)', fontSize: '0.8125rem' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--slate-500)', minWidth: 15 }}>▲</span>
+                      <span>Official office: {candidate.office_phone}</span>
+                    </div>
+                  )}
+                  {candidate.office_address && (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', color: 'var(--slate-600)', fontSize: '0.8125rem' }}>
+                      <MapPin size={14} style={{ flexShrink: 0, marginTop: 2 }} />
+                      <span>{candidate.office_address}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
               <h4 style={{ marginBottom: '1rem' }}>Quick Actions</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
