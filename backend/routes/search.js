@@ -122,13 +122,15 @@ router.get('/candidates/by-location', async (req, res, next) => {
     }
     
     if (county) {
-      query += ` AND o.county = $${paramIndex}`;
+      // A county filter should narrow *local* offices but still include
+      // federal + statewide offices (which have no county set).
+      query += ` AND (o.county = $${paramIndex} OR o.county IS NULL OR o.office_level IN ('federal','state'))`;
       params.push(county);
       paramIndex++;
     }
-    
+
     if (city) {
-      query += ` AND o.city = $${paramIndex}`;
+      query += ` AND (o.city = $${paramIndex} OR o.city IS NULL OR o.office_level IN ('federal','state'))`;
       params.push(city);
       paramIndex++;
     }
@@ -139,8 +141,12 @@ router.get('/candidates/by-location', async (req, res, next) => {
       paramIndex++;
     }
 
-    // Query 2: FEC candidates by state (no county filter) - uses pre-computed fec_state column
-    if (state && !county && !city) {
+    // Query 2: FEC candidates by state — Senate/President always apply to the
+    // whole state, so include them even when a county is specified.
+    if (state && !city) {
+      const senatePresClause = county
+        ? ` AND cp.fec_office_type IN ('S','P')`
+        : '';
       query += `
         UNION
         SELECT DISTINCT cp.id, cp.display_name, cp.party_affiliation, cp.official_title,
@@ -157,7 +163,7 @@ router.get('/candidates/by-location', async (req, res, next) => {
                'fec' as source
         FROM candidate_profiles cp
         WHERE cp.is_active = TRUE${nameFilter}
-          AND cp.fec_state = $${paramIndex}
+          AND cp.fec_state = $${paramIndex}${senatePresClause}
       `;
       params.push(state);
       paramIndex++;
