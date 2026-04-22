@@ -92,6 +92,14 @@ function FindMyBallotPage() {
       </div>
 
       <div className="container" style={{ paddingTop: '2rem', paddingBottom: '3rem' }}>
+        {/* Intro — explain what the user gets before they submit */}
+        <div style={{ maxWidth: 720, margin: '0 auto 1.5rem', color: 'var(--slate-700)', lineHeight: 1.65 }}>
+          Pick your state (and county if you want a narrower slice) and we'll
+          show every candidate running for federal, state, and local office
+          where you live — grouped by level, with their response rate and
+          party, so you can start learning before you vote.
+        </div>
+
         {/* Location Selection */}
         <div className="card" style={{ padding: '2rem', marginBottom: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
@@ -167,11 +175,20 @@ function FindMyBallotPage() {
           </div>
         )}
 
-        {searched && !loading && candidates.length > 0 && (
+        {searched && !loading && candidates.length > 0 && (() => {
+          const nextRace = [...races].filter(r => r.election_date && new Date(r.election_date) >= new Date()).sort((a, b) => new Date(a.election_date) - new Date(b.election_date))[0]
+          const nextDate = nextRace?.election_date
+          const niceDate = nextDate ? new Date(nextDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : null
+          return (
           <div>
-            <div style={{ marginBottom: '1.5rem', color: 'var(--slate-600)' }}>
+            <div style={{ marginBottom: '1.5rem', color: 'var(--slate-700)' }}>
               Found <strong>{candidates.length}</strong> candidates in {STATE_NAMES[state] || state}
               {county ? `, ${county} County` : ''}
+              {niceDate && (
+                <span style={{ marginLeft: 8, padding: '2px 10px', borderRadius: 999, background: 'var(--slate-100)', color: 'var(--slate-700)', fontSize: '0.8125rem' }}>
+                  Next election: {niceDate}
+                </span>
+              )}
             </div>
 
             {Object.entries(grouped).map(([level, levelCandidates]) => {
@@ -251,7 +268,8 @@ function FindMyBallotPage() {
               </div>
             )}
           </div>
-        )}
+          )
+        })()}
       </div>
     </div>
   )

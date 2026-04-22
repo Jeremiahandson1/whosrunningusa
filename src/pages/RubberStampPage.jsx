@@ -165,9 +165,15 @@ function RubberStampPage() {
 
         {/* Empty */}
         {!loading && !error && politicians.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 64, color: '#475569' }}>
+          <div style={{ textAlign: 'center', padding: 64, color: '#475569', maxWidth: 520, margin: '0 auto' }}>
             <Vote size={48} color="#94a3b8" />
-            <p style={{ fontSize: 18, marginTop: 12 }}>No rubber stamp scores found for this cycle.</p>
+            <p style={{ fontSize: 18, marginTop: 12, fontWeight: 600 }}>No rubber stamp scores yet for this cycle.</p>
+            <p style={{ fontSize: 14, marginTop: 8, lineHeight: 1.55 }}>
+              Scores compare a member's party-line voting rate against their donor alignment. They populate as voting records sync in.
+            </p>
+            <Link to="/explore" style={{ display: 'inline-block', marginTop: 16, color: '#9f1239', fontWeight: 600 }}>
+              Browse candidates instead →
+            </Link>
           </div>
         )}
 

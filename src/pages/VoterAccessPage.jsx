@@ -230,20 +230,21 @@ export default function VoterAccessPage() {
   }
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px' }}>
-      {/* Hero */}
-      <div style={{
-        textAlign: 'center', padding: '40px 20px', marginBottom: 32,
-        background: 'linear-gradient(135deg, #1e3a5f 0%, #2d5a8e 100%)',
-        borderRadius: 16, color: '#fff',
+    <div>
+      {/* Hero — full-bleed to match other feature pages */}
+      <section style={{
+        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+        color: '#fff', padding: 'clamp(48px, 8vw, 80px) 20px', textAlign: 'center',
       }}>
-        <Shield size={48} style={{ marginBottom: 12 }} />
-        <h1 style={{ fontSize: 28, fontWeight: 800, margin: '0 0 10px' }}>Voter Access Tracker</h1>
-        <p style={{ fontSize: 15, maxWidth: 600, margin: '0 auto', opacity: 0.9, lineHeight: 1.5 }}>
+        <Shield size={40} style={{ marginBottom: 10 }} />
+        <h1 style={{ fontSize: 'clamp(1.75rem, 5vw, 2.75rem)', fontWeight: 800, margin: '0 0 12px' }}>Voter Access Tracker</h1>
+        <p style={{ fontSize: 'clamp(1rem, 2.5vw, 1.15rem)', maxWidth: 640, margin: '0 auto', color: '#94a3b8', lineHeight: 1.5 }}>
           Every state law affecting ballot access. Side by side with who it affects most
           — and who funded the politicians who passed it.
         </p>
-      </div>
+      </section>
+
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px' }}>
 
       {/* Controls */}
       <div style={{
@@ -364,6 +365,7 @@ export default function VoterAccessPage() {
           })}
         </div>
       )}
+      </div>
     </div>
   )
 }

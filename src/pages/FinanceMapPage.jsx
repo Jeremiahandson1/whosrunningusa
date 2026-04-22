@@ -94,83 +94,88 @@ function FinanceMapPage() {
       </section>
 
       <div style={{ maxWidth: 960, margin: '0 auto', padding: 'clamp(16px, 3vw, 32px)' }}>
-        {/* Search form */}
-        <form onSubmit={handleSearch} style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: 24 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 16 }}>
-            <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 4 }}>Industry / Donor</label>
-              <div style={{ position: 'relative' }}>
-                <DollarSign size={16} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                <input
-                  type="text"
-                  value={searchIndustry}
-                  onChange={e => setSearchIndustry(e.target.value)}
-                  placeholder="e.g. Pharmaceuticals, Oil & Gas..."
-                  style={{ width: '100%', padding: '10px 12px 10px 32px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
-                />
+        {/* How it works — shown always, above the search form, so users know
+            what they're about to search for. */}
+        <div style={{ background: '#fff', borderRadius: 12, padding: '24px 24px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', marginBottom: 20 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', margin: '0 0 16px', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em' }}>How It Works</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 20, maxWidth: 720, margin: '0 auto' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
+                <DollarSign size={22} color="#16a34a" />
               </div>
+              <div style={{ fontWeight: 600, color: '#1e293b', marginBottom: 2 }}>Donors Give</div>
+              <div style={{ fontSize: 13, color: '#475569' }}>Campaign contributions from industries and PACs</div>
             </div>
-            <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 4 }}>Bill / Legislation</label>
-              <div style={{ position: 'relative' }}>
-                <Vote size={16} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                <input
-                  type="text"
-                  value={searchBill}
-                  onChange={e => setSearchBill(e.target.value)}
-                  placeholder="e.g. H.R. 1234, Medicare..."
-                  style={{ width: '100%', padding: '10px 12px 10px 32px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
-                />
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
+                <Vote size={22} color="#2563eb" />
               </div>
+              <div style={{ fontWeight: 600, color: '#1e293b', marginBottom: 2 }}>Politicians Vote</div>
+              <div style={{ fontSize: 13, color: '#475569' }}>On legislation affecting those same industries</div>
             </div>
-            <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 4 }}>Correlation</label>
-              <select
-                value={correlationFilter}
-                onChange={e => setCorrelationFilter(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, color: '#475569' }}
-              >
-                <option value="">All</option>
-                <option value="aligned">Donor-Aligned Votes</option>
-                <option value="contradicted">Voted Against Donors</option>
-                <option value="neutral">Neutral</option>
-              </select>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
+                <ArrowRight size={22} color="#dc2626" />
+              </div>
+              <div style={{ fontWeight: 600, color: '#1e293b', marginBottom: 2 }}>We Connect</div>
+              <div style={{ fontSize: 13, color: '#475569' }}>Map donor money to voting patterns</div>
             </div>
           </div>
-          <button type="submit" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 24px', background: '#1e293b', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-            <Search size={16} /> Search Connections
-          </button>
-        </form>
+        </div>
 
-        {/* How it works */}
-        {!loading && connections.length === 0 && !error && (
-          <div style={{ background: '#fff', borderRadius: 12, padding: 32, boxShadow: '0 1px 3px rgba(0,0,0,0.08)', textAlign: 'center' }}>
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: '#1e293b', margin: '0 0 16px' }}>How It Works</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 24, maxWidth: 600, margin: '0 auto' }}>
+        {/* Search form — industry is primary; bill + correlation behind a toggle */}
+        <form onSubmit={handleSearch} style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: 24 }}>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Industry or Donor</label>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 280px', position: 'relative' }}>
+              <DollarSign size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+              <input
+                type="text"
+                value={searchIndustry}
+                onChange={e => setSearchIndustry(e.target.value)}
+                placeholder="e.g. Pharmaceuticals, Oil & Gas, NRA..."
+                style={{ width: '100%', padding: '12px 14px 12px 36px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 15, boxSizing: 'border-box' }}
+              />
+            </div>
+            <button type="submit" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '12px 24px', background: '#1e293b', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+              <Search size={16} /> Search
+            </button>
+          </div>
+
+          <details style={{ marginTop: 8 }}>
+            <summary style={{ cursor: 'pointer', fontSize: 13, color: '#475569', fontWeight: 600, userSelect: 'none' }}>
+              Advanced filters ▾
+            </summary>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginTop: 12 }}>
               <div>
-                <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
-                  <DollarSign size={24} color="#16a34a" />
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 4 }}>Bill / Legislation</label>
+                <div style={{ position: 'relative' }}>
+                  <Vote size={16} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <input
+                    type="text"
+                    value={searchBill}
+                    onChange={e => setSearchBill(e.target.value)}
+                    placeholder="e.g. H.R. 1234, Medicare..."
+                    style={{ width: '100%', padding: '10px 12px 10px 32px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+                  />
                 </div>
-                <div style={{ fontWeight: 600, color: '#1e293b', marginBottom: 4 }}>Donors Give</div>
-                <div style={{ fontSize: 13, color: '#475569' }}>Campaign contributions from industries and PACs</div>
               </div>
               <div>
-                <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
-                  <Vote size={24} color="#2563eb" />
-                </div>
-                <div style={{ fontWeight: 600, color: '#1e293b', marginBottom: 4 }}>Politicians Vote</div>
-                <div style={{ fontSize: 13, color: '#475569' }}>Votes on legislation affecting those same industries</div>
-              </div>
-              <div>
-                <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
-                  <ArrowRight size={24} color="#dc2626" />
-                </div>
-                <div style={{ fontWeight: 600, color: '#1e293b', marginBottom: 4 }}>We Connect</div>
-                <div style={{ fontSize: 13, color: '#475569' }}>AI analysis maps donor money to voting patterns</div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 4 }}>Correlation</label>
+                <select
+                  value={correlationFilter}
+                  onChange={e => setCorrelationFilter(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, color: '#475569' }}
+                >
+                  <option value="">All</option>
+                  <option value="aligned">Donor-Aligned Votes</option>
+                  <option value="contradicted">Voted Against Donors</option>
+                  <option value="neutral">Neutral</option>
+                </select>
               </div>
             </div>
-          </div>
-        )}
+          </details>
+        </form>
 
         {/* Loading/Error */}
         {loading && (

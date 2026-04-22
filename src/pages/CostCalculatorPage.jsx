@@ -138,9 +138,39 @@ function CostCalculatorPage() {
       <div style={{ maxWidth: 800, margin: '0 auto', padding: 'clamp(16px, 3vw, 32px)' }}>
         {/* Calculator Card */}
         <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,0.08)', padding: 'clamp(24px, 4vw, 40px)', marginBottom: 40 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, color: '#1e293b', margin: '0 0 24px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: '#1e293b', margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
             <DollarSign size={22} /> Calculate Your Share
           </h2>
+
+          {/* Step progress */}
+          {(() => {
+            const done1 = !!selectedItem
+            const done2 = !!selectedBracket
+            const steps = [
+              { n: 1, label: 'Expenditure', done: done1 },
+              { n: 2, label: 'Income bracket', done: done2 },
+              { n: 3, label: 'Family size', done: done1 && done2 && familySize > 0 },
+            ]
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
+                {steps.map((s, i) => (
+                  <React.Fragment key={s.n}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{
+                        width: 24, height: 24, borderRadius: '50%',
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 12, fontWeight: 700,
+                        background: s.done ? '#16a34a' : '#e2e8f0',
+                        color: s.done ? '#fff' : '#94a3b8',
+                      }}>{s.done ? '✓' : s.n}</span>
+                      <span style={{ fontSize: 13, color: s.done ? '#16a34a' : '#475569', fontWeight: s.done ? 600 : 400 }}>{s.label}</span>
+                    </div>
+                    {i < steps.length - 1 && <span style={{ flex: '0 1 24px', height: 1, background: '#e2e8f0' }} />}
+                  </React.Fragment>
+                ))}
+              </div>
+            )
+          })()}
 
           {/* Step 1 */}
           <div style={{ marginBottom: 20 }}>
@@ -260,6 +290,25 @@ function CostCalculatorPage() {
                     />
                   </div>
                 )}
+              </div>
+
+              {/* Share the result */}
+              <div style={{ marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const text = `${result.item_title || 'This government expenditure'} cost my household ${formatHouseholdCost(result.household_cost)} — find out yours on WhosRunningUSA.`
+                    const url = window.location.href
+                    if (navigator.share) {
+                      try { await navigator.share({ title: 'Cost to my household', text, url }) } catch { /* user cancelled */ }
+                    } else {
+                      try { await navigator.clipboard.writeText(`${text} ${url}`); alert('Copied to clipboard!') } catch { /* ignore */ }
+                    }
+                  }}
+                  style={{ padding: '10px 18px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  Share this
+                </button>
               </div>
 
               <button

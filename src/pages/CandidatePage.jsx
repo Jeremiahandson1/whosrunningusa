@@ -508,23 +508,46 @@ function CandidatePage() {
             const btn = document.getElementById(`candidate-tab-${tabList[newIdx]}`)
             if (btn) btn.focus()
           }
+          // Show top 6 tabs inline; collapse the rest behind a "More ▾" menu.
+          // If the active tab lives in "More", promote it into the visible row
+          // so users always see which tab is selected.
+          const INLINE_LIMIT = 6
+          let visible = tabList.slice(0, INLINE_LIMIT)
+          let overflow = tabList.slice(INLINE_LIMIT)
+          if (overflow.includes(activeTab)) {
+            visible = [...visible.slice(0, INLINE_LIMIT - 1), activeTab]
+            overflow = tabList.filter(t => !visible.includes(t))
+          }
+
+          const tabButton = (tab) => (
+            <button
+              key={tab}
+              id={`candidate-tab-${tab}`}
+              role="tab"
+              aria-selected={activeTab === tab}
+              aria-controls={`candidate-tabpanel-${tab}`}
+              tabIndex={activeTab === tab ? 0 : -1}
+              onClick={() => setActiveTab(tab)}
+              onKeyDown={(e) => handleTabKeyDown(e, tab)}
+              style={{ padding: '1rem 1.25rem', background: 'none', border: 'none', borderBottom: activeTab === tab ? '2px solid var(--burgundy-500)' : '2px solid transparent', color: activeTab === tab ? 'var(--navy-800)' : 'var(--slate-600)', fontWeight: activeTab === tab ? 600 : 400, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              {tabLabels[tab] || tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          )
+
           return (
-            <div role="tablist" aria-label="Candidate information" style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--slate-200)', marginBottom: '2rem', overflowX: 'auto' }}>
-              {tabList.map(tab => (
-                <button
-                  key={tab}
-                  id={`candidate-tab-${tab}`}
-                  role="tab"
-                  aria-selected={activeTab === tab}
-                  aria-controls={`candidate-tabpanel-${tab}`}
-                  tabIndex={activeTab === tab ? 0 : -1}
-                  onClick={() => setActiveTab(tab)}
-                  onKeyDown={(e) => handleTabKeyDown(e, tab)}
-                  style={{ padding: '1rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === tab ? '2px solid var(--burgundy-500)' : '2px solid transparent', color: activeTab === tab ? 'var(--navy-800)' : 'var(--slate-600)', fontWeight: activeTab === tab ? 600 : 400, cursor: 'pointer', whiteSpace: 'nowrap' }}
-                >
-                  {tabLabels[tab] || tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </button>
-              ))}
+            <div role="tablist" aria-label="Candidate information" style={{ display: 'flex', gap: '0.25rem', borderBottom: '1px solid var(--slate-200)', marginBottom: '2rem', flexWrap: 'wrap' }}>
+              {visible.map(tabButton)}
+              {overflow.length > 0 && (
+                <details style={{ position: 'relative', marginLeft: 'auto' }}>
+                  <summary style={{ listStyle: 'none', cursor: 'pointer', padding: '1rem 1rem', color: 'var(--slate-600)', fontWeight: 500, userSelect: 'none' }}>
+                    More ▾
+                  </summary>
+                  <div style={{ position: 'absolute', right: 0, top: '100%', background: 'white', border: '1px solid var(--slate-200)', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.08)', minWidth: 180, zIndex: 10, padding: '0.25rem', display: 'flex', flexDirection: 'column' }}>
+                    {overflow.map(tabButton)}
+                  </div>
+                </details>
+              )}
             </div>
           )
         })()}

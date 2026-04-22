@@ -195,9 +195,12 @@ function PetitionsPage() {
         )}
 
         {!loading && !error && petitions.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 64, color: '#475569' }}>
+          <div style={{ textAlign: 'center', padding: 64, color: '#475569', maxWidth: 520, margin: '0 auto' }}>
             <FileText size={48} color="#94a3b8" />
-            <p style={{ fontSize: 18, marginTop: 12 }}>No petitions found matching your filters.</p>
+            <p style={{ fontSize: 18, marginTop: 12, fontWeight: 600 }}>No petitions yet.</p>
+            <p style={{ fontSize: 14, marginTop: 8, lineHeight: 1.55 }}>
+              Petitions are created by voters to demand action from elected officials. Be the first — or browse ongoing accountability work.
+            </p>
           </div>
         )}
 

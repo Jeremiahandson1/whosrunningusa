@@ -137,29 +137,44 @@ function RacesPage() {
         {error && <div className="error-state">{error}</div>}
 
         {!loading && elections.length > 0 && (
-          <div style={{ marginBottom: '2rem' }}>
+          <div style={{ marginBottom: '2.5rem' }}>
             <h2 style={{ marginBottom: '1rem', fontSize: '1.25rem' }}>Upcoming Elections</h2>
-            <div className="feed-grid">
-              {elections.map(election => (
-                <div key={election.id} className="card" style={{ padding: '1.5rem' }}>
-                  <h4 style={{ marginBottom: '0.5rem' }}>{election.name}</h4>
-                  <div style={{ display: 'flex', gap: '1rem', fontSize: '0.875rem', color: 'var(--slate-600)' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <Calendar size={14} /> {formatDate(election.election_date)}
-                    </span>
-                    {election.state && (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                        <MapPin size={14} /> {election.state}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+              {elections.map(election => {
+                const d = election.election_date ? new Date(election.election_date) : null
+                const daysAway = d ? Math.ceil((d - new Date()) / (1000 * 60 * 60 * 24)) : null
+                const isFuture = daysAway != null && daysAway > 0
+                return (
+                  <div key={election.id} className="card" style={{
+                    padding: '1.75rem 1.5rem',
+                    background: 'linear-gradient(135deg, var(--navy-800) 0%, var(--navy-900) 100%)',
+                    color: 'white',
+                    borderLeft: isFuture && daysAway <= 60 ? '4px solid var(--burgundy-500)' : '4px solid transparent',
+                  }}>
+                    <h3 style={{ margin: 0, fontSize: '1.375rem', color: 'white' }}>{election.name}</h3>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '0.75rem', fontSize: '0.9375rem', color: 'rgba(255,255,255,0.85)' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
+                        <Calendar size={16} /> {formatDate(election.election_date)}
                       </span>
+                      {isFuture && (
+                        <span style={{ fontWeight: 700, color: daysAway <= 60 ? '#f59e0b' : '#ffffff' }}>
+                          {daysAway === 1 ? 'Tomorrow' : `${daysAway} days away`}
+                        </span>
+                      )}
+                      {election.state && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
+                          <MapPin size={14} /> {election.state}
+                        </span>
+                      )}
+                    </div>
+                    {election.registration_deadline && (
+                      <p style={{ fontSize: '0.8125rem', color: '#fde68a', marginTop: '0.75rem', marginBottom: 0 }}>
+                        Registration deadline: {formatDate(election.registration_deadline)}
+                      </p>
                     )}
                   </div>
-                  {election.registration_deadline && (
-                    <p style={{ fontSize: '0.8125rem', color: 'var(--warning)', marginTop: '0.5rem', marginBottom: 0 }}>
-                      Registration deadline: {formatDate(election.registration_deadline)}
-                    </p>
-                  )}
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}

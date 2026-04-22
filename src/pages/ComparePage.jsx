@@ -208,7 +208,7 @@ function ComparePage() {
           <div>
             <div style={{ marginBottom: '2rem' }}>
               <h3 style={{ marginBottom: '1rem' }}>Search for candidates to compare</h3>
-              <div style={{ display: 'flex', gap: '1rem', maxWidth: 500 }}>
+              <div style={{ display: 'flex', gap: '1rem' }}>
                 <div style={{ flex: 1, position: 'relative' }}>
                   <Search size={20} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-500)' }} />
                   <input
@@ -216,8 +216,8 @@ function ComparePage() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    placeholder="Search by name..."
-                    style={{ paddingLeft: '3rem', paddingRight: searchQuery ? '4.5rem' : '1rem' }}
+                    placeholder="Search by name — e.g. 'Andy Kim'"
+                    style={{ paddingLeft: '3rem', paddingRight: searchQuery ? '4.5rem' : '1rem', width: '100%' }}
                   />
                   <div style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                     {loading && searchQuery && (
@@ -235,6 +235,9 @@ function ComparePage() {
                   </div>
                 </div>
                 <button className="btn btn-primary" onClick={handleSearch}>Search</button>
+              </div>
+              <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--slate-600)' }}>
+                or <Link to="/races" style={{ color: 'var(--navy-700)', fontWeight: 600 }}>browse by race →</Link>
               </div>
             </div>
 

@@ -248,13 +248,9 @@ function HomePage() {
         </div>
       </section>
 
-      {/* Search Section */}
-      <section style={{ background: 'var(--navy-800)', padding: '3rem 0' }}>
+      {/* Search Section — slim band, no repeat of the hero's pitch */}
+      <section style={{ background: 'var(--navy-800)', padding: '2rem 0' }}>
         <div className="container" style={{ maxWidth: 650 }}>
-          <h2 style={{ color: 'white', textAlign: 'center', marginBottom: '0.5rem' }}>Find your candidates right now</h2>
-          <p style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginBottom: '1.5rem' }}>
-            Search by name, office, or location.
-          </p>
           <div style={{ display: 'flex', gap: '0.75rem' }}>
             <div style={{ flex: 1, position: 'relative' }}>
               <Search size={20} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-400)' }} />

@@ -475,14 +475,25 @@ function AccountabilityPage() {
           <div style={styles.errorBox}>{error}</div>
         )}
 
-        {!loading && !error && politicians.length === 0 && (
-          <div style={styles.center}>
-            <Shield size={48} color="#94a3b8" />
-            <p style={{ fontSize: '18px', marginTop: '12px' }}>
-              No politicians found matching your filters.
-            </p>
-          </div>
-        )}
+        {!loading && !error && politicians.length === 0 && (() => {
+          const hasFilters = party || state || chamber || topic
+          return (
+            <div style={{ ...styles.center, maxWidth: 520, margin: '0 auto' }}>
+              <Shield size={48} color="#94a3b8" />
+              <p style={{ fontSize: '18px', marginTop: '12px', fontWeight: 600 }}>
+                {hasFilters ? 'No politicians match your filters.' : 'Accountability scores aren\'t populated yet.'}
+              </p>
+              <p style={{ fontSize: '14px', color: '#64748b', marginTop: 8, lineHeight: 1.55 }}>
+                {hasFilters
+                  ? 'Try widening your filters, or browse all candidates to see who\'s running.'
+                  : 'Scores are computed from voting records and campaign promises. As data syncs come online, this leaderboard will fill in.'}
+              </p>
+              <Link to="/explore" style={{ display: 'inline-block', marginTop: 16, color: '#9f1239', fontWeight: 600 }}>
+                Browse candidates instead →
+              </Link>
+            </div>
+          )
+        })()}
 
         {!loading && !error && politicians.length > 0 && (
           <>

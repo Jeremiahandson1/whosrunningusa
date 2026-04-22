@@ -122,14 +122,22 @@ function TransparencyPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
               {stats.by_type.map(t => {
                 const typeLabel = REQUIREMENT_TYPES.find(r => r.value === t.requirement_type)?.label || t.requirement_type
+                const score = Number(t.avg_score)
+                const hasData = Number.isFinite(score) && score > 0
                 return (
                   <div key={t.requirement_type} style={{ padding: 12, border: '1px solid #f1f5f9', borderRadius: 8 }}>
                     <div style={{ fontWeight: 600, fontSize: 14, color: '#1e293b', marginBottom: 4 }}>{typeLabel}</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: t.avg_score >= 70 ? '#16a34a' : t.avg_score >= 40 ? '#ca8a04' : '#dc2626' }}>
-                      {t.avg_score || 0}%
-                    </div>
+                    {hasData ? (
+                      <div style={{ fontSize: 22, fontWeight: 800, color: score >= 70 ? '#16a34a' : score >= 40 ? '#ca8a04' : '#dc2626' }}>
+                        {Math.round(score)}%
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 13, fontWeight: 500, color: '#94a3b8', padding: '4px 0' }}>
+                        Not yet tracked
+                      </div>
+                    )}
                     <div style={{ fontSize: 11, color: '#475569' }}>
-                      {t.requirement_count} requirements · {t.non_compliant} non-compliant
+                      {t.requirement_count} requirements{hasData ? ` · ${t.non_compliant} non-compliant` : ''}
                     </div>
                   </div>
                 )

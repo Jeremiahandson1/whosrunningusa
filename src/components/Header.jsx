@@ -178,36 +178,65 @@ function Header() {
     { path: '/find-my-ballot', label: 'My Ballot' },
     { path: '/explore', label: 'Candidates' },
     { path: '/races', label: 'Races' },
-    { path: '/accountability', label: 'Accountability' },
     { path: '/follow-the-money', label: 'Follow the Money' },
   ]
 
-  const moreLinks = [
-    { path: '/accountability-mirror', label: 'Mirror' },
-    { path: '/petitions', label: 'Petitions' },
-    { path: '/trading-monitor', label: 'Trading Monitor' },
-    { path: '/revolving-door', label: 'Revolving Door' },
-    { path: '/transparency', label: 'Transparency' },
-    { path: '/endorsements', label: 'Endorsements' },
-    { path: '/town-halls', label: 'Town Halls' },
-    { path: '/issue-match', label: 'Issue Match' },
-    { path: '/foreign-aid', label: 'Foreign Aid' },
-    { path: '/foreign-influence', label: 'Foreign Influence' },
-    { path: '/dark-money', label: 'Dark Money' },
-    { path: '/they-took-it', label: 'They Took It' },
-    { path: '/promises', label: 'Promise Tracker' },
-    { path: '/cost-calculator', label: 'Cost to You' },
-    { path: '/conflicts', label: 'Conflict Scanner' },
-    { path: '/rubber-stamp', label: 'Rubber Stamp' },
-    { path: '/ballot-measures', label: 'Ballot Measures' },
-    { path: '/gerrymandering', label: 'Gerrymandering' },
-    { path: '/voter-access', label: 'Voter Access' },
-    { path: '/pac-pledge', label: 'PAC Pledge' },
-    { path: '/widgets', label: 'Widgets' },
-    { path: '/claim-profile', label: 'Claim Profile' },
-    { path: '/how-it-works', label: 'How It Works' },
-    ...(user ? [{ path: '/feed', label: 'Feed' }, { path: '/connections', label: 'Connections' }] : []),
+  // Tools menu — grouped into sections. Sections are visual-only; rendering
+  // iterates each group with a small heading, otherwise items behave like
+  // before (plain links that route normally).
+  const toolGroups = [
+    {
+      heading: 'Compare & Match',
+      items: [
+        { path: '/issue-match', label: 'Issue Match' },
+        { path: '/accountability-mirror', label: 'Accountability Mirror' },
+        { path: '/accountability', label: 'Accountability Leaderboard' },
+      ],
+    },
+    {
+      heading: 'Transparency',
+      items: [
+        { path: '/transparency', label: 'Transparency Compliance' },
+        { path: '/rubber-stamp', label: 'Rubber Stamp' },
+        { path: '/promises', label: 'Promise Tracker' },
+        { path: '/conflicts', label: 'Conflict Scanner' },
+        { path: '/pac-pledge', label: 'PAC Pledge' },
+      ],
+    },
+    {
+      heading: 'Money & Influence',
+      items: [
+        { path: '/trading-monitor', label: 'Trading Monitor' },
+        { path: '/revolving-door', label: 'Revolving Door' },
+        { path: '/dark-money', label: 'Dark Money' },
+        { path: '/foreign-influence', label: 'Foreign Influence' },
+        { path: '/foreign-aid', label: 'Foreign Aid' },
+        { path: '/they-took-it', label: 'They Took It' },
+      ],
+    },
+    {
+      heading: 'Your Vote',
+      items: [
+        { path: '/voter-access', label: 'Voter Access' },
+        { path: '/gerrymandering', label: 'Gerrymandering' },
+        { path: '/ballot-measures', label: 'Ballot Measures' },
+        { path: '/cost-calculator', label: 'Cost to You' },
+      ],
+    },
+    {
+      heading: 'Community',
+      items: [
+        { path: '/petitions', label: 'Petitions' },
+        { path: '/endorsements', label: 'Endorsements' },
+        { path: '/town-halls', label: 'Town Halls' },
+        { path: '/widgets', label: 'Widgets' },
+        { path: '/claim-profile', label: 'Claim Profile' },
+        { path: '/how-it-works', label: 'How It Works' },
+        ...(user ? [{ path: '/feed', label: 'Feed' }, { path: '/connections', label: 'Connections' }] : []),
+      ],
+    },
   ]
+  const moreLinks = toolGroups.flatMap(g => g.items)
 
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
   const moreMenuRef = useRef(null)
@@ -365,33 +394,42 @@ function Header() {
               onClick={() => setMoreMenuOpen(!moreMenuOpen)}
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
             >
-              More <ChevronDown size={14} />
+              Tools <ChevronDown size={14} />
             </button>
             {moreMenuOpen && (
               <>
                 <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setMoreMenuOpen(false)} />
                 <div style={{
-                  position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
+                  position: 'absolute', top: '100%', right: 0,
                   marginTop: '0.5rem', background: 'white', borderRadius: '0.5rem',
                   boxShadow: '0 4px 24px rgba(0,0,0,0.12)', border: '1px solid var(--slate-200)',
-                  zIndex: 100, overflow: 'hidden', minWidth: '180px',
+                  zIndex: 100, overflow: 'hidden',
+                  display: 'grid', gridTemplateColumns: 'repeat(2, minmax(180px, 1fr))',
+                  gap: '0 0.5rem', padding: '0.75rem', maxWidth: 480,
                 }}>
-                  {moreLinks.map(link => (
-                    <Link
-                      key={link.path}
-                      to={link.path}
-                      onClick={() => setMoreMenuOpen(false)}
-                      style={{
-                        display: 'block', padding: '0.625rem 1rem',
-                        fontSize: '0.875rem', color: location.pathname === link.path ? 'var(--navy-800)' : 'var(--slate-700)',
-                        fontWeight: location.pathname === link.path ? 600 : 400,
-                        background: location.pathname === link.path ? 'var(--slate-50)' : 'white',
-                        borderBottom: '1px solid var(--slate-100)',
-                        textDecoration: 'none',
-                      }}
-                    >
-                      {link.label}
-                    </Link>
+                  {toolGroups.map(group => (
+                    <div key={group.heading} style={{ marginBottom: '0.5rem' }}>
+                      <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--slate-500)', padding: '0.375rem 0.5rem 0.25rem' }}>
+                        {group.heading}
+                      </div>
+                      {group.items.map(link => (
+                        <Link
+                          key={link.path}
+                          to={link.path}
+                          onClick={() => setMoreMenuOpen(false)}
+                          style={{
+                            display: 'block', padding: '0.375rem 0.5rem',
+                            fontSize: '0.875rem', color: location.pathname === link.path ? 'var(--navy-800)' : 'var(--slate-700)',
+                            fontWeight: location.pathname === link.path ? 600 : 400,
+                            background: location.pathname === link.path ? 'var(--slate-50)' : 'transparent',
+                            borderRadius: 4,
+                            textDecoration: 'none',
+                          }}
+                        >
+                          {link.label}
+                        </Link>
+                      ))}
+                    </div>
                   ))}
                 </div>
               </>

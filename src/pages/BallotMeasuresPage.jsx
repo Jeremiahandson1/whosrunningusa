@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { FileText, ChevronLeft, ChevronRight, Filter, DollarSign, Building2, ChevronDown, ChevronUp, Search } from 'lucide-react'
 import api from '../utils/api'
 import SourceCitation from '../components/SourceCitation'
@@ -330,9 +330,15 @@ function BallotMeasuresPage() {
 
         {/* Empty */}
         {!loading && !error && measures.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 64, color: '#475569' }}>
+          <div style={{ textAlign: 'center', padding: 64, color: '#475569', maxWidth: 520, margin: '0 auto' }}>
             <FileText size={48} color="#94a3b8" />
-            <p style={{ fontSize: 18, marginTop: 12 }}>No ballot measures found matching your filters.</p>
+            <p style={{ fontSize: 18, marginTop: 12, fontWeight: 600 }}>No ballot measures tracked yet.</p>
+            <p style={{ fontSize: 14, marginTop: 8, lineHeight: 1.55 }}>
+              Ballot measure data populates as state election offices certify initiatives for upcoming ballots. Check back as 2026 ballots finalize.
+            </p>
+            <Link to="/races" style={{ display: 'inline-block', marginTop: 16, color: '#9f1239', fontWeight: 600 }}>
+              Browse upcoming elections →
+            </Link>
           </div>
         )}
 
