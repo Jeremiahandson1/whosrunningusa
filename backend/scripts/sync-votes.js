@@ -27,10 +27,18 @@ const CURRENT_CONGRESS = 119;
 const CURRENT_SESSION = 1;
 const CURRENT_YEAR = 2025;
 
-async function fetchText(url) {
-  const res = await fetch(url, { redirect: 'follow' });
-  if (!res.ok) return null;
-  return res.text();
+async function fetchText(url, timeoutMs = 15000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { redirect: 'follow', signal: ctrl.signal });
+    if (!res.ok) return null;
+    return await res.text();
+  } catch {
+    return null; // timeout or network error — caller treats as "no data"
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 // -- House Clerk XML ---------------------------------------------------------

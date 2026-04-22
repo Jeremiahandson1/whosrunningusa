@@ -701,7 +701,7 @@ router.get('/:id/voting-record', async (req, res) => {
         b.chamber as bill_chamber
        FROM voting_records vr
        JOIN vote_events ve ON vr.vote_event_id = ve.id
-       LEFT JOIN bills b ON vr.bill_id IS NOT NULL AND vr.bill_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' AND vr.bill_id::uuid = b.id
+       LEFT JOIN bills b ON vr.bill_id = b.id
        WHERE vr.candidate_id = $1
        ORDER BY ve.vote_date DESC NULLS LAST
        LIMIT $2 OFFSET $3`,
