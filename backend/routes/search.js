@@ -87,6 +87,12 @@ router.get('/', async (req, res, next) => {
 router.get('/candidates/by-location', async (req, res, next) => {
   try {
     const { state, county, city, officeLevel, search, limit = 50, offset = 0 } = req.query;
+    // Normalize a house district param to two-digit string ('7' -> '07');
+    // undefined when not given. Frontend sends this after address lookup.
+    const districtRaw = req.query.district != null ? String(req.query.district).trim() : '';
+    const districtTwo = districtRaw && /^\d+$/.test(districtRaw)
+      ? String(parseInt(districtRaw, 10)).padStart(2, '0')
+      : (districtRaw || null);
 
     const params = [];
     let paramIndex = 1;
@@ -170,6 +176,19 @@ router.get('/candidates/by-location', async (req, res, next) => {
       paramIndex++;
     }
 
+    // When a specific district is known (from address lookup), tighten the
+    // district-scoped office filter to just that district. Statewide offices
+    // (no district set) still pass through.
+    if (districtTwo) {
+      query += ` AND (
+        o.district IS NULL OR o.district = ''
+        OR o.district = $${paramIndex}
+        OR o.district = $${paramIndex + 1}
+      )`;
+      params.push(districtTwo, String(parseInt(districtTwo, 10)));
+      paramIndex += 2;
+    }
+
     // Query 2: FEC candidates by state — Senate/President always apply to the
     // whole state, so include them even when a county is specified.
     if (state && !city) {
@@ -245,7 +264,30 @@ router.get('/candidates/by-location', async (req, res, next) => {
       params.push(county);
       paramIndex += 3;
     }
-    
+
+    // Query 4: When we know the exact district (from address lookup), match
+    // FEC House candidates directly by fec_district. More precise than the
+    // county-based Query 3 mapping.
+    if (state && districtTwo && !city) {
+      query += `
+        UNION
+        SELECT DISTINCT cp.id, cp.display_name, cp.party_affiliation, cp.official_title,
+               cp.campaign_website, cp.fec_candidate_id, cp.candidate_verified,
+               cp.identity_verified, cp.incumbent_verified, cp.is_shadow_profile,
+               cp.qa_response_rate, NULL as first_name, NULL as last_name,
+               'federal' as office_level,
+               'U.S. House District ' || TRIM(LEADING '0' FROM cp.fec_district) as office_name,
+               'fec_district' as source
+        FROM candidate_profiles cp
+        WHERE cp.is_active = TRUE${nameFilter}
+          AND cp.fec_state = $${paramIndex}
+          AND cp.fec_office_type = 'H'
+          AND (cp.fec_district = $${paramIndex + 1} OR cp.fec_district = $${paramIndex + 2})
+      `;
+      params.push(state, districtTwo, String(parseInt(districtTwo, 10)));
+      paramIndex += 3;
+    }
+
     // The UNION above deduplicates only when every column matches, but a
     // candidate matching both Query 1 (local office chain) and Query 2/3
     // (FEC lookups) gets a different office_name/source and slips through.

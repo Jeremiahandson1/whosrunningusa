@@ -183,6 +183,7 @@ app.use('/api/posts', require('./routes/posts'));
 app.use('/api/town-halls', require('./routes/townHalls'));
 app.use('/api/issues', require('./routes/issues'));
 app.use('/api/search', require('./routes/search'));
+app.use('/api/lookup', require('./routes/lookup'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/bills', require('./routes/bills'));
 app.use('/api/contact', require('./routes/contact'));

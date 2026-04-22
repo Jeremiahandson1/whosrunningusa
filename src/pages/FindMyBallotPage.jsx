@@ -26,6 +26,12 @@ function FindMyBallotPage() {
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
   const [validationError, setValidationError] = useState('')
+  const [address, setAddress] = useState('')
+  // resolvedDistrict is null/undefined until an address is successfully resolved
+  // to a House district via the Census geocoder.
+  const [resolvedDistrict, setResolvedDistrict] = useState(null)
+  const [resolvedAddress, setResolvedAddress] = useState(null)
+  const [addressError, setAddressError] = useState('')
 
   useEffect(() => {
     if (!state) {
@@ -40,25 +46,59 @@ function FindMyBallotPage() {
 
   const handleSearch = async (e) => {
     if (e && typeof e.preventDefault === 'function') e.preventDefault()
-    if (!state) {
-      setValidationError('Please select a state to find candidates on your ballot.')
+    if (!state && !address.trim()) {
+      setValidationError('Enter your address, or pick a state to find candidates.')
       return
     }
     setValidationError('')
+    setAddressError('')
     setLoading(true)
     setSearched(true)
+
+    // Effective filter values — start from the form, then override with geocoder
+    // results if the user provided an address.
+    let useState = state
+    let useCounty = county
+    let useDistrict = null
+    let matched = null
+
     try {
-      const params = new URLSearchParams({ state, limit: '100' })
-      if (county) params.set('county', county)
+      if (address.trim()) {
+        const geo = await api.get(`/lookup/address-to-district?address=${encodeURIComponent(address.trim())}`)
+          .catch((err) => { throw new Error(err?.message || 'Address lookup failed') })
+        if (geo && geo.state) {
+          useState = geo.state
+          useCounty = geo.county || ''
+          useDistrict = geo.district || null
+          matched = geo.matchedAddress
+          setResolvedAddress(matched)
+          setResolvedDistrict(useDistrict)
+          // Reflect resolved values in the form so the user sees what we used
+          if (geo.state && geo.state !== state) setState(geo.state)
+          if (geo.county) setCounty(geo.county)
+        } else {
+          setAddressError("We couldn't find that address. Try a more specific format — e.g. 123 Main St, Eau Claire, WI 54701.")
+          setLoading(false)
+          return
+        }
+      } else {
+        setResolvedAddress(null)
+        setResolvedDistrict(null)
+      }
+
+      const params = new URLSearchParams({ state: useState, limit: '100' })
+      if (useCounty) params.set('county', useCounty)
+      if (useDistrict) params.set('district', useDistrict)
 
       const [candidateData, raceData] = await Promise.all([
         api.get(`/search/candidates/by-location?${params.toString()}`).catch(() => ({ candidates: [] })),
-        api.get(`/races?state=${state}&limit=50`).catch(() => ({ races: [] })),
+        api.get(`/races?state=${useState}&limit=50`).catch(() => ({ races: [] })),
       ])
 
       setCandidates(candidateData.candidates || [])
       setRaces(raceData.races || [])
-    } catch {
+    } catch (err) {
+      setAddressError(err?.message || 'Address lookup failed. Try the dropdowns instead.')
       setCandidates([])
       setRaces([])
     } finally {
@@ -94,10 +134,11 @@ function FindMyBallotPage() {
       <div className="container" style={{ paddingTop: '2rem', paddingBottom: '3rem' }}>
         {/* Intro — explain what the user gets before they submit */}
         <div style={{ maxWidth: 720, margin: '0 auto 1.5rem', color: 'var(--slate-700)', lineHeight: 1.65 }}>
-          Pick your state (and county if you want a narrower slice) and we'll
-          show every candidate running for federal, state, and local office
-          where you live — grouped by level, with their response rate and
-          party, so you can start learning before you vote.
+          Enter your address for a precise ballot (we resolve it to your exact
+          congressional district via the U.S. Census geocoder — address never
+          stored). Or pick a state and county for a broader view. Either way
+          we show every candidate running for federal, state, and local
+          office where you live.
         </div>
 
         {/* Location Selection */}
@@ -107,7 +148,39 @@ function FindMyBallotPage() {
             <h2 style={{ margin: 0 }}>Enter Your Location</h2>
           </div>
 
-          <form onSubmit={handleSearch} style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <form onSubmit={handleSearch}>
+            {/* Street address — optional, most precise */}
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label htmlFor="ballot-address" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.375rem' }}>
+                Street address <span style={{ color: 'var(--slate-500)', fontWeight: 400 }}>(optional, most precise)</span>
+              </label>
+              <input
+                id="ballot-address"
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="123 Main St, Eau Claire, WI 54701"
+                style={{ width: '100%' }}
+                autoComplete="street-address"
+              />
+              {addressError && (
+                <div role="alert" style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: 'rgba(197,48,48,0.08)', borderRadius: 6, color: 'var(--error)', fontSize: '0.8125rem' }}>
+                  {addressError}
+                </div>
+              )}
+              {resolvedAddress && !addressError && (
+                <div style={{ marginTop: '0.5rem', fontSize: '0.8125rem', color: 'var(--slate-600)' }}>
+                  Resolved to <strong>{resolvedAddress}</strong>
+                  {resolvedDistrict && <> — House district <strong>{parseInt(resolvedDistrict, 10)}</strong></>}
+                </div>
+              )}
+            </div>
+
+            <div style={{ fontSize: '0.8125rem', color: 'var(--slate-500)', margin: '0 0 0.75rem' }}>
+              — or pick from dropdowns —
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div style={{ flex: 1, minWidth: 200 }}>
               <label htmlFor="ballot-state" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.375rem' }}>
                 State *
@@ -145,14 +218,15 @@ function FindMyBallotPage() {
               </select>
             </div>
 
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={loading}
-              style={{ padding: '0.75rem 1.5rem', whiteSpace: 'nowrap' }}
-            >
-              <Search size={18} /> {loading ? 'Searching...' : 'Find My Ballot'}
-            </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={loading}
+                style={{ padding: '0.75rem 1.5rem', whiteSpace: 'nowrap' }}
+              >
+                <Search size={18} /> {loading ? 'Searching...' : 'Find My Ballot'}
+              </button>
+            </div>
           </form>
           {validationError && (
             <div role="alert" aria-live="assertive" style={{ marginTop: '1rem', padding: '0.75rem 1rem', background: 'rgba(197,48,48,0.08)', borderRadius: 6, color: 'var(--error)', fontSize: '0.875rem' }}>
