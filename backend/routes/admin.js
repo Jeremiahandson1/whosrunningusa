@@ -70,6 +70,29 @@ router.get('/sync-logs', adminAuth, async (req, res) => {
 });
 
 /**
+ * GET /api/admin/env-check
+ * Reports which expected env vars are SET on the API service (values never
+ * returned). Used to diagnose why a spawned sync step self-skips.
+ */
+router.get('/env-check', adminAuth, (req, res) => {
+  const keys = [
+    'DATABASE_URL', 'JWT_SECRET', 'NODE_ENV', 'FRONTEND_URL',
+    'FEC_API_KEY', 'OPEN_STATES_API_KEY', 'CONGRESS_GOV_API_KEY',
+    'VOTE_SMART_API_KEY', 'ANTHROPIC_API_KEY',
+    'ADMIN_API_KEY', 'SENTRY_DSN', 'STRIPE_SECRET_KEY',
+    'AWS_ACCESS_KEY_ID', 'S3_BUCKET',
+    'QUIVER_API_KEY', 'OPENSECRETS_API_KEY',
+    'SYNC_FEC_CYCLE',
+  ];
+  const present = {};
+  for (const k of keys) {
+    const v = process.env[k];
+    present[k] = v ? { set: true, length: v.length } : { set: false };
+  }
+  res.json({ process_pid: process.pid, present });
+});
+
+/**
  * POST /api/admin/trigger-sync
  * Body: { steps: 'fec,congress,congress-bills,congress-sponsorships,committees' }
  * Runs the sync-scheduler as a child process so logs land in sync_logs.
