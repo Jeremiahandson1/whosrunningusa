@@ -33,23 +33,41 @@ async function upsertCommittee(c, parentId = null) {
   const chamber = chamberMap[c.type] || null;
   const committeeType = c.type || null;
   const thomasId = c.thomas_id || null;
+
+  // legislative_committees has no UNIQUE on name, so ON CONFLICT never
+  // fires and a naive INSERT creates a fresh row per run. Check-then-
+  // insert by (congress_id OR name) to stay idempotent across re-runs.
+  const existing = await db.query(
+    `SELECT id FROM legislative_committees
+      WHERE ($1::text IS NOT NULL AND congress_id = $1) OR name = $2
+      ORDER BY created_at ASC
+      LIMIT 1`,
+    [thomasId, c.name]
+  );
+  if (existing.rows.length > 0) {
+    // Keep the metadata fresh on the existing row
+    await db.query(
+      `UPDATE legislative_committees
+          SET short_name = COALESCE($2, short_name),
+              chamber = COALESCE($3, chamber),
+              committee_type = COALESCE($4, committee_type),
+              parent_committee_id = COALESCE($5, parent_committee_id),
+              congress_id = COALESCE($6, congress_id),
+              updated_at = NOW()
+        WHERE id = $1`,
+      [existing.rows[0].id, c.short_name || null, chamber, committeeType, parentId, thomasId]
+    );
+    return existing.rows[0].id;
+  }
+
   const result = await db.query(
     `INSERT INTO legislative_committees (name, short_name, chamber, committee_type, parent_committee_id,
        jurisdiction_level, congress_id, is_active)
      VALUES ($1, $2, $3, $4, $5, 'federal', $6, TRUE)
-     ON CONFLICT DO NOTHING
      RETURNING id`,
     [c.name, c.short_name || null, chamber, committeeType, parentId, thomasId]
   );
-  if (result.rows[0]) return result.rows[0].id;
-  // Already exists — look it up by congress_id or name
-  const existing = await db.query(
-    `SELECT id FROM legislative_committees
-     WHERE ($1::text IS NOT NULL AND congress_id = $1) OR name = $2
-     LIMIT 1`,
-    [thomasId, c.name]
-  );
-  return existing.rows[0]?.id || null;
+  return result.rows[0]?.id || null;
 }
 
 async function main() {

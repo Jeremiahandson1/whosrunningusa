@@ -929,16 +929,18 @@ router.get('/:id/background', async (req, res) => {
         [id]
       ),
       safe(
-        // DISTINCT ON (committee_id) collapses rows that got duplicated when
-        // the sync ran with a NULL start_date (UNIQUE treats NULLs as distinct).
-        // Wrapping in a subquery so the final output can be sorted by name.
+        // The legislative_committees table got seeded with duplicate rows
+        // per committee name (no unique constraint on name, and the old
+        // upsert used ON CONFLICT DO NOTHING which never fired). Dedupe on
+        // committee name at read time so the UI always shows each committee
+        // exactly once, regardless of how many DB rows exist.
         `SELECT * FROM (
-           SELECT DISTINCT ON (cm.committee_id)
+           SELECT DISTINCT ON (c.name)
                   cm.*, c.name as committee_name, c.chamber, c.parent_committee_id
              FROM committee_memberships cm
              JOIN legislative_committees c ON cm.committee_id = c.id
             WHERE cm.candidate_id = $1
-            ORDER BY cm.committee_id, cm.is_chair DESC, cm.is_ranking_member DESC, cm.created_at ASC
+            ORDER BY c.name, cm.is_chair DESC, cm.is_ranking_member DESC, cm.created_at ASC
          ) deduped
          ORDER BY committee_name`,
         [id]
