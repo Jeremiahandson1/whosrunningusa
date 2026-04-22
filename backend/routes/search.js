@@ -122,11 +122,34 @@ router.get('/candidates/by-location', async (req, res, next) => {
     }
     
     if (county) {
-      // A county filter should narrow *local* offices but still include
-      // federal + statewide offices (which have no county set).
-      query += ` AND (o.county = $${paramIndex} OR o.county IS NULL OR o.office_level IN ('federal','state'))`;
-      params.push(county);
-      paramIndex++;
+      // Narrow to offices that *could be on this voter's ballot* —
+      //  - Local offices in the same county (o.county matches);
+      //  - Statewide offices (Senate / Governor / President) which have no
+      //    district scope (o.district IS NULL or empty);
+      //  - District-scoped offices (U.S. House, state-leg districts) only
+      //    when the district actually overlaps this county, via the
+      //    district_county_mappings lookup.
+      query += ` AND (
+        o.county = $${paramIndex}
+        OR (o.county IS NULL AND (o.district IS NULL OR o.district = ''))
+        OR (o.district IS NOT NULL AND o.district <> '' AND o.district IN (
+          SELECT TRIM(LEADING '0' FROM cd.district_number)
+            FROM district_county_mappings dcm
+            JOIN congressional_districts cd ON dcm.district_id = cd.id
+            JOIN counties c ON dcm.county_geoid = c.county_geoid
+           WHERE c.state_abbr = $${paramIndex + 1}
+             AND LOWER(c.county_name) = LOWER($${paramIndex + 2})
+          UNION
+          SELECT cd.district_number
+            FROM district_county_mappings dcm
+            JOIN congressional_districts cd ON dcm.district_id = cd.id
+            JOIN counties c ON dcm.county_geoid = c.county_geoid
+           WHERE c.state_abbr = $${paramIndex + 1}
+             AND LOWER(c.county_name) = LOWER($${paramIndex + 2})
+        ))
+      )`;
+      params.push(county, state, county);
+      paramIndex += 3;
     }
 
     if (city) {
