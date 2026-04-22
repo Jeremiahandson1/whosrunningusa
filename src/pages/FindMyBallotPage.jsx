@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { MapPin, Search, ChevronRight, CheckCircle, ArrowRight, Users } from 'lucide-react'
 import api from '../utils/api'
 import Breadcrumbs from '../components/Breadcrumbs'
+import { partyColor, responseRateDisplay } from '../utils/candidateDisplay'
 
 const STATE_NAMES = {
   AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',
@@ -188,6 +189,7 @@ function FindMyBallotPage() {
                           to={`/candidate/${candidate.id}`}
                           key={candidate.id}
                           className="card candidate-card"
+                          style={{ borderLeft: `4px solid ${partyColor(candidate.party_affiliation)}` }}
                         >
                           <div className="candidate-card-top">
                             <div className="candidate-avatar">
@@ -207,15 +209,17 @@ function FindMyBallotPage() {
                             </div>
                           </div>
                           <div className="candidate-stats">
-                            <div className="stat">
-                              <div className="stat-value" style={{
-                                color: (candidate.qa_response_rate || 0) >= 80 ? 'var(--success)' :
-                                       (candidate.qa_response_rate || 0) >= 50 ? 'var(--warning)' : 'var(--error)'
-                              }}>
-                                {candidate.qa_response_rate || 0}%
-                              </div>
-                              <div className="stat-label">Response Rate</div>
-                            </div>
+                            {(() => {
+                              const rr = responseRateDisplay(candidate)
+                              return (
+                                <div className="stat">
+                                  <div className="stat-value" style={{ color: rr.color, fontSize: rr.isEmpty ? '0.8125rem' : undefined, fontWeight: rr.isEmpty ? 500 : undefined }}>
+                                    {rr.value}
+                                  </div>
+                                  <div className="stat-label">Response Rate</div>
+                                </div>
+                              )
+                            })()}
                           </div>
                         </Link>
                       )

@@ -9,6 +9,7 @@ import USMap from '../components/USMap'
 import { SkeletonCard } from '../components/Skeleton'
 import useDebounce from '../hooks/useDebounce'
 import { formatDisplayName } from '../utils/formatName'
+import { partyColor, responseRateDisplay } from '../utils/candidateDisplay'
 
 const levels = [
   { value: 'all', label: 'All Levels' },
@@ -48,6 +49,7 @@ function ExplorePage() {
   const [viewMode, setViewMode] = useState('grid')
   const [showFilters, setShowFilters] = useState(false)
   const [candidates, setCandidates] = useState([])
+  const [totalCount, setTotalCount] = useState(null)
   const [loading, setLoading] = useState(true)
   const [searching, setSearching] = useState(false)
   const [hasMore, setHasMore] = useState(false)
@@ -120,8 +122,10 @@ function ExplorePage() {
         const results = data.candidates || []
         setCandidates(results)
         setHasMore(results.length >= PAGE_SIZE)
+        if (typeof data.total === 'number') setTotalCount(data.total)
+        else setTotalCount(null)
       })
-      .catch(() => setCandidates([]))
+      .catch(() => { setCandidates([]); setTotalCount(null) })
       .finally(() => {
         setLoading(false)
         setSearching(false)
@@ -403,7 +407,11 @@ function ExplorePage() {
             border: '1px solid var(--slate-200)',
           }} aria-live="polite">
             <span style={{ fontSize: '0.875rem', color: 'var(--slate-600)', marginRight: '0.25rem' }}>
-              {loading ? 'Searching...' : <>Showing <strong>{candidates.length}</strong> candidates</>}
+              {loading
+                ? 'Searching...'
+                : totalCount != null && totalCount > candidates.length
+                  ? <>Showing <strong>{candidates.length}</strong> of <strong>{totalCount}</strong> candidates</>
+                  : <>Showing <strong>{candidates.length}</strong> candidates</>}
             </span>
 
             {searchQuery && (
@@ -473,7 +481,11 @@ function ExplorePage() {
 
         {!hasActiveFilters && (
           <div style={{ marginBottom: '1rem', color: 'var(--slate-600)' }} aria-live="polite">
-            {loading ? 'Searching...' : <>Showing <strong>{candidates.length}</strong> candidates</>}
+            {loading
+              ? 'Searching...'
+              : totalCount != null && totalCount > candidates.length
+                ? <>Showing <strong>{candidates.length}</strong> of <strong>{totalCount}</strong> candidates</>
+                : <>Showing <strong>{candidates.length}</strong> candidates</>}
           </div>
         )}
 
@@ -493,7 +505,10 @@ function ExplorePage() {
               to={`/candidate/${candidate.id}`}
               key={candidate.id}
               className="card candidate-card"
-              style={viewMode === 'list' ? { display: 'flex', flexDirection: 'row', alignItems: 'center', marginBottom: '1rem', padding: '1.25rem' } : {}}
+              style={{
+                borderLeft: `4px solid ${partyColor(candidate.party_affiliation)}`,
+                ...(viewMode === 'list' ? { display: 'flex', flexDirection: 'row', alignItems: 'center', marginBottom: '1rem', padding: '1.25rem' } : {}),
+              }}
             >
               <div className="candidate-card-top" style={viewMode === 'list' ? { marginBottom: 0, flex: 1 } : {}}>
                 <div className="candidate-avatar">
@@ -517,20 +532,17 @@ function ExplorePage() {
                 </div>
               </div>
               <div className="candidate-stats" style={viewMode === 'list' ? { borderTop: 'none', borderLeft: '1px solid var(--slate-200)', paddingTop: 0, paddingLeft: '1.5rem', marginTop: 0, marginLeft: '1.5rem', minWidth: '200px' } : {}}>
-                <div className="stat">
-                  <div className="stat-value" style={{
-                    color: (candidate.qa_response_rate || 0) >= 80 ? 'var(--success)' :
-                           (candidate.qa_response_rate || 0) >= 50 ? 'var(--warning)' : 'var(--error)'
-                  }}>
-                    {candidate.qa_response_rate || 0}%
-                  </div>
-                  <div className="stat-label">
-                    Response Rate{' '}
-                    <span style={{ fontWeight: 600 }}>
-                      ({(candidate.qa_response_rate || 0) >= 80 ? 'High' : (candidate.qa_response_rate || 0) >= 50 ? 'Medium' : 'Low'})
-                    </span>
-                  </div>
-                </div>
+                {(() => {
+                  const rr = responseRateDisplay(candidate)
+                  return (
+                    <div className="stat">
+                      <div className="stat-value" style={{ color: rr.color, fontSize: rr.isEmpty ? '0.9375rem' : undefined, fontWeight: rr.isEmpty ? 500 : undefined }}>
+                        {rr.value}
+                      </div>
+                      <div className="stat-label">{rr.label}</div>
+                    </div>
+                  )
+                })()}
                 <div className="stat">
                   <div className="stat-value">{candidate.total_questions_received || 0}</div>
                   <div className="stat-label">Questions</div>

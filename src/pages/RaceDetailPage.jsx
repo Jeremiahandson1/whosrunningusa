@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
 import { formatDate } from '../utils/dateFormat'
 import FundingComparison from '../components/FundingComparison'
+import { partyColor, responseRateDisplay } from '../utils/candidateDisplay'
 
 function RaceDetailPage() {
   const { id } = useParams()
@@ -160,6 +161,7 @@ function RaceDetailPage() {
                   to={`/candidate/${candidate.id}`}
                   key={candidate.id}
                   className="card candidate-card"
+                  style={{ borderLeft: `4px solid ${partyColor(candidate.party_affiliation)}` }}
                 >
                   <div className="candidate-card-top">
                     <div className="candidate-avatar">
@@ -181,15 +183,17 @@ function RaceDetailPage() {
                     </div>
                   </div>
                   <div className="candidate-stats">
-                    <div className="stat">
-                      <div className="stat-value" style={{
-                        color: (candidate.qa_response_rate || 0) >= 80 ? 'var(--success)' :
-                               (candidate.qa_response_rate || 0) >= 50 ? 'var(--warning)' : 'var(--error)'
-                      }}>
-                        {candidate.qa_response_rate || 0}%
-                      </div>
-                      <div className="stat-label">Response Rate</div>
-                    </div>
+                    {(() => {
+                      const rr = responseRateDisplay(candidate)
+                      return (
+                        <div className="stat">
+                          <div className="stat-value" style={{ color: rr.color, fontSize: rr.isEmpty ? '0.8125rem' : undefined, fontWeight: rr.isEmpty ? 500 : undefined }}>
+                            {rr.value}
+                          </div>
+                          <div className="stat-label">Response Rate</div>
+                        </div>
+                      )
+                    })()}
                     <div className="stat">
                       <div className="stat-value">{candidate.total_questions_answered || 0}</div>
                       <div className="stat-label">Q&A Answered</div>

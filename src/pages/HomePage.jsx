@@ -9,19 +9,26 @@ import {
 import api from '../utils/api'
 import { useAuth } from '../context/AuthContext'
 
-function useCountdown(targetDate) {
-  const [timeLeft, setTimeLeft] = useState(getTimeLeft(targetDate))
-  function getTimeLeft(date) {
-    const diff = new Date(date) - new Date()
-    if (diff <= 0) return { days: 0, hours: 0, minutes: 0 }
-    return {
-      days: Math.floor(diff / (1000 * 60 * 60 * 24)),
-      hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
-      minutes: Math.floor((diff / (1000 * 60)) % 60),
-    }
+function computeTimeLeft(date) {
+  if (!date) return null
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return null
+  const diff = d.getTime() - Date.now()
+  if (diff <= 0) return { days: 0, hours: 0, minutes: 0 }
+  return {
+    days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+    hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+    minutes: Math.floor((diff / (1000 * 60)) % 60),
   }
+}
+
+function useCountdown(targetDate) {
+  const [timeLeft, setTimeLeft] = useState(() => computeTimeLeft(targetDate))
   useEffect(() => {
-    const timer = setInterval(() => setTimeLeft(getTimeLeft(targetDate)), 60000)
+    // Recompute immediately on targetDate change so we never show stale NaN
+    setTimeLeft(computeTimeLeft(targetDate))
+    if (!targetDate) return
+    const timer = setInterval(() => setTimeLeft(computeTimeLeft(targetDate)), 60000)
     return () => clearInterval(timer)
   }, [targetDate])
   return timeLeft
@@ -286,7 +293,7 @@ function HomePage() {
       </section>
 
       {/* Election Countdown */}
-      {nextElection && (
+      {nextElection && countdown && (
         <section style={{ padding: '2.5rem 0', background: 'var(--slate-50)' }}>
           <div className="container">
             <div className="election-countdown animate-fade-in-up">

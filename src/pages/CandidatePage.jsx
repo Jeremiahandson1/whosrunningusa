@@ -11,6 +11,7 @@ import DarkMoneyCallout from '../components/DarkMoneyCallout'
 import RubberStampBadge from '../components/RubberStampBadge'
 import PacPledgeBadge from '../components/PacPledgeBadge'
 import { formatDate, formatDateTime, isCalendarDate } from '../utils/dateFormat'
+import { responseRateDisplay } from '../utils/candidateDisplay'
 import ConnectButton from '../components/ConnectButton'
 import CommunityNotes from '../components/CommunityNotes'
 import Breadcrumbs from '../components/Breadcrumbs'
@@ -59,7 +60,7 @@ function PromisesTab({ candidateId }) {
         </div>
       )}
       {promises.length === 0 ? (
-        <div className="empty-state"><p>No promises recorded yet.</p></div>
+        <ProfileEmpty message="No promises recorded yet." />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {promises.map(p => (
@@ -111,6 +112,25 @@ function officeExplainer(c) {
   if (c.office_level === 'county') return OFFICE_EXPLAINERS['county:']
   if (c.office_level === 'local') return OFFICE_EXPLAINERS['local:']
   return null
+}
+
+// Empty-state wrapper — adds a "Claim this profile" CTA for unverified profiles
+// so shadow rows don't feel like dead ends. Keeps the default message for
+// voter-facing tabs where the data is expected to come from elsewhere.
+function ProfileEmpty({ message, showClaim = true }) {
+  return (
+    <div className="empty-state" style={{ padding: '2rem 1rem', textAlign: 'center' }}>
+      <p style={{ color: 'var(--slate-600)', marginBottom: showClaim ? '1rem' : 0 }}>{message}</p>
+      {showClaim && (
+        <Link
+          to="/claim-profile"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600, color: 'var(--burgundy-600)' }}
+        >
+          Are you this candidate? Claim this profile →
+        </Link>
+      )}
+    </div>
+  )
 }
 
 function daysUntil(dateStr) {
@@ -398,17 +418,17 @@ function CandidatePage() {
       <div style={{ background: 'white', borderBottom: '1px solid var(--slate-200)', marginTop: '-2rem', position: 'relative', zIndex: 1 }}>
         <div className="container">
           <div className="card" style={{ display: 'flex', justifyContent: 'space-around', padding: '1.5rem', borderRadius: '12px', transform: 'translateY(-50%)', flexWrap: 'wrap', gap: '1rem' }}>
-            <div className="stat">
-              <div className="stat-value" style={{ color: (candidate.qa_response_rate || 0) >= 80 ? 'var(--success)' : (candidate.qa_response_rate || 0) >= 50 ? 'var(--warning)' : 'var(--error)' }}>
-                {candidate.qa_response_rate || 0}%
-              </div>
-              <div className="stat-label">
-                Response Rate{' '}
-                <span style={{ fontWeight: 600 }}>
-                  ({(candidate.qa_response_rate || 0) >= 80 ? 'High' : (candidate.qa_response_rate || 0) >= 50 ? 'Medium' : 'Low'})
-                </span>
-              </div>
-            </div>
+            {(() => {
+              const rr = responseRateDisplay(candidate)
+              return (
+                <div className="stat">
+                  <div className="stat-value" style={{ color: rr.color, fontSize: rr.isEmpty ? '1.125rem' : undefined, fontWeight: rr.isEmpty ? 500 : undefined }}>
+                    {rr.value}
+                  </div>
+                  <div className="stat-label">{rr.label}</div>
+                </div>
+              )
+            })()}
             <div className="stat">
               <div className="stat-value">{candidate.total_questions_answered || 0}</div>
               <div className="stat-label">Questions Answered</div>
@@ -543,7 +563,7 @@ function CandidatePage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="empty-state"><p>This candidate hasn't declared issue positions yet.</p></div>
+                  <ProfileEmpty message="This candidate hasn't declared issue positions yet." />
                 )}
               </div>
             )}
@@ -618,7 +638,7 @@ function CandidatePage() {
                 )}
 
                 {background.education.length === 0 && background.experience.length === 0 && background.committees.length === 0 && (
-                  <div className="empty-state"><p>No background information available yet. Education, work history, and committee assignments will appear here as data becomes available.</p></div>
+                  <ProfileEmpty message="No background information available yet. Education, work history, and committee assignments will appear here as data becomes available." />
                 )}
               </div>
             )}
@@ -848,7 +868,7 @@ function CandidatePage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="empty-state"><p>No upcoming events scheduled.</p></div>
+                  <ProfileEmpty message="No upcoming events scheduled." />
                 )}
               </div>
             )}
@@ -874,7 +894,7 @@ function CandidatePage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="empty-state"><p>No endorsements yet.</p></div>
+                  <ProfileEmpty message="No endorsements yet." />
                 )}
               </div>
             )}

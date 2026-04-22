@@ -13,6 +13,15 @@ function gapColor(gap) {
   return '#16a34a'
 }
 
+// Partisan color — blue when D has the advantage, red when R does.
+// Used for the efficiency-gap number and the top-strip "worst" cards so
+// users can tell at a glance which side is benefiting from the map.
+function partisanColor(gap) {
+  if (gap > 0) return '#dc2626'  // R advantage → red
+  if (gap < 0) return '#2563eb'  // D advantage → blue
+  return '#475569'
+}
+
 function gapBg(gap) {
   const abs = Math.abs(gap)
   if (abs > 0.07) return '#fef2f2'
@@ -50,8 +59,8 @@ function StateCard({ state, onToggle, expanded }) {
             <div style={{ fontSize: 12, color: '#475569', fontWeight: 600, marginBottom: 2 }}>Efficiency Gap</div>
             <SourceCitation
               value={
-                <span style={{ fontSize: 22, fontWeight: 800, color: gapColor(gap) }}>
-                  {gap > 0 ? '+' : ''}{(gap * 100).toFixed(1)}%
+                <span style={{ fontSize: 22, fontWeight: 800, color: partisanColor(gap) }}>
+                  {gap > 0 ? '+' : ''}{Math.round(gap * 100)}%
                 </span>
               }
               sourceUrl={state.source_url}
@@ -71,13 +80,13 @@ function StateCard({ state, onToggle, expanded }) {
           {/* Dem */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
-              <span style={{ color: '#2563eb' }}>D vote share: {(state.dem_vote_share || 0).toFixed(1)}%</span>
+              <span style={{ color: '#2563eb' }}>D vote share: {Math.round(state.dem_vote_share || 0)}%</span>
             </div>
             <div style={{ height: 8, background: '#e2e8f0', borderRadius: 4, overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${state.dem_vote_share || 0}%`, background: '#2563eb', borderRadius: 4 }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 600, marginTop: 6, marginBottom: 4 }}>
-              <span style={{ color: '#3b82f6' }}>D seat share: {(state.dem_seat_share || 0).toFixed(1)}%</span>
+              <span style={{ color: '#3b82f6' }}>D seat share: {Math.round(state.dem_seat_share || 0)}%</span>
             </div>
             <div style={{ height: 8, background: '#e2e8f0', borderRadius: 4, overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${state.dem_seat_share || 0}%`, background: '#3b82f6', borderRadius: 4, opacity: 0.6 }} />
@@ -86,13 +95,13 @@ function StateCard({ state, onToggle, expanded }) {
           {/* Rep */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
-              <span style={{ color: '#dc2626' }}>R vote share: {(state.rep_vote_share || 0).toFixed(1)}%</span>
+              <span style={{ color: '#dc2626' }}>R vote share: {Math.round(state.rep_vote_share || 0)}%</span>
             </div>
             <div style={{ height: 8, background: '#e2e8f0', borderRadius: 4, overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${state.rep_vote_share || 0}%`, background: '#dc2626', borderRadius: 4 }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 600, marginTop: 6, marginBottom: 4 }}>
-              <span style={{ color: '#ef4444' }}>R seat share: {(state.rep_seat_share || 0).toFixed(1)}%</span>
+              <span style={{ color: '#ef4444' }}>R seat share: {Math.round(state.rep_seat_share || 0)}%</span>
             </div>
             <div style={{ height: 8, background: '#e2e8f0', borderRadius: 4, overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${state.rep_seat_share || 0}%`, background: '#ef4444', borderRadius: 4, opacity: 0.6 }} />
@@ -135,7 +144,7 @@ function StateCard({ state, onToggle, expanded }) {
                       </span>
                     </td>
                     <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: '#475569' }}>
-                      {d.margin != null ? `${d.margin > 0 ? '+' : ''}${d.margin.toFixed(1)}%` : '—'}
+                      {d.margin != null ? `${d.margin > 0 ? '+' : ''}${Math.round(d.margin)}%` : '—'}
                     </td>
                   </tr>
                 )
@@ -258,17 +267,20 @@ function GerrymanderingPage() {
               <span style={{ fontWeight: 700, fontSize: 15, color: '#9f1239' }}>Worst Gerrymandered States ({year})</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
-              {worst.slice(0, 5).map((w, i) => (
-                <div key={i} style={{ background: '#fff', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 2 }}>{w.state_name}</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: '#dc2626' }}>
-                    {(Math.abs(w.efficiency_gap || 0) * 100).toFixed(1)}%
+              {worst.slice(0, 5).map((w, i) => {
+                const g = w.efficiency_gap || 0
+                return (
+                  <div key={i} style={{ background: '#fff', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 2 }}>{w.state_name}</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: partisanColor(g) }}>
+                      {Math.round(Math.abs(g) * 100)}%
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: partisanColor(g), marginTop: 2 }}>
+                      {g > 0 ? 'R advantage' : 'D advantage'}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 11, color: '#475569' }}>
-                    {(w.efficiency_gap || 0) > 0 ? 'R advantage' : 'D advantage'}
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}

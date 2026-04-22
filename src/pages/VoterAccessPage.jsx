@@ -25,15 +25,17 @@ function scoreBg(score) {
 
 function ScoreBadge({ score, label, small }) {
   const size = small ? 12 : 14
+  const n = Number(score)
+  const display = Number.isFinite(n) ? Math.round(n) : score
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 4,
       padding: small ? '2px 6px' : '4px 10px',
       borderRadius: 6, fontSize: size, fontWeight: 600,
-      color: scoreColor(score), background: scoreBg(score),
+      color: scoreColor(n), background: scoreBg(n),
     }}>
       {label && <span style={{ fontWeight: 400, color: '#64748b', fontSize: size - 1 }}>{label}</span>}
-      {score}
+      {display}
     </span>
   )
 }

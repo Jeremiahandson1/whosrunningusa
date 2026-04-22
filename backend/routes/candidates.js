@@ -110,12 +110,25 @@ router.get('/', optionalAuth, async (req, res, next) => {
       paramIndex++;
     }
     
+    // Count total before pagination — drop the aggregation to avoid GROUP BY overhead
+    const countQuery = query.replace(
+      /SELECT cp\.\*, u\.username, u\.first_name, u\.last_name,[\s\S]*?LEFT JOIN follows f ON cp\.id = f\.candidate_id/,
+      'SELECT COUNT(DISTINCT cp.id)::int AS total FROM candidate_profiles cp LEFT JOIN users u ON cp.user_id = u.id'
+    );
+    const countParams = params.slice();
+
     query += ` GROUP BY cp.id, u.id ORDER BY cp.display_name LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     params.push(parseInt(limit), parseInt(offset));
-    
-    const result = await db.query(query, params);
 
-    res.json({ candidates: result.rows });
+    const [result, countResult] = await Promise.all([
+      db.query(query, params),
+      db.query(countQuery, countParams).catch(() => ({ rows: [{ total: null }] })),
+    ]);
+
+    res.json({
+      candidates: result.rows,
+      total: countResult.rows[0]?.total ?? null,
+    });
   } catch (error) {
     next(error);
   }
