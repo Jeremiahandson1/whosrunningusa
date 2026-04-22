@@ -149,6 +149,7 @@ function App() {
             <Route path="/dark-money" element={<DarkMoneyPage />} />
             <Route path="/foreign-influence" element={<ForeignInfluencePage />} />
             <Route path="/they-took-it" element={<RevenueViolationsPage />} />
+            <Route path="/revenue-violations" element={<RevenueViolationsPage />} />
             <Route path="/promises" element={<PromiseTrackerPage />} />
             <Route path="/cost-calculator" element={<CostCalculatorPage />} />
             <Route path="/conflicts" element={<ConflictsPage />} />
