@@ -125,19 +125,17 @@ function IssueMatchPage() {
               >
                 <Zap size={32} style={{ color: 'var(--navy-600)', marginBottom: '0.75rem' }} />
                 <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.25rem', color: 'var(--navy-800)' }}>Quick Match</h3>
-                <p style={{ margin: '0 0 0.75rem', color: 'var(--slate-600)', fontSize: '0.9rem' }}>
+                <p style={{ margin: '0 0 0.5rem', color: 'var(--slate-600)', fontSize: '0.9rem' }}>
                   8 key questions across the big topics. Takes about 2 minutes.
                 </p>
-                <ul style={{ textAlign: 'left', color: 'var(--slate-600)', fontSize: '0.8125rem', margin: 0, paddingLeft: '1rem', lineHeight: 1.55 }}>
-                  <li>Healthcare</li>
-                  <li>Economy &amp; jobs</li>
-                  <li>Climate</li>
-                  <li>Education</li>
-                  <li>Immigration</li>
-                  <li>Guns</li>
-                  <li>Abortion</li>
-                  <li>Foreign policy</li>
-                </ul>
+                <details onClick={e => e.stopPropagation()} style={{ fontSize: '0.8125rem', color: 'var(--slate-600)' }}>
+                  <summary style={{ cursor: 'pointer', userSelect: 'none', color: 'var(--navy-700)', fontWeight: 600 }}>
+                    Topics covered ▾
+                  </summary>
+                  <div style={{ textAlign: 'left', lineHeight: 1.55, paddingTop: '0.375rem' }}>
+                    Healthcare · Economy &amp; jobs · Climate · Education · Immigration · Guns · Abortion · Foreign policy
+                  </div>
+                </details>
               </button>
 
               <button

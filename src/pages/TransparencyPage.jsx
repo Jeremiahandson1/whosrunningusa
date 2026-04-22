@@ -103,7 +103,7 @@ function TransparencyPage() {
             {[
               { label: 'Requirements Tracked', value: stats.total_requirements },
               { label: 'Officials Tracked', value: stats.total_politicians_tracked },
-              { label: 'Avg Compliance Score', value: `${stats.avg_compliance_score || 0}%` },
+              { label: 'Avg Compliance Score', value: `${Math.round(Number(stats.avg_compliance_score) || 0)}%` },
               { label: 'Compliant Records', value: stats.compliant_total },
               { label: 'Non-Compliant', value: stats.non_compliant_total },
             ].map((s, i) => (

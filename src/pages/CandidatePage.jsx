@@ -341,7 +341,17 @@ function CandidatePage() {
           <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <div style={{ width: 120, height: 120, borderRadius: '50%', background: 'linear-gradient(135deg, var(--burgundy-500) 0%, var(--burgundy-700) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', fontWeight: 700, flexShrink: 0, overflow: 'hidden' }}>
               {(candidate.profile_pic_url || candidate.profile_photo_url)
-                ? <img src={candidate.profile_pic_url || candidate.profile_photo_url} alt={`${name} profile photo`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ? <img
+                    src={candidate.profile_pic_url || candidate.profile_photo_url}
+                    alt=""
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => {
+                      // Many shadow profiles carry a bioguide photo URL that 404s.
+                      // Swap the broken img for initials instead of letting the
+                      // browser render alt text inside the 120px circle.
+                      e.currentTarget.outerHTML = `<span aria-hidden="true">${initials}</span>`
+                    }}
+                  />
                 : initials
               }
             </div>

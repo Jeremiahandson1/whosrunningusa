@@ -298,7 +298,7 @@ export default function VoterAccessPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {filteredStates.map(state => {
             const isExpanded = expandedState === state.state_code
-            const score = state.overall_score ?? 0
+            const score = Math.round(Number(state.overall_score) || 0)
 
             return (
               <div key={state.state_code} style={{
