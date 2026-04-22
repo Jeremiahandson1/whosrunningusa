@@ -102,23 +102,34 @@ async function main() {
       if (cand.rows.length === 0) { unmatched++; continue; }
       const candidateId = cand.rows[0].id;
 
-      await db.query(
-        `INSERT INTO committee_memberships
-          (candidate_id, committee_id, role, is_chair, is_ranking_member, is_current, source)
-         VALUES ($1, $2, $3, $4, $5, TRUE, 'congress-legislators')
-         ON CONFLICT (candidate_id, committee_id, start_date) DO UPDATE SET
-           role = EXCLUDED.role,
-           is_chair = EXCLUDED.is_chair,
-           is_ranking_member = EXCLUDED.is_ranking_member,
-           is_current = TRUE`,
-        [
-          candidateId,
-          committeeId,
-          m.title || null,
-          (m.title || '').toLowerCase() === 'chair',
-          (m.title || '').toLowerCase().includes('ranking'),
-        ]
+      // The table's UNIQUE(candidate_id, committee_id, start_date) treats
+      // NULL start_date as distinct across rows, so ON CONFLICT didn't fire
+      // on re-runs and we ended up with duplicate memberships. Match-then-
+      // upsert manually so repeated syncs stay idempotent.
+      const role = m.title || null;
+      const isChair = (m.title || '').toLowerCase() === 'chair';
+      const isRanking = (m.title || '').toLowerCase().includes('ranking');
+      const existing = await db.query(
+        `SELECT id FROM committee_memberships
+          WHERE candidate_id = $1 AND committee_id = $2 AND start_date IS NULL
+          LIMIT 1`,
+        [candidateId, committeeId]
       );
+      if (existing.rows.length > 0) {
+        await db.query(
+          `UPDATE committee_memberships
+              SET role = $2, is_chair = $3, is_ranking_member = $4, is_current = TRUE
+            WHERE id = $1`,
+          [existing.rows[0].id, role, isChair, isRanking]
+        );
+      } else {
+        await db.query(
+          `INSERT INTO committee_memberships
+            (candidate_id, committee_id, role, is_chair, is_ranking_member, is_current, source)
+           VALUES ($1, $2, $3, $4, $5, TRUE, 'congress-legislators')`,
+          [candidateId, committeeId, role, isChair, isRanking]
+        );
+      }
       memberships++;
     }
   }
