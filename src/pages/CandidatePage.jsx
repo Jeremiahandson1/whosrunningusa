@@ -335,8 +335,9 @@ function CandidatePage() {
         <Breadcrumbs items={[{ label: 'Home', path: '/' }, { label: 'Explore', path: '/explore' }, { label: name }]} />
       </div>
 
-      {/* Profile Header */}
-      <div style={{ background: 'linear-gradient(180deg, var(--navy-800) 0%, var(--navy-900) 100%)', color: 'white', padding: '3rem 0 4rem' }}>
+      {/* Profile Header — extra bottom padding so the election-countdown
+          pill clears the stats card that translates up into this section. */}
+      <div style={{ background: 'linear-gradient(180deg, var(--navy-800) 0%, var(--navy-900) 100%)', color: 'white', padding: '3rem 0 5.5rem' }}>
         <div className="container">
           <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <div style={{ width: 120, height: 120, borderRadius: '50%', background: 'linear-gradient(135deg, var(--burgundy-500) 0%, var(--burgundy-700) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', fontWeight: 700, flexShrink: 0, overflow: 'hidden' }}>
