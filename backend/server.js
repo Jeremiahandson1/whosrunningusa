@@ -82,6 +82,7 @@ app.use(cors({
 }));
 
 // Health check — placed before rate limiter so Render health checks never get 429'd
+// Build marker: rubber-stamp-fix-3e8943b
 const db = require('./db');
 app.get('/api/health', async (req, res) => {
   const body = { status: 'ok', timestamp: new Date().toISOString(), db: 'unknown' };
