@@ -133,12 +133,17 @@ router.get('/candidates/by-location', async (req, res, next) => {
         o.county = $${paramIndex}
         OR (o.county IS NULL AND (o.district IS NULL OR o.district = ''))
         OR (o.district IS NOT NULL AND o.district <> '' AND o.district IN (
+          -- Census relationship file records every sliver of overlap (even 0.5%);
+          -- exclude those so a county with 99%/1% split doesn't map to both
+          -- districts. Threshold = 5% of county land area, OR the mapping is
+          -- flagged as a full-county match.
           SELECT TRIM(LEADING '0' FROM cd.district_number)
             FROM district_county_mappings dcm
             JOIN congressional_districts cd ON dcm.district_id = cd.id
             JOIN counties c ON dcm.county_geoid = c.county_geoid
            WHERE c.state_abbr = $${paramIndex + 1}
              AND LOWER(c.county_name) = LOWER($${paramIndex + 2})
+             AND (dcm.is_full_county = TRUE OR dcm.land_area_percent >= 5)
           UNION
           SELECT cd.district_number
             FROM district_county_mappings dcm
@@ -146,6 +151,7 @@ router.get('/candidates/by-location', async (req, res, next) => {
             JOIN counties c ON dcm.county_geoid = c.county_geoid
            WHERE c.state_abbr = $${paramIndex + 1}
              AND LOWER(c.county_name) = LOWER($${paramIndex + 2})
+             AND (dcm.is_full_county = TRUE OR dcm.land_area_percent >= 5)
         ))
       )`;
       params.push(county, state, county);
@@ -215,7 +221,8 @@ router.get('/candidates/by-location', async (req, res, next) => {
             -- Senate candidates apply to whole state
             cp.fec_office_type = 'S'
             OR
-            -- House candidates: check if their district overlaps this county
+            -- House candidates: check if their district meaningfully overlaps
+            -- this county (skip tiny slivers below 5% land area).
             (
               cp.fec_office_type = 'H'
               AND cp.fec_district IN (
@@ -225,6 +232,7 @@ router.get('/candidates/by-location', async (req, res, next) => {
                 JOIN counties c ON dcm.county_geoid = c.county_geoid
                 WHERE c.state_abbr = $${paramIndex + 1}
                   AND LOWER(c.county_name) = LOWER($${paramIndex + 2})
+                  AND (dcm.is_full_county = TRUE OR dcm.land_area_percent >= 5)
               )
             )
             OR
