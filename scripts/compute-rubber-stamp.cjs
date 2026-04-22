@@ -34,12 +34,14 @@ async function main() {
 
   console.log(`Computing rubber stamp scores for cycle ${cycleYear}...\n`);
 
-  // Get all politicians with voting records in this cycle year
+  // Get all politicians with voting records in this cycle year.
+  // vote_date lives on vote_events (not voting_records), so join through.
   const { rows: politicians } = await pool.query(`
     SELECT DISTINCT vr.candidate_id, cp.display_name, cp.party_affiliation
     FROM voting_records vr
+    JOIN vote_events ve ON ve.id = vr.vote_event_id
     JOIN candidate_profiles cp ON cp.id = vr.candidate_id
-    WHERE EXTRACT(YEAR FROM vr.vote_date) = $1
+    WHERE EXTRACT(YEAR FROM ve.vote_date) = $1
       AND vr.vote IN ('yes', 'no')
   `, [cycleYear]);
 
@@ -53,10 +55,11 @@ async function main() {
 
     // Get all this politician's votes for the cycle
     const { rows: myVotes } = await pool.query(`
-      SELECT vr.bill_id, vr.vote, vr.vote_date
+      SELECT vr.bill_id, vr.vote, ve.vote_date
       FROM voting_records vr
+      JOIN vote_events ve ON ve.id = vr.vote_event_id
       WHERE vr.candidate_id = $1
-        AND EXTRACT(YEAR FROM vr.vote_date) = $2
+        AND EXTRACT(YEAR FROM ve.vote_date) = $2
         AND vr.vote IN ('yes', 'no')
     `, [candidateId, cycleYear]);
 
@@ -73,9 +76,10 @@ async function main() {
         const { rows: partyTally } = await pool.query(`
           SELECT vr.vote, COUNT(*) AS cnt
           FROM voting_records vr
+          JOIN vote_events ve ON ve.id = vr.vote_event_id
           JOIN candidate_profiles cp ON cp.id = vr.candidate_id
           WHERE vr.bill_id = $1
-            AND vr.vote_date = $2
+            AND ve.vote_date = $2
             AND cp.party_affiliation = $3
             AND vr.candidate_id != $4
             AND vr.vote IN ('yes', 'no')

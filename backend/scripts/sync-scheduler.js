@@ -41,6 +41,9 @@ const ALL_STEPS = [
   'congress-sponsorships', 'openstates',
   'congress-legislators', 'backfill-bioguides',
   'committees', 'votes', 'wikidata', 'votesmart',
+  // Candidacy linking — after FEC sync populates candidate_profiles but
+  // before any race-centric computation depends on it.
+  'link-candidates',
   // Platform feature syncs (root scripts/ dir)
   'transparency-seed', 'trades', 'revolving-door', 'compliance',
   // Module 6 new syncs
@@ -82,6 +85,8 @@ function buildCommand(step) {
       return ['sync-committees.js'];
     case 'backfill-bioguides':
       return ['backfill-bioguides.js'];
+    case 'link-candidates':
+      return ['link-candidates-to-races.js', `--cycle=${cycle}`];
     case 'votes':
       return ['sync-votes.js', '--chamber=house'];
     case 'bills':
