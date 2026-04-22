@@ -55,7 +55,7 @@ async function main() {
 
     // Get all this politician's votes for the cycle
     const { rows: myVotes } = await pool.query(`
-      SELECT vr.bill_id, vr.vote, ve.vote_date
+      SELECT vr.vote_event_id, vr.bill_id, vr.vote, ve.vote_date
       FROM voting_records vr
       JOIN vote_events ve ON ve.id = vr.vote_event_id
       WHERE vr.candidate_id = $1
@@ -66,27 +66,28 @@ async function main() {
     const totalVotes = myVotes.length;
     if (totalVotes === 0) continue;
 
-    // For party loyalty: for each bill+date, determine the party majority position
+    // For party loyalty: for each roll call, determine the same-party majority.
+    // Earlier version joined on (bill_id, vote_date), but most House procedural
+    // votes have bill_id = NULL so the match returned zero rows and every vote
+    // landed in "independent". Matching on vote_event_id (the actual roll call)
+    // is both correct and always populated.
     let partyLineVotes = 0;
     let crossPartyVotes = 0;
 
     if (party) {
       for (const myVote of myVotes) {
-        // Count yes/no among same-party members for this bill on same date
         const { rows: partyTally } = await pool.query(`
           SELECT vr.vote, COUNT(*) AS cnt
           FROM voting_records vr
-          JOIN vote_events ve ON ve.id = vr.vote_event_id
           JOIN candidate_profiles cp ON cp.id = vr.candidate_id
-          WHERE vr.bill_id = $1
-            AND ve.vote_date = $2
-            AND cp.party_affiliation = $3
-            AND vr.candidate_id != $4
+          WHERE vr.vote_event_id = $1
+            AND cp.party_affiliation = $2
+            AND vr.candidate_id != $3
             AND vr.vote IN ('yes', 'no')
           GROUP BY vr.vote
           ORDER BY cnt DESC
           LIMIT 1
-        `, [myVote.bill_id, myVote.vote_date, party, candidateId]);
+        `, [myVote.vote_event_id, party, candidateId]);
 
         if (partyTally.length > 0) {
           const majorityPosition = partyTally[0].vote;
