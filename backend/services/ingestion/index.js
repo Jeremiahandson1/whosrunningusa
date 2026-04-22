@@ -910,11 +910,14 @@ class IngestionService {
             if (match.rows.length > 0) candidateId = match.rows[0].id;
           }
 
-          // Try name match
+          // Try name match — use normalize_candidate_name so "Bryan G. Steil"
+          // matches "Bryan Steil", "Robert Robert Jr." matches "Robert Robert", etc.
           if (!candidateId) {
             const match = await db.query(
               `SELECT id FROM candidate_profiles
-               WHERE LOWER(display_name) = LOWER($1) AND fec_state = $2
+               WHERE normalize_candidate_name(display_name) = normalize_candidate_name($1)
+                 AND (fec_state = $2 OR fec_state IS NULL)
+               ORDER BY CASE WHEN fec_state = $2 THEN 0 ELSE 1 END
                LIMIT 1`,
               [transformed.displayName, transformed.state]
             );
