@@ -15,7 +15,10 @@ services:
     runtime: node
     plan: starter
     rootDir: backend
-    buildCommand: npm install
+    # Install backend + root deps so /admin/trigger-sync can spawn
+    # root-dir scripts (compute-rubber-stamp, sync-foreign-aid, etc.)
+    # that require top-level packages like 'pg' at runtime.
+    buildCommand: npm install && cd .. && npm install --omit=dev && cd backend
     startCommand: node scripts/migrate.js && node server.js
     healthCheckPath: /api/health
     envVars:
