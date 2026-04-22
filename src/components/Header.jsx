@@ -341,7 +341,20 @@ function Header() {
   return (
     <header className="header">
       <div className="container header-inner">
-        <Link to="/" className="logo">
+        <Link
+          to="/"
+          className="logo"
+          onClick={(e) => {
+            // Only let modifier-clicks (ctrl/cmd/middle) open a new tab; a
+            // plain click must navigate in-place via React Router. Explicit
+            // handler defends against any weirdness where the default
+            // anchor behavior kicks in and a browser extension opens a
+            // new window.
+            if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+            e.preventDefault()
+            navigate('/')
+          }}
+        >
           <div className="logo-mark">
             <span>WR</span>
           </div>
