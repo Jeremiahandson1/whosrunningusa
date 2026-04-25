@@ -42,6 +42,12 @@ async function getFederalPoliticians() {
   if (singlePoliticianId) {
     whereClause += ' AND cp.id = $1';
     params.push(singlePoliticianId);
+  } else {
+    // Only iterate politicians with the minimum data needed for analysis.
+    // Without this, ~6k profiles get loaded and skipped one-by-one, and the
+    // 2s inter-batch sleep alone blows past the 30-min cron timeout.
+    whereClause += ` AND EXISTS (SELECT 1 FROM politician_donor_industries WHERE politician_id = cp.id)
+                     AND EXISTS (SELECT 1 FROM voting_records WHERE candidate_id = cp.id)`;
   }
 
   const { rows } = await pool.query(
