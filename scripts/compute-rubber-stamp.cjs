@@ -113,7 +113,9 @@ async function main() {
       pc.cross_party_votes,
       COALESCE(dc.donor_aligned, 0),
       COALESCE(dc.donor_opposed, 0),
-      pc.total_votes - pc.party_line_votes - pc.cross_party_votes
+      pc.total_votes - pc.party_line_votes - pc.cross_party_votes,
+      NOW(),
+      NOW()
     FROM politician_counts pc
     LEFT JOIN donor_counts dc ON dc.politician_id = pc.candidate_id
     ON CONFLICT (politician_id, cycle_year) DO UPDATE SET
