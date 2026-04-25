@@ -66,19 +66,27 @@ async function fetchJSON(url) {
 
 async function syncRegistrants(dryRun) {
   console.log('\nStep 1: Fetching FARA registrants...');
-  let data;
-  try {
-    data = await fetchJSON(`${FARA_API_BASE}/Registrants/json`);
-  } catch (err) {
-    console.error(`  Failed to fetch registrants: ${err.message}`);
-    return 0;
+
+  // FARA API change (sometime before 2026-04): the bare /Registrants/json
+  // path was removed. Registrants are now listed by status — Active and
+  // Terminated each have their own endpoint — so fetch both and merge.
+  const allRecords = [];
+  for (const status of ['Active', 'Terminated']) {
+    let data;
+    try {
+      data = await fetchJSON(`${FARA_API_BASE}/Registrants/json/${status}`);
+    } catch (err) {
+      console.error(`  Failed to fetch ${status} registrants: ${err.message}`);
+      continue;
+    }
+    const records = Array.isArray(data) ? data : (data.REGISTRANTS_ROWS || data.data || []);
+    console.log(`  Received ${records.length} ${status} registrant records`);
+    for (const r of records) allRecords.push({ ...r, _status: status });
   }
 
-  const records = Array.isArray(data) ? data : (data.REGISTRANTS_ROWS || data.data || []);
-  console.log(`  Received ${records.length} registrant records`);
-
   let upserted = 0;
-  for (const r of records) {
+  const activeRegNumbers = [];
+  for (const r of allRecords) {
     const regNumber = String(r.Registration_Number || r.registration_number || r.reg_number || '').trim();
     const name = r.Registrant_Name || r.registrant_name || r.Name || '';
     if (!regNumber || !name) continue;
@@ -88,11 +96,13 @@ async function syncRegistrants(dryRun) {
     const state = r.State || r.state || null;
     const regDate = r.Registration_Date || r.registration_date || null;
     const termDate = r.Termination_Date || r.termination_date || null;
-    const isActive = !termDate;
+    const isActive = r._status === 'Active';
     const sourceUrl = `${FARA_PROFILE_BASE}/${regNumber}`;
 
+    if (isActive) activeRegNumbers.push(regNumber);
+
     if (dryRun) {
-      console.log(`  [dry-run] Registrant: ${name} (${regNumber})`);
+      console.log(`  [dry-run] Registrant: ${name} (${regNumber}, ${r._status})`);
       upserted++;
       continue;
     }
@@ -117,87 +127,109 @@ async function syncRegistrants(dryRun) {
     upserted++;
   }
 
-  console.log(`  Upserted ${upserted} registrants`);
-  return upserted;
+  console.log(`  Upserted ${upserted} registrants (${activeRegNumbers.length} active)`);
+  return { upserted, activeRegNumbers };
 }
 
 // ---------------------------------------------------------------------------
 // Step 2: Foreign Principals
 // ---------------------------------------------------------------------------
 
-async function syncPrincipals(dryRun) {
-  console.log('\nStep 2: Fetching foreign principals...');
-  let data;
-  try {
-    data = await fetchJSON(`${FARA_API_BASE}/ForeignPrincipals/json`);
-  } catch (err) {
-    console.error(`  Failed to fetch foreign principals: ${err.message}`);
-    return 0;
-  }
+async function syncPrincipals(activeRegNumbers, dryRun) {
+  console.log(`\nStep 2: Fetching foreign principals for ${activeRegNumbers.length} active registrants...`);
 
-  const records = Array.isArray(data) ? data : (data.FOREIGN_PRINCIPALS_ROWS || data.data || []);
-  console.log(`  Received ${records.length} foreign principal records`);
-
+  // FARA API change: there is no longer a single /ForeignPrincipals/json
+  // list endpoint. Principals must be queried per-registrant via
+  // /ForeignPrincipals/json/Active/:registrationNumber.
   let upserted = 0;
-  for (const p of records) {
-    const name = p.Foreign_Principal || p.foreign_principal || p.Name || '';
-    const country = p.Country || p.country || p.FP_Country || '';
-    if (!name || !country) continue;
+  let processed = 0;
+  let notFound = 0;
 
-    const govEntity = p.Government_Entity || p.government_entity || null;
-    const isGov = !!(govEntity || (p.Principal_Type || '').toLowerCase().includes('government'));
-    const regNumber = String(p.Registration_Number || p.registration_number || '').trim();
-
-    if (dryRun) {
-      console.log(`  [dry-run] Principal: ${name} (${country})`);
-      upserted++;
+  for (const regNumber of activeRegNumbers) {
+    let data;
+    try {
+      data = await fetchJSON(`${FARA_API_BASE}/ForeignPrincipals/json/Active/${encodeURIComponent(regNumber)}`);
+    } catch (err) {
+      // 404 here just means the registrant has no active foreign principals
+      // on file — common case, don't log noise for it.
+      if (String(err.message).includes('404') || err.response?.status === 404) {
+        notFound++;
+      } else {
+        console.error(`  Failed for ${regNumber}: ${err.message}`);
+      }
       continue;
     }
 
-    // Upsert principal by name + country (no natural unique key in FARA data)
-    const { rows } = await pool.query(
-      `INSERT INTO fara_principals
-         (principal_name, country, government_entity, is_government, updated_at)
-       VALUES ($1, $2, $3, $4, NOW())
-       ON CONFLICT DO NOTHING
-       RETURNING id`,
-      [name, country, govEntity, isGov]
-    );
+    const records = Array.isArray(data) ? data : (data.FOREIGN_PRINCIPALS_ROWS || data.data || []);
+    if (records.length === 0) continue;
 
-    // If already existed, look it up
-    let principalId;
-    if (rows.length > 0) {
-      principalId = rows[0].id;
-    } else {
-      const existing = await pool.query(
-        `SELECT id FROM fara_principals WHERE principal_name = $1 AND country = $2 LIMIT 1`,
-        [name, country]
-      );
-      principalId = existing.rows[0]?.id;
-    }
-
-    // Step 3 inline: Link to registrant if we have a registration_number
-    if (principalId && regNumber) {
+    // Resolve registrant id once per regNumber
+    let registrantId = null;
+    if (!dryRun) {
       const reg = await pool.query(
         `SELECT id FROM fara_registrants WHERE registration_number = $1 LIMIT 1`,
         [regNumber]
       );
-      if (reg.rows.length > 0) {
+      registrantId = reg.rows[0]?.id || null;
+    }
+
+    for (const p of records) {
+      const name = p.Foreign_Principal || p.foreign_principal || p.Name || '';
+      const country = p.Country || p.country || p.FP_Country || '';
+      if (!name || !country) continue;
+
+      const govEntity = p.Government_Entity || p.government_entity || null;
+      const isGov = !!(govEntity || (p.Principal_Type || '').toLowerCase().includes('government'));
+
+      if (dryRun) {
+        console.log(`  [dry-run] ${regNumber} → ${name} (${country})`);
+        upserted++;
+        continue;
+      }
+
+      // Upsert principal by name + country (no natural unique key in FARA data)
+      const { rows } = await pool.query(
+        `INSERT INTO fara_principals
+           (principal_name, country, government_entity, is_government, updated_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         ON CONFLICT DO NOTHING
+         RETURNING id`,
+        [name, country, govEntity, isGov]
+      );
+
+      let principalId;
+      if (rows.length > 0) {
+        principalId = rows[0].id;
+      } else {
+        const existing = await pool.query(
+          `SELECT id FROM fara_principals WHERE principal_name = $1 AND country = $2 LIMIT 1`,
+          [name, country]
+        );
+        principalId = existing.rows[0]?.id;
+      }
+
+      // Link principal to registrant via fara_contracts
+      if (principalId && registrantId) {
         await pool.query(
           `INSERT INTO fara_contracts (registrant_id, principal_id, contract_description, source_url)
            VALUES ($1, $2, $3, $4)
            ON CONFLICT DO NOTHING`,
-          [reg.rows[0].id, principalId,
+          [registrantId, principalId,
            `FARA registration linkage for ${name}`,
            `${FARA_PROFILE_BASE}/${regNumber}`]
         );
       }
+
+      upserted++;
     }
 
-    upserted++;
+    processed++;
+    if (processed % 100 === 0) {
+      console.log(`  Progress: ${processed}/${activeRegNumbers.length} registrants checked, ${upserted} principals upserted`);
+    }
   }
 
-  console.log(`  Upserted ${upserted} foreign principals`);
+  console.log(`  Upserted ${upserted} foreign principals across ${processed} registrants (${notFound} had no FP data)`);
   return upserted;
 }
 
@@ -206,95 +238,18 @@ async function syncPrincipals(dryRun) {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// Step 4: Short Form Activities (contacts)
+// Step 4: Short Form Activities (contacts) — DISABLED
 // ---------------------------------------------------------------------------
-
-async function syncActivities(dryRun) {
-  console.log('\nStep 4: Fetching short form activities (contacts)...');
-  let data;
-  try {
-    data = await fetchJSON(`${FARA_API_BASE}/ShortFormActivities/json`);
-  } catch (err) {
-    console.error(`  Failed to fetch activities: ${err.message}`);
-    return { contacts: 0, matched: 0 };
-  }
-
-  const records = Array.isArray(data) ? data : (data.SHORT_FORM_ACTIVITIES_ROWS || data.data || []);
-  console.log(`  Received ${records.length} activity records`);
-
-  let contacts = 0;
-  let matched = 0;
-
-  for (const a of records) {
-    const regNumber = String(a.Registration_Number || a.registration_number || '').trim();
-    const contactName = a.Contact_Name || a.contact_name || a.Official_Contacted || '';
-    const contactTitle = a.Contact_Title || a.contact_title || a.Title || null;
-    const contactOffice = a.Contact_Office || a.contact_office || a.Agency || null;
-    const contactDate = a.Contact_Date || a.contact_date || a.Date || null;
-    const contactType = a.Contact_Type || a.contact_type || a.Method || null;
-    const description = a.Description || a.description || a.Purpose || null;
-
-    if (!regNumber) continue;
-
-    // Look up registrant
-    const reg = await pool.query(
-      `SELECT id FROM fara_registrants WHERE registration_number = $1 LIMIT 1`,
-      [regNumber]
-    );
-    if (reg.rows.length === 0) continue;
-    const registrantId = reg.rows[0].id;
-
-    // Try to find the principal linked to this registrant
-    const princ = await pool.query(
-      `SELECT fp.id FROM fara_principals fp
-       JOIN fara_contracts fc ON fc.principal_id = fp.id
-       WHERE fc.registrant_id = $1
-       LIMIT 1`,
-      [registrantId]
-    );
-    const principalId = princ.rows[0]?.id || null;
-
-    // Step 5: Try to match contact_name against candidate_profiles
-    let candidateId = null;
-    if (contactName) {
-      const nameMatch = await pool.query(
-        `SELECT id FROM candidate_profiles
-         WHERE display_name ILIKE $1
-         LIMIT 1`,
-        [`%${contactName.trim()}%`]
-      );
-      if (nameMatch.rows.length > 0) {
-        candidateId = nameMatch.rows[0].id;
-        matched++;
-      }
-    }
-
-    if (dryRun) {
-      const matchLabel = candidateId ? ' [MATCHED]' : '';
-      console.log(`  [dry-run] Contact: ${contactName || 'unknown'} via registrant ${regNumber}${matchLabel}`);
-      contacts++;
-      continue;
-    }
-
-    await pool.query(
-      `INSERT INTO fara_contacts
-         (registrant_id, principal_id, candidate_id, contact_date,
-          contact_type, contact_office, contact_name, contact_title,
-          description, source_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       ON CONFLICT DO NOTHING`,
-      [registrantId, principalId, candidateId,
-       contactDate || null, contactType || null,
-       contactOffice || null, contactName || null,
-       contactTitle || null, description || null,
-       `${FARA_PROFILE_BASE}/${regNumber}`]
-    );
-    contacts++;
-  }
-
-  console.log(`  Inserted ${contacts} contacts (${matched} matched to candidates)`);
-  return { contacts, matched };
-}
+// The old /api/v1/ShortFormActivities/json endpoint, which returned records
+// of FARA agents' contacts with US officials, no longer exists in the FARA
+// API. The only short-form endpoint exposed today is
+// /api/v1/ShortFormRegistrants/json/{Active|Terminated}/:registrationNumber,
+// which lists individual foreign agents under a primary registrant — not
+// who they contacted. The contact-with-officials data now lives only in
+// the registration-document PDFs (RegDocs endpoint).
+//
+// Until we add a PDF-parsing path or an alternative source, this step is a
+// no-op so the cron stops 404-ing.
 
 // ---------------------------------------------------------------------------
 // Main
@@ -308,16 +263,14 @@ async function main() {
   console.log(`Source: ${FARA_API_BASE}`);
   console.log('');
 
-  const registrants = await syncRegistrants(args.dryRun);
-  const principals = await syncPrincipals(args.dryRun);
-  const { contacts, matched } = await syncActivities(args.dryRun);
+  const { upserted: registrants, activeRegNumbers } = await syncRegistrants(args.dryRun);
+  const principals = await syncPrincipals(activeRegNumbers, args.dryRun);
 
   console.log('\n=== Summary ===');
-  console.log(`Registrants upserted: ${registrants}`);
+  console.log(`Registrants upserted:        ${registrants}`);
   console.log(`Foreign principals upserted: ${principals}`);
-  console.log(`Contracts created: (linked during principal sync)`);
-  console.log(`Contacts inserted: ${contacts}`);
-  console.log(`Contacts matched to candidates: ${matched}`);
+  console.log(`Contracts created:           (linked during principal sync)`);
+  console.log(`Contacts:                    skipped — no longer exposed by FARA API (see comment in script)`);
 }
 
 main()
