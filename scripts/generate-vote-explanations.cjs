@@ -87,7 +87,7 @@ async function getVoteEventsNeedingExplanations(args) {
   // Get vote events that don't have a bill (procedural votes, etc.)
   const { rows } = await pool.query(
     `SELECT ve.id as vote_event_id, ve.motion_text, ve.vote_date, ve.result,
-            ve.yes_count, ve.no_count, ve.abstain_count, ve.chamber, ve.question
+            ve.yes_count, ve.no_count, ve.abstain_count, ve.chamber
      FROM vote_events ve
      WHERE ve.bill_id IS NULL
        AND NOT EXISTS (
@@ -109,7 +109,7 @@ async function generateExplanation(item) {
   const hasBill = !!item.bill_number;
   const context = hasBill
     ? `Bill: ${item.bill_number} — ${item.title}\nDescription: ${item.description || item.summary || 'No description available'}\nCategories: ${(item.categories || []).join(', ') || 'N/A'}\nChamber: ${item.chamber || 'N/A'}`
-    : `Vote: ${item.motion_text || item.question || 'Procedural vote'}\nChamber: ${item.chamber || 'N/A'}`;
+    : `Vote: ${item.motion_text || 'Procedural vote'}\nChamber: ${item.chamber || 'N/A'}`;
 
   const voteContext = item.vote_date
     ? `\nVote date: ${item.vote_date}\nResult: ${item.result || 'N/A'}\nYes: ${item.yes_count || 0}, No: ${item.no_count || 0}, Abstain: ${item.abstain_count || 0}`

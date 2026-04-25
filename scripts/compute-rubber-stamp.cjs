@@ -32,130 +32,106 @@ async function main() {
   const args = parseArgs();
   const cycleYear = args.cycle;
 
-  console.log(`Computing rubber stamp scores for cycle ${cycleYear}...\n`);
+  console.log(`Computing rubber stamp scores for cycle ${cycleYear}...`);
 
-  // Get all politicians with voting records in this cycle year.
-  // vote_date lives on vote_events (not voting_records), so join through.
-  const { rows: politicians } = await pool.query(`
-    SELECT DISTINCT vr.candidate_id, cp.display_name, cp.party_affiliation
-    FROM voting_records vr
-    JOIN vote_events ve ON ve.id = vr.vote_event_id
-    JOIN candidate_profiles cp ON cp.id = vr.candidate_id
-    WHERE EXTRACT(YEAR FROM ve.vote_date) = $1
-      AND vr.vote IN ('yes', 'no')
-  `, [cycleYear]);
-
-  console.log(`Found ${politicians.length} politicians with voting records in ${cycleYear}.\n`);
-
-  let processed = 0;
-
-  for (const pol of politicians) {
-    const party = pol.party_affiliation;
-    const candidateId = pol.candidate_id;
-
-    // Get all this politician's votes for the cycle
-    const { rows: myVotes } = await pool.query(`
-      SELECT vr.vote_event_id, vr.bill_id, vr.vote, ve.vote_date
+  // Previously this looped politicians × roll-calls in JS, running one
+  // party-tally query per vote — tens of thousands of round-trips that
+  // exceeded the 30-min step timeout. The whole computation can run in a
+  // single statement with CTEs:
+  //   1. party_majorities — most-voted position per (vote_event, party)
+  //   2. politician_votes — each politician's vote with their party's majority
+  //   3. politician_counts — totals + party-line / cross / independent breakdown
+  //   4. donor_counts — aligned/opposed counts per politician
+  // Then INSERT…SELECT into rubber_stamp_scores with UPSERT.
+  const result = await pool.query(`
+    WITH party_tallies AS (
+      SELECT vr.vote_event_id, cp.party_affiliation, vr.vote, COUNT(*) AS cnt
       FROM voting_records vr
       JOIN vote_events ve ON ve.id = vr.vote_event_id
-      WHERE vr.candidate_id = $1
-        AND EXTRACT(YEAR FROM ve.vote_date) = $2
+      JOIN candidate_profiles cp ON cp.id = vr.candidate_id
+      WHERE EXTRACT(YEAR FROM ve.vote_date) = $1
         AND vr.vote IN ('yes', 'no')
-    `, [candidateId, cycleYear]);
-
-    const totalVotes = myVotes.length;
-    if (totalVotes === 0) continue;
-
-    // For party loyalty: for each roll call, determine the same-party majority.
-    // Earlier version joined on (bill_id, vote_date), but most House procedural
-    // votes have bill_id = NULL so the match returned zero rows and every vote
-    // landed in "independent". Matching on vote_event_id (the actual roll call)
-    // is both correct and always populated.
-    let partyLineVotes = 0;
-    let crossPartyVotes = 0;
-
-    if (party) {
-      for (const myVote of myVotes) {
-        const { rows: partyTally } = await pool.query(`
-          SELECT vr.vote, COUNT(*) AS cnt
-          FROM voting_records vr
-          JOIN candidate_profiles cp ON cp.id = vr.candidate_id
-          WHERE vr.vote_event_id = $1
-            AND cp.party_affiliation = $2
-            AND vr.candidate_id != $3
-            AND vr.vote IN ('yes', 'no')
-          GROUP BY vr.vote
-          ORDER BY cnt DESC
-          LIMIT 1
-        `, [myVote.vote_event_id, party, candidateId]);
-
-        if (partyTally.length > 0) {
-          const majorityPosition = partyTally[0].vote;
-          if (myVote.vote === majorityPosition) {
-            partyLineVotes++;
-          } else {
-            crossPartyVotes++;
-          }
-        }
-      }
-    }
-
-    const partyLoyaltyPct = totalVotes > 0
-      ? Math.round((partyLineVotes / totalVotes) * 10000) / 100
-      : null;
-
-    // For donor alignment: count donor_vote_connections where correlation_type = 'aligned' vs total
-    const { rows: donorStats } = await pool.query(`
+        AND cp.party_affiliation IS NOT NULL
+      GROUP BY vr.vote_event_id, cp.party_affiliation, vr.vote
+    ),
+    party_majorities AS (
+      SELECT DISTINCT ON (vote_event_id, party_affiliation)
+        vote_event_id, party_affiliation, vote AS majority_vote
+      FROM party_tallies
+      ORDER BY vote_event_id, party_affiliation, cnt DESC
+    ),
+    politician_votes AS (
       SELECT
-        COUNT(*) AS total,
-        COUNT(*) FILTER (WHERE correlation_type = 'aligned') AS aligned,
-        COUNT(*) FILTER (WHERE correlation_type = 'contradicted') AS opposed
+        vr.candidate_id,
+        vr.vote_event_id,
+        vr.vote,
+        pm.majority_vote
+      FROM voting_records vr
+      JOIN vote_events ve ON ve.id = vr.vote_event_id
+      JOIN candidate_profiles cp ON cp.id = vr.candidate_id
+      LEFT JOIN party_majorities pm
+        ON pm.vote_event_id = vr.vote_event_id
+       AND pm.party_affiliation = cp.party_affiliation
+      WHERE EXTRACT(YEAR FROM ve.vote_date) = $1
+        AND vr.vote IN ('yes', 'no')
+    ),
+    politician_counts AS (
+      SELECT
+        candidate_id,
+        COUNT(*) AS total_votes,
+        COUNT(*) FILTER (WHERE majority_vote IS NOT NULL AND vote = majority_vote) AS party_line_votes,
+        COUNT(*) FILTER (WHERE majority_vote IS NOT NULL AND vote <> majority_vote) AS cross_party_votes
+      FROM politician_votes
+      GROUP BY candidate_id
+    ),
+    donor_counts AS (
+      SELECT
+        politician_id,
+        COUNT(*) AS donor_total,
+        COUNT(*) FILTER (WHERE correlation_type = 'aligned') AS donor_aligned,
+        COUNT(*) FILTER (WHERE correlation_type = 'contradicted') AS donor_opposed
       FROM donor_vote_connections
-      WHERE politician_id = $1
-    `, [candidateId]);
-
-    const donorTotal = parseInt(donorStats[0].total, 10);
-    const donorAligned = parseInt(donorStats[0].aligned, 10);
-    const donorOpposed = parseInt(donorStats[0].opposed, 10);
-
-    const donorAlignmentPct = donorTotal > 0
-      ? Math.round((donorAligned / donorTotal) * 10000) / 100
-      : null;
-
-    const independentVotes = totalVotes - partyLineVotes - crossPartyVotes;
-
-    // UPSERT into rubber_stamp_scores
-    await pool.query(`
-      INSERT INTO rubber_stamp_scores (
-        politician_id, cycle_year, party_loyalty_pct, donor_alignment_pct,
-        total_votes, party_line_votes, cross_party_votes,
-        donor_aligned_votes, donor_opposed_votes, independent_votes,
-        last_computed_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
-      ON CONFLICT (politician_id, cycle_year) DO UPDATE SET
-        party_loyalty_pct = EXCLUDED.party_loyalty_pct,
-        donor_alignment_pct = EXCLUDED.donor_alignment_pct,
-        total_votes = EXCLUDED.total_votes,
-        party_line_votes = EXCLUDED.party_line_votes,
-        cross_party_votes = EXCLUDED.cross_party_votes,
-        donor_aligned_votes = EXCLUDED.donor_aligned_votes,
-        donor_opposed_votes = EXCLUDED.donor_opposed_votes,
-        independent_votes = EXCLUDED.independent_votes,
-        last_computed_at = NOW(),
-        updated_at = NOW()
-    `, [
-      candidateId, cycleYear, partyLoyaltyPct, donorAlignmentPct,
-      totalVotes, partyLineVotes, crossPartyVotes,
-      donorAligned, donorOpposed, independentVotes
-    ]);
-
-    processed++;
-    console.log(`  [${processed}/${politicians.length}] ${pol.display_name || candidateId} (${party || 'no party'}) — votes=${totalVotes} partyLine=${partyLineVotes} (${partyLoyaltyPct ?? 'N/A'}%) donorAligned=${donorAligned}/${donorTotal} (${donorAlignmentPct ?? 'N/A'}%)`);
-  }
+      GROUP BY politician_id
+    )
+    INSERT INTO rubber_stamp_scores (
+      politician_id, cycle_year, party_loyalty_pct, donor_alignment_pct,
+      total_votes, party_line_votes, cross_party_votes,
+      donor_aligned_votes, donor_opposed_votes, independent_votes,
+      last_computed_at, updated_at
+    )
+    SELECT
+      pc.candidate_id,
+      $1,
+      CASE WHEN pc.total_votes > 0
+        THEN ROUND(pc.party_line_votes::numeric / pc.total_votes * 10000) / 100
+        ELSE NULL END,
+      CASE WHEN COALESCE(dc.donor_total, 0) > 0
+        THEN ROUND(COALESCE(dc.donor_aligned, 0)::numeric / dc.donor_total * 10000) / 100
+        ELSE NULL END,
+      pc.total_votes,
+      pc.party_line_votes,
+      pc.cross_party_votes,
+      COALESCE(dc.donor_aligned, 0),
+      COALESCE(dc.donor_opposed, 0),
+      pc.total_votes - pc.party_line_votes - pc.cross_party_votes
+    FROM politician_counts pc
+    LEFT JOIN donor_counts dc ON dc.politician_id = pc.candidate_id
+    ON CONFLICT (politician_id, cycle_year) DO UPDATE SET
+      party_loyalty_pct = EXCLUDED.party_loyalty_pct,
+      donor_alignment_pct = EXCLUDED.donor_alignment_pct,
+      total_votes = EXCLUDED.total_votes,
+      party_line_votes = EXCLUDED.party_line_votes,
+      cross_party_votes = EXCLUDED.cross_party_votes,
+      donor_aligned_votes = EXCLUDED.donor_aligned_votes,
+      donor_opposed_votes = EXCLUDED.donor_opposed_votes,
+      independent_votes = EXCLUDED.independent_votes,
+      last_computed_at = NOW(),
+      updated_at = NOW()
+  `, [cycleYear]);
 
   console.log(`\n=== Summary ===`);
   console.log(`Cycle year:          ${cycleYear}`);
-  console.log(`Politicians scored:  ${processed}`);
+  console.log(`Politicians scored:  ${result.rowCount}`);
   console.log('Done.');
 }
 

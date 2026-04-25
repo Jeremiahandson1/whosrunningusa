@@ -317,6 +317,9 @@ async function main() {
     'foreign-aid', 'outside-spending', 'fara', 'think-tanks',
     'promise-scores', 'rubber-stamp', 'pac-violations', 'political-roi',
     'explanations', 'donor-map', 'gaps', 'auto-check-promises', 'scan-conflicts',
+    // Per-member API + DB upsert loop legitimately approaches the 30-min cap.
+    // Script is idempotent via ON CONFLICT, so partial runs converge nightly.
+    'congress-sponsorships',
   ]);
   const criticalFailures = Object.entries(stepResults)
     .filter(([name, r]) => r.status === 'failed' && !NON_CRITICAL_STEPS.has(name))

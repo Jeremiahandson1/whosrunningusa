@@ -105,13 +105,48 @@ class USASpendingClient {
    * Foreign-assistance award_type_codes grouped the way USASpending now
    * requires — the API rejects any request that mixes codes from more
    * than one group, so we split into sequential calls and merge.
+   *
+   * Loan Awards expose 'Loan Value' instead of 'Award Amount' (the API
+   * rejects the latter as a sort field for loans). We track the per-group
+   * amount field so requests use the right one and we can normalize the
+   * response back to 'Award Amount' for downstream consumers.
    */
   static ASSISTANCE_GROUPS = {
-    grants: ['02', '03', '04', '05'],
-    other_financial_assistance: ['06', '10'],
-    direct_payments: ['09', '11'],
-    loans: ['07', '08'],
+    grants: { codes: ['02', '03', '04', '05'], amountField: 'Award Amount' },
+    other_financial_assistance: { codes: ['06', '10'], amountField: 'Award Amount' },
+    direct_payments: { codes: ['09', '11'], amountField: 'Award Amount' },
+    loans: { codes: ['07', '08'], amountField: 'Loan Value' },
   };
+
+  /** Build the request `fields` list for a group, swapping in its amount field. */
+  static fieldsForGroup(amountField, extra = []) {
+    const base = [
+      'Award ID',
+      'Recipient Name',
+      'Place of Performance Country Code',
+      'Place of Performance Country Name',
+      amountField,
+      'Total Outlays',
+      'CFDA Number',
+      'Awarding Agency',
+      'Awarding Sub Agency',
+      'Description',
+      'Start Date',
+      'End Date',
+    ];
+    return [...base, ...extra];
+  }
+
+  /** Copy the group's amount field onto 'Award Amount' so consumers don't care which group it came from. */
+  static normalizeResults(results, amountField) {
+    if (amountField === 'Award Amount') return results;
+    for (const r of results) {
+      if (r[amountField] != null && r['Award Amount'] == null) {
+        r['Award Amount'] = r[amountField];
+      }
+    }
+    return results;
+  }
 
   /**
    * Get spending by country for foreign assistance awards in a fiscal year.
@@ -122,7 +157,7 @@ class USASpendingClient {
    */
   async getSpendingByCountry(fiscalYear) {
     const merged = [];
-    for (const codes of Object.values(USASpendingClient.ASSISTANCE_GROUPS)) {
+    for (const { codes, amountField } of Object.values(USASpendingClient.ASSISTANCE_GROUPS)) {
       const response = await this.request('/search/spending_by_award/', {
         filters: {
           time_period: [
@@ -136,27 +171,14 @@ class USASpendingClient {
             { country: 'FOREIGN' },
           ],
         },
-        fields: [
-          'Award ID',
-          'Recipient Name',
-          'Place of Performance Country Code',
-          'Place of Performance Country Name',
-          'Award Amount',
-          'Total Outlays',
-          'CFDA Number',
-          'Awarding Agency',
-          'Awarding Sub Agency',
-          'Description',
-          'Start Date',
-          'End Date',
-        ],
+        fields: USASpendingClient.fieldsForGroup(amountField),
         limit: 100,
         page: 1,
-        sort: 'Award Amount',
+        sort: amountField,
         order: 'desc',
       }, 'POST');
       if (response && Array.isArray(response.results)) {
-        merged.push(...response.results);
+        merged.push(...USASpendingClient.normalizeResults(response.results, amountField));
       }
     }
     return { results: merged };
@@ -172,7 +194,7 @@ class USASpendingClient {
   async getAwardsByCountry(countryCode, fiscalYear, page = 1) {
     const merged = [];
     let pageMetadata = null;
-    for (const codes of Object.values(USASpendingClient.ASSISTANCE_GROUPS)) {
+    for (const { codes, amountField } of Object.values(USASpendingClient.ASSISTANCE_GROUPS)) {
       const response = await this.request('/search/spending_by_award/', {
         filters: {
           time_period: [
@@ -186,28 +208,14 @@ class USASpendingClient {
             { country: countryCode },
           ],
         },
-        fields: [
-          'Award ID',
-          'Recipient Name',
-          'Place of Performance Country Code',
-          'Place of Performance Country Name',
-          'Award Amount',
-          'Total Outlays',
-          'CFDA Number',
-          'Awarding Agency',
-          'Awarding Sub Agency',
-          'Description',
-          'Start Date',
-          'End Date',
-          'generated_internal_id',
-        ],
+        fields: USASpendingClient.fieldsForGroup(amountField, ['generated_internal_id']),
         limit: 100,
         page,
-        sort: 'Award Amount',
+        sort: amountField,
         order: 'desc',
       }, 'POST');
       if (response && Array.isArray(response.results)) {
-        merged.push(...response.results);
+        merged.push(...USASpendingClient.normalizeResults(response.results, amountField));
       }
       if (response && response.page_metadata) pageMetadata = response.page_metadata;
     }

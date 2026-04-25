@@ -223,38 +223,31 @@ async function seedPetitionRequirements() {
 }
 
 async function seedBaselineComplianceRecords() {
-  // Create baseline compliance records for all federal legislators
-  const { rows: requirements } = await pool.query(
-    `SELECT id, requirement_type FROM transparency_requirements WHERE jurisdiction_type = 'federal'`
-  );
-
-  const { rows: politicians } = await pool.query(
-    `SELECT id FROM candidate_profiles WHERE fec_office_type IN ('H', 'S')`
-  );
-
-  console.log(`  Creating baseline records for ${politicians.length} legislators across ${requirements.length} federal requirements...`);
-
-  let inserted = 0;
-  for (const pol of politicians) {
-    for (const req of requirements) {
-      if (dryRun) continue;
-
-      await pool.query(
-        `INSERT INTO compliance_records
-           (politician_id, requirement_id, compliance_status, compliance_score, last_checked)
-         VALUES ($1, $2, 'unknown', NULL, NULL)
-         ON CONFLICT DO NOTHING`,
-        [pol.id, req.id]
-      );
-      inserted++;
-    }
-  }
-
+  // Previously this looped politicians × requirements in JS doing one INSERT
+  // per pair. With ~6k federal-office filers and ~6 federal requirements
+  // that's ~37k sequential round-trips, which exceeded the 30-min step
+  // timeout. One CROSS JOIN inserts everything in a single query.
   if (dryRun) {
-    console.log(`  [dry-run] Would create ${politicians.length * requirements.length} baseline records`);
-  } else {
-    console.log(`  Created ${inserted} baseline compliance records`);
+    const { rows: [stats] } = await pool.query(
+      `SELECT
+         (SELECT COUNT(*) FROM candidate_profiles WHERE fec_office_type IN ('H','S')) AS pols,
+         (SELECT COUNT(*) FROM transparency_requirements WHERE jurisdiction_type = 'federal') AS reqs`
+    );
+    console.log(`  [dry-run] Would create up to ${Number(stats.pols) * Number(stats.reqs)} baseline records`);
+    return;
   }
+
+  const result = await pool.query(
+    `INSERT INTO compliance_records
+       (politician_id, requirement_id, compliance_status, compliance_score, last_checked)
+     SELECT cp.id, tr.id, 'unknown', NULL, NULL
+     FROM candidate_profiles cp
+     CROSS JOIN transparency_requirements tr
+     WHERE cp.fec_office_type IN ('H', 'S')
+       AND tr.jurisdiction_type = 'federal'
+     ON CONFLICT DO NOTHING`
+  );
+  console.log(`  Created ${result.rowCount} baseline compliance records`);
 }
 
 // ---------------------------------------------------------------------------
