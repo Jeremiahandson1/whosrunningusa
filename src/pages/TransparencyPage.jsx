@@ -62,9 +62,11 @@ function TransparencyPage() {
 
     // Fetch list and stats independently — a failure on one shouldn't blank
     // the other (and shouldn't leave the page spinning forever).
+    // The backend computes these from a 4M+ row table on a cold cache —
+    // give it room to finish if the server just restarted.
     const [listResult, statsResult] = await Promise.allSettled([
-      api.get(`/transparency?${params.toString()}`),
-      api.get('/transparency/stats'),
+      api.get(`/transparency?${params.toString()}`, false, { timeoutMs: 90_000 }),
+      api.get('/transparency/stats', false, { timeoutMs: 90_000 }),
     ])
 
     if (listResult.status === 'fulfilled') {

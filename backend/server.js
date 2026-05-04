@@ -275,8 +275,38 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
+// Pre-warm the heavy aggregation caches in the background so the first
+// real visitor doesn't hit a 60–80 second cold query (which exceeds the
+// frontend's 20s fetch timeout). Refresh periodically so the cache never
+// expires under traffic.
+function warmCachesPath(path, timeoutMs = 180_000) {
+  return new Promise((resolve) => {
+    const http = require('http');
+    const req = http.get({ host: '127.0.0.1', port: PORT, path, timeout: timeoutMs }, (res) => {
+      res.on('data', () => {});
+      res.on('end', () => resolve(res.statusCode));
+    });
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve('timeout'); });
+  });
+}
+
+async function warmTransparencyCaches() {
+  const start = Date.now();
+  const [lb, stats] = await Promise.all([
+    warmCachesPath('/api/transparency?page=1&sort=score'),
+    warmCachesPath('/api/transparency/stats'),
+  ]);
+  console.log(`[warm] transparency caches refreshed in ${Date.now() - start}ms (leaderboard=${lb}, stats=${stats})`);
+}
+
 app.listen(PORT, () => {
   console.log(`WhosRunningUSA API server running on port ${PORT}`);
+  // First warm runs after a 5s delay so health checks settle first.
+  setTimeout(warmTransparencyCaches, 5_000);
+  // Refresh every 4 minutes — well inside the 5-min leaderboard TTL and
+  // 10-min stats TTL, so the cache never goes cold while the server runs.
+  setInterval(warmTransparencyCaches, 4 * 60 * 1000);
 });
 
 module.exports = app;
