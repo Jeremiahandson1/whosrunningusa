@@ -46,7 +46,7 @@ function RacesPage() {
     params.set('limit', String(PAGE_SIZE))
     Promise.all([
       api.get(`/races?${params.toString()}`).catch(() => ({ races: [] })),
-      api.get('/elections').catch(() => ({ elections: [] })),
+      api.get('/elections?upcoming=true').catch(() => ({ elections: [] })),
     ])
       .then(([racesData, electionsData]) => {
         const results = racesData.races || []
