@@ -23,14 +23,27 @@ export default function AdminLayout({ children }) {
     const redirectTo = encodeURIComponent(location.pathname + location.search)
     return (
       <div className="container" style={{ paddingTop: '4rem', paddingBottom: '4rem' }}>
-        <div className="empty-state" style={{ maxWidth: 480, margin: '0 auto' }}>
+        <div className="empty-state" style={{ maxWidth: 520, margin: '0 auto' }}>
           <Lock size={48} style={{ color: 'var(--slate-400)', marginBottom: '1rem' }} />
           <h3>Admin access required</h3>
-          <p style={{ color: 'var(--slate-600)' }}>
-            {user
-              ? 'Your account does not have admin permissions. If this is a mistake, contact a platform administrator.'
-              : 'Sign in with an admin account to view this page.'}
-          </p>
+          {user ? (
+            <>
+              <p style={{ color: 'var(--slate-600)' }}>
+                You're signed in as <strong>{user.email}</strong>, but this account doesn't have admin permissions.
+              </p>
+              <p style={{ color: 'var(--slate-600)', marginTop: '0.75rem' }}>
+                Admin access is granted manually by the platform team. If you need it for moderation, data sync, or candidate verification work, reach out at{' '}
+                <a href="mailto:support@whosrunningusa.com?subject=Admin%20access%20request" style={{ color: 'var(--burgundy-600)', fontWeight: 600 }}>
+                  support@whosrunningusa.com
+                </a>{' '}
+                or use the <Link to="/contact" style={{ color: 'var(--burgundy-600)', fontWeight: 600 }}>contact form</Link> and include your username.
+              </p>
+            </>
+          ) : (
+            <p style={{ color: 'var(--slate-600)' }}>
+              This area is restricted to platform administrators. Sign in with an admin account to continue.
+            </p>
+          )}
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap', marginTop: '1.5rem' }}>
             {!user && (
               <Link to={`/login?redirect=${redirectTo}`} className="btn btn-primary">Sign In</Link>
