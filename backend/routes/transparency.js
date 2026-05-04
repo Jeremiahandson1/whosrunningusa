@@ -2,6 +2,13 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
+// Postgres error code 42P01 = "undefined_table". When the transparency
+// migrations haven't run on a given environment, treat that as "no data
+// yet" rather than a 500 — the UI then renders its empty state.
+function isMissingTable(err) {
+  return err && err.code === '42P01';
+}
+
 // GET /transparency — compliance leaderboard
 router.get('/', async (req, res, next) => {
   try {
@@ -12,7 +19,15 @@ router.get('/', async (req, res, next) => {
     // Short-circuit when there are no compliance records at all. Avoids the
     // expensive JOIN + json_agg + DISTINCT hot path while the dataset is empty
     // (which is the entire pre-launch window).
-    const fastCheck = await db.query(`SELECT 1 FROM compliance_records LIMIT 1`);
+    let fastCheck;
+    try {
+      fastCheck = await db.query(`SELECT 1 FROM compliance_records LIMIT 1`);
+    } catch (err) {
+      if (isMissingTable(err)) {
+        return res.json({ politicians: [], total: 0, page: parseInt(page), totalPages: 0 });
+      }
+      throw err;
+    }
     if (fastCheck.rows.length === 0) {
       return res.json({ politicians: [], total: 0, page: parseInt(page), totalPages: 0 });
     }
@@ -146,7 +161,13 @@ router.get('/politicians/:id', async (req, res, next) => {
 // GET /transparency/requirements — list all transparency requirements
 router.get('/requirements', async (req, res, next) => {
   try {
-    const fastCheck = await db.query(`SELECT 1 FROM transparency_requirements LIMIT 1`);
+    let fastCheck;
+    try {
+      fastCheck = await db.query(`SELECT 1 FROM transparency_requirements LIMIT 1`);
+    } catch (err) {
+      if (isMissingTable(err)) return res.json({ requirements: [] });
+      throw err;
+    }
     if (fastCheck.rows.length === 0) {
       return res.json({ requirements: [] });
     }
@@ -192,17 +213,24 @@ router.get('/stats', async (req, res, next) => {
   try {
     // Empty-table short-circuit so a quick page load doesn't require a heavy
     // GROUP BY scan when there's nothing to aggregate.
-    const fastCheck = await db.query(`SELECT 1 FROM transparency_requirements LIMIT 1`);
+    const emptyStats = {
+      total_requirements: 0,
+      total_politicians_tracked: 0,
+      total_records: 0,
+      avg_compliance_score: null,
+      compliant_total: 0,
+      non_compliant_total: 0,
+      by_type: [],
+    };
+    let fastCheck;
+    try {
+      fastCheck = await db.query(`SELECT 1 FROM transparency_requirements LIMIT 1`);
+    } catch (err) {
+      if (isMissingTable(err)) return res.json(emptyStats);
+      throw err;
+    }
     if (fastCheck.rows.length === 0) {
-      return res.json({
-        total_requirements: 0,
-        total_politicians_tracked: 0,
-        total_records: 0,
-        avg_compliance_score: null,
-        compliant_total: 0,
-        non_compliant_total: 0,
-        by_type: [],
-      });
+      return res.json(emptyStats);
     }
 
     const stats = await db.query(`
