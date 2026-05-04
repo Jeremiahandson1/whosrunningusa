@@ -309,43 +309,60 @@ router.get('/stats', async (req, res, next) => {
     const cached = cacheGet('stats');
     if (cached) return res.json(cached);
 
-    // Two LEFT JOIN aggregates over the same row source. The previous
-    // version made two trips through compliance_records; doing them in a
-    // single CTE saves a sequential scan and keeps us under the 60s cap
-    // on real-sized data.
-    const payload = await withExtendedTimeout(QUERY_TIMEOUT_MS, async (client) => {
-      const combined = await client.query(`
-        WITH joined AS (
-          SELECT tr.id AS req_id,
-                 tr.requirement_type,
-                 cr.id AS rec_id,
-                 cr.politician_id,
-                 cr.compliance_status,
-                 cr.compliance_score
-          FROM transparency_requirements tr
-          LEFT JOIN compliance_records cr ON cr.requirement_id = tr.id
-        )
+    // Three small indexed queries beat the previous 6-subquery CTE that
+    // materialized the entire transparency_requirements × compliance_records
+    // join. Each query below uses an existing index and aggregates in one
+    // pass instead of re-scanning a CTE per metric.
+    const payload = await withExtendedTimeout(QUERY_TIMEOUT_MS * 2, async (client) => {
+      const trCount = await client.query(
+        `SELECT COUNT(*)::int AS n FROM transparency_requirements`
+      );
+
+      // Single sequential pass over compliance_records — collects every
+      // top-level metric (counts, distinct politicians, status totals,
+      // average score) in one go.
+      const crSummary = await client.query(`
         SELECT
-          (SELECT COUNT(DISTINCT req_id)::int FROM joined) AS total_requirements,
-          (SELECT COUNT(DISTINCT politician_id)::int FROM joined WHERE politician_id IS NOT NULL) AS total_politicians_tracked,
-          (SELECT COUNT(rec_id)::int FROM joined WHERE rec_id IS NOT NULL) AS total_records,
-          (SELECT ROUND(AVG(compliance_score), 1) FROM joined WHERE compliance_score IS NOT NULL) AS avg_compliance_score,
-          (SELECT COUNT(*)::int FROM joined WHERE compliance_status = 'compliant') AS compliant_total,
-          (SELECT COUNT(*)::int FROM joined WHERE compliance_status = 'non_compliant') AS non_compliant_total
+          COUNT(*)::int AS total_records,
+          COUNT(DISTINCT politician_id)::int AS total_politicians_tracked,
+          ROUND(AVG(compliance_score) FILTER (WHERE compliance_score IS NOT NULL), 1) AS avg_compliance_score,
+          COUNT(*) FILTER (WHERE compliance_status = 'compliant')::int AS compliant_total,
+          COUNT(*) FILTER (WHERE compliance_status = 'non_compliant')::int AS non_compliant_total
+        FROM compliance_records
       `);
 
+      // Driving the GROUP BY from compliance_records (using idx_compliance_requirement)
+      // and joining to the small transparency_requirements table on the way
+      // out is much cheaper than the LEFT JOIN-then-aggregate plan, because
+      // requirement_type only has a handful of distinct values.
       const byType = await client.query(`
         SELECT tr.requirement_type,
-               COUNT(DISTINCT tr.id)::int AS requirement_count,
+               COUNT(*) FILTER (WHERE cr.compliance_status = 'non_compliant')::int AS non_compliant,
                ROUND(AVG(cr.compliance_score), 1) AS avg_score,
-               COUNT(*) FILTER (WHERE cr.compliance_status = 'non_compliant')::int AS non_compliant
-        FROM transparency_requirements tr
-        LEFT JOIN compliance_records cr ON cr.requirement_id = tr.id
+               COUNT(*)::int AS records
+        FROM compliance_records cr
+        JOIN transparency_requirements tr ON tr.id = cr.requirement_id
         GROUP BY tr.requirement_type
         ORDER BY tr.requirement_type
       `);
 
-      return { ...combined.rows[0], by_type: byType.rows };
+      const reqCounts = await client.query(`
+        SELECT requirement_type, COUNT(*)::int AS requirement_count
+        FROM transparency_requirements
+        GROUP BY requirement_type
+      `);
+      const reqCountByType = new Map(
+        reqCounts.rows.map(r => [r.requirement_type, r.requirement_count])
+      );
+
+      return {
+        total_requirements: trCount.rows[0].n,
+        ...crSummary.rows[0],
+        by_type: byType.rows.map(r => ({
+          ...r,
+          requirement_count: reqCountByType.get(r.requirement_type) || 0,
+        })),
+      };
     });
 
     cacheSet('stats', payload, STATS_TTL_MS);
