@@ -29,6 +29,40 @@ router.put('/profile', authenticate, async (req, res, next) => {
   }
 });
 
+// Merge keys into the authenticated user's ui_state JSONB.
+// Body: { key1: value1, key2: value2, ... } — top-level merge only.
+// Used for small UI prefs: onboarding_seen_<page>, last_voting_guide_election.
+router.put('/me/ui-state', authenticate, async (req, res, next) => {
+  try {
+    const updates = req.body;
+    if (!updates || typeof updates !== 'object' || Array.isArray(updates)) {
+      return res.status(400).json({ error: 'Body must be a JSON object of preference key/value pairs' });
+    }
+    // Whitelist guards against unbounded growth — every key must be a known
+    // ui-state key. Add new ones here as the UI needs them.
+    const allowed = new Set([
+      'last_voting_guide_election',
+    ]);
+    const filtered = {};
+    for (const [key, value] of Object.entries(updates)) {
+      if (key.startsWith('onboarding_seen_') || allowed.has(key)) {
+        filtered[key] = value;
+      }
+    }
+    const result = await db.query(
+      `UPDATE users
+         SET ui_state = COALESCE(ui_state, '{}'::jsonb) || $1::jsonb,
+             updated_at = NOW()
+       WHERE id = $2
+       RETURNING ui_state`,
+      [JSON.stringify(filtered), req.user.id]
+    );
+    res.json({ ui_state: result.rows[0].ui_state });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get user's notification preferences
 router.get('/notification-preferences', authenticate, async (req, res, next) => {
   try {

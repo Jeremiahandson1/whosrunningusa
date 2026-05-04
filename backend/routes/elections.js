@@ -8,21 +8,30 @@ router.get('/', async (req, res, next) => {
   try {
     const { state, upcoming, limit = 20, offset = 0 } = req.query;
 
-    let query = 'SELECT * FROM elections WHERE 1=1';
+    let query = `
+      SELECT e.*, COALESCE(rc.race_count, 0)::int AS race_count
+      FROM elections e
+      LEFT JOIN (
+        SELECT election_id, COUNT(*) AS race_count
+        FROM races
+        GROUP BY election_id
+      ) rc ON rc.election_id = e.id
+      WHERE 1=1
+    `;
     const params = [];
     let paramIndex = 1;
 
     if (state) {
-      query += ` AND state = $${paramIndex}`;
+      query += ` AND e.state = $${paramIndex}`;
       params.push(state);
       paramIndex++;
     }
 
     if (upcoming === 'true') {
-      query += ` AND election_date >= CURRENT_DATE`;
+      query += ` AND e.election_date >= CURRENT_DATE`;
     }
 
-    query += ` ORDER BY election_date ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    query += ` ORDER BY e.election_date ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     params.push(parseInt(limit), parseInt(offset));
 
     const result = await db.query(query, params);

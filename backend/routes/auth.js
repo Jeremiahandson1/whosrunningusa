@@ -177,9 +177,10 @@ router.post('/login', async (req, res, next) => {
 router.get('/me', authenticate, async (req, res, next) => {
   try {
     const result = await db.query(
-      `SELECT id, email, username, user_type, first_name, last_name, 
+      `SELECT id, email, username, user_type, first_name, last_name,
               profile_pic_url, bio, state, county, city, zip_code,
-              email_verified, phone_verified, created_at
+              email_verified, phone_verified, created_at,
+              COALESCE(ui_state, '{}'::jsonb) AS ui_state
        FROM users WHERE id = $1`,
       [req.user.id]
     );

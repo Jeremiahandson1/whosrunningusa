@@ -1,24 +1,37 @@
 import React, { useState, useEffect } from 'react'
 import { X, ChevronRight, ChevronLeft } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import api from '../utils/api'
 
 function OnboardingModal({ pageKey, steps, onClose }) {
   const [currentStep, setCurrentStep] = useState(0)
   const [visible, setVisible] = useState(false)
+  const { user, updateUser } = useAuth()
 
   const storageKey = `onboarding_seen_${pageKey}`
 
   useEffect(() => {
-    const seen = localStorage.getItem(storageKey)
-    if (!seen) {
+    // Server-side state wins for logged-in users — survives ephemeral browser
+    // sessions where localStorage doesn't persist (Claude for Chrome, private
+    // mode, cleared site data, switched device).
+    const seenServerSide = user?.ui_state && user.ui_state[storageKey]
+    const seenLocally = localStorage.getItem(storageKey)
+    if (!seenServerSide && !seenLocally) {
       setVisible(true)
     }
-  }, [storageKey])
+  }, [storageKey, user])
 
   // Any dismissal (X button, backdrop click, Skip, Don't show again, completing
   // the carousel) marks the modal as seen so it doesn't return on every visit.
   const handleClose = () => {
     try { localStorage.setItem(storageKey, 'true') } catch { /* private mode */ }
     setVisible(false)
+    if (user) {
+      // Persist on the user row too so it sticks across sessions/devices.
+      // Optimistically update local user object — fire-and-forget the API.
+      updateUser({ ui_state: { ...(user.ui_state || {}), [storageKey]: true } })
+      api.put('/users/me/ui-state', { [storageKey]: true }, true).catch(() => { /* ignore */ })
+    }
     if (onClose) onClose()
   }
 

@@ -32,17 +32,38 @@ function VotingGuidePage() {
       setLoading(false)
       return
     }
-    api.get('/elections')
+    // Only show upcoming elections so users don't land on a past one.
+    // Default selection: their last-picked election (server-side > localStorage),
+    // or the nearest upcoming if none was saved.
+    api.get('/elections?upcoming=true')
       .then(data => {
         const electionsList = data.elections || []
         setElections(electionsList)
-        if (electionsList.length > 0) {
+        const lastFromServer = user?.ui_state?.last_voting_guide_election
+        const lastFromLocal = (() => {
+          try { return localStorage.getItem('last_voting_guide_election') } catch { return null }
+        })()
+        const preferred = lastFromServer || lastFromLocal
+        const stillValid = preferred && electionsList.some(e => e.id === preferred)
+        if (stillValid) {
+          setSelectedElection(preferred)
+        } else if (electionsList.length > 0) {
           setSelectedElection(electionsList[0].id)
         }
       })
       .catch(() => setElections([]))
       .finally(() => setLoading(false))
   }, [user])
+
+  // Persist the user's choice locally + server-side so a return visit lands
+  // them back on the same election they were building.
+  const handleElectionChange = (id) => {
+    setSelectedElection(id)
+    try { localStorage.setItem('last_voting_guide_election', id) } catch { /* ignored */ }
+    if (user) {
+      api.put('/users/me/ui-state', { last_voting_guide_election: id }, true).catch(() => { /* ignored */ })
+    }
+  }
 
   useEffect(() => {
     if (!user || !selectedElection) return
@@ -156,19 +177,28 @@ function VotingGuidePage() {
         {/* Print-only title */}
         <div className="voting-guide-print-title">My Voting Guide</div>
 
-        {elections.length > 1 && (
-          <div className="voting-guide-election-select" style={{ marginBottom: '2rem' }}>
-            <select
-              value={selectedElection || ''}
-              onChange={(e) => setSelectedElection(e.target.value)}
-              style={{ maxWidth: 300 }}
-            >
-              {elections.map(el => (
-                <option key={el.id} value={el.id}>{el.name}</option>
-              ))}
-            </select>
-          </div>
-        )}
+        {(() => {
+          // Hide empty state-level primaries from the dropdown so the menu
+          // isn't cluttered with options that all read "No races available
+          // yet". Fall back to the full list if every election is empty
+          // (so the user still has something to click).
+          const withRaces = elections.filter(el => (el.race_count ?? 1) > 0)
+          const visible = withRaces.length > 0 ? withRaces : elections
+          if (visible.length <= 1) return null
+          return (
+            <div className="voting-guide-election-select" style={{ marginBottom: '2rem' }}>
+              <select
+                value={selectedElection || ''}
+                onChange={(e) => handleElectionChange(e.target.value)}
+                style={{ maxWidth: 300 }}
+              >
+                {visible.map(el => (
+                  <option key={el.id} value={el.id}>{el.name}</option>
+                ))}
+              </select>
+            </div>
+          )
+        })()}
 
         {loading && <div className="loading-state" aria-live="polite">Loading your voting guide...</div>}
 
