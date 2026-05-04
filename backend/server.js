@@ -39,6 +39,12 @@ const { sanitizeInput } = require('./middleware/validate');
 
 const app = express();
 
+// Render terminates TLS at its edge proxy and forwards the original client IP
+// in X-Forwarded-For. Without this, express-rate-limit can't identify clients
+// correctly (and logs ERR_ERL_UNEXPECTED_X_FORWARDED_FOR on every request).
+// Setting to 1 trusts exactly one hop — the Render proxy.
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: {
