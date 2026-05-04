@@ -94,18 +94,32 @@ function PageLoader() {
 // to visit next. Calling `import()` here prepopulates Vite's chunk cache so
 // that when React.lazy reaches for the same module, it resolves synchronously
 // and the post-login navigation no longer flashes the page-loader.
+//
+// Each chunk goes through `requestIdleCallback` so the JS parse never lands
+// on the same frame as a route render — on weaker devices, kicking off four
+// imports at once was visibly stalling the renderer.
 function AuthChunkPrefetcher() {
   const { user } = useAuth()
   useEffect(() => {
     if (!user) return
-    import('./pages/ExplorePage')
-    import('./pages/VotingGuidePage')
-    import('./pages/PetitionsPage')
-    import('./pages/ComparePage')
+    const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 250))
+    const cancel = window.cancelIdleCallback || clearTimeout
+
+    const chunks = [
+      () => import('./pages/ExplorePage'),
+      () => import('./pages/VotingGuidePage'),
+      () => import('./pages/PetitionsPage'),
+      () => import('./pages/ComparePage'),
+    ]
     if (user.user_type === 'candidate') {
-      import('./pages/CandidateDashboardPage')
-      import('./pages/CandidateEditPage')
+      chunks.push(() => import('./pages/CandidateDashboardPage'))
+      chunks.push(() => import('./pages/CandidateEditPage'))
     }
+
+    const handles = chunks.map((load, i) =>
+      idle(() => { load() }, { timeout: 4000 + i * 500 })
+    )
+    return () => handles.forEach(cancel)
   }, [user])
   return null
 }
