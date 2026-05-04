@@ -34,7 +34,10 @@ function VotingGuidePage() {
     }
     // Only show upcoming elections so users don't land on a past one.
     // Default selection: their last-picked election (server-side > localStorage),
-    // or the nearest upcoming if none was saved.
+    // but ONLY if it still has races. If their saved election is now empty,
+    // they'd land on a "No races" page with no dropdown to escape (W8 hides
+    // the dropdown when there's just one with-races election). Fall through
+    // to the nearest with-races election in that case.
     api.get('/elections?upcoming=true')
       .then(data => {
         const electionsList = data.elections || []
@@ -44,11 +47,15 @@ function VotingGuidePage() {
           try { return localStorage.getItem('last_voting_guide_election') } catch { return null }
         })()
         const preferred = lastFromServer || lastFromLocal
-        const stillValid = preferred && electionsList.some(e => e.id === preferred)
-        if (stillValid) {
+        const preferredEl = preferred ? electionsList.find(e => e.id === preferred) : null
+        const preferredHasRaces = preferredEl && (preferredEl.race_count ?? 1) > 0
+
+        if (preferredHasRaces) {
           setSelectedElection(preferred)
-        } else if (electionsList.length > 0) {
-          setSelectedElection(electionsList[0].id)
+        } else {
+          const withRaces = electionsList.filter(e => (e.race_count ?? 1) > 0)
+          const fallback = withRaces[0] || electionsList[0]
+          if (fallback) setSelectedElection(fallback.id)
         }
       })
       .catch(() => setElections([]))
@@ -56,12 +63,18 @@ function VotingGuidePage() {
   }, [user])
 
   // Persist the user's choice locally + server-side so a return visit lands
-  // them back on the same election they were building.
+  // them back on the same election they were building. Empty elections are
+  // intentionally NOT persisted — landing back on one would trap the user
+  // (no dropdown to switch when only one election has races).
   const handleElectionChange = (id) => {
     setSelectedElection(id)
-    try { localStorage.setItem('last_voting_guide_election', id) } catch { /* ignored */ }
-    if (user) {
-      api.put('/users/me/ui-state', { last_voting_guide_election: id }, true).catch(() => { /* ignored */ })
+    const election = elections.find(e => e.id === id)
+    const hasRaces = election && (election.race_count ?? 1) > 0
+    if (hasRaces) {
+      try { localStorage.setItem('last_voting_guide_election', id) } catch { /* ignored */ }
+      if (user) {
+        api.put('/users/me/ui-state', { last_voting_guide_election: id }, true).catch(() => { /* ignored */ })
+      }
     }
   }
 
