@@ -58,52 +58,91 @@ router.get('/', async (req, res, next) => {
     if (sort === 'score_desc') orderBy = 'avg_score DESC NULLS LAST';
     if (sort === 'name') orderBy = 'cp.display_name ASC';
 
-    // Driving the JOIN from compliance_records (vs candidate_profiles) keeps
-    // the planner from scanning all 15k+ candidate rows when the supporting
-    // tables are sparse.
-    const countResult = await db.query(`
-      SELECT COUNT(DISTINCT cr.politician_id) as total
-      FROM compliance_records cr
-      JOIN transparency_requirements tr ON cr.requirement_id = tr.id
-      JOIN candidate_profiles cp ON cp.id = cr.politician_id
-      ${where}
-    `, params);
-    const total = parseInt(countResult.rows[0].total);
+    // Three small queries beat one big one. The previous single-query approach
+    // used `json_agg(DISTINCT jsonb_build_object(...))` over a 3-table JOIN,
+    // which Postgres has to compute per-row hashes for and was hitting the
+    // 15s statement_timeout on real-sized data. Splitting into:
+    //   1) per-politician aggregate (no JOIN with candidate_profiles)
+    //   2) profile lookup for the 20 politicians on this page only
+    //   3) requirements lookup for the same 20 politicians
+    // keeps every query under a tight bound regardless of dataset size.
 
-    const query = `
-      SELECT cp.id as politician_id, cp.display_name, cp.party_affiliation,
+    const countSql = `
+      SELECT COUNT(*)::int AS total FROM (
+        SELECT cr.politician_id
+        FROM compliance_records cr
+        JOIN transparency_requirements tr ON cr.requirement_id = tr.id
+        ${where}
+        GROUP BY cr.politician_id
+      ) t
+    `;
+    const countResult = await db.query(countSql, params);
+    const total = countResult.rows[0].total;
+
+    const aggParams = [...params, limit, offset];
+    const aggSql = `
+      WITH stats AS (
+        SELECT cr.politician_id,
+               AVG(cr.compliance_score)::numeric AS avg_score_raw,
+               COUNT(*)::int AS total_requirements,
+               COUNT(*) FILTER (WHERE cr.compliance_status = 'compliant')::int AS compliant_count,
+               COUNT(*) FILTER (WHERE cr.compliance_status = 'partial')::int AS partial_count,
+               COUNT(*) FILTER (WHERE cr.compliance_status = 'non_compliant')::int AS non_compliant_count
+        FROM compliance_records cr
+        JOIN transparency_requirements tr ON cr.requirement_id = tr.id
+        ${where}
+        GROUP BY cr.politician_id
+      )
+      SELECT cp.id AS politician_id, cp.display_name, cp.party_affiliation,
              cp.official_title, cp.profile_photo_url, cp.fec_state, cp.fec_office_type,
-             ROUND(AVG(cr.compliance_score), 1) as avg_score,
-             COUNT(cr.id) as total_requirements,
-             COUNT(CASE WHEN cr.compliance_status = 'compliant' THEN 1 END) as compliant_count,
-             COUNT(CASE WHEN cr.compliance_status = 'non_compliant' THEN 1 END) as non_compliant_count,
-             COUNT(CASE WHEN cr.compliance_status = 'partial' THEN 1 END) as partial_count,
-             json_agg(DISTINCT jsonb_build_object(
-               'requirement_type', tr.requirement_type,
-               'title', tr.title,
-               'compliance_status', cr.compliance_status,
-               'compliance_score', cr.compliance_score
-             )) as requirements
-      FROM compliance_records cr
-      JOIN transparency_requirements tr ON cr.requirement_id = tr.id
-      JOIN candidate_profiles cp ON cp.id = cr.politician_id
-      ${where}
-      GROUP BY cp.id, cp.display_name, cp.party_affiliation, cp.official_title,
-               cp.profile_photo_url, cp.fec_state, cp.fec_office_type
-      ORDER BY ${orderBy}
+             ROUND(stats.avg_score_raw, 1) AS avg_score,
+             stats.total_requirements, stats.compliant_count,
+             stats.partial_count, stats.non_compliant_count
+      FROM stats
+      JOIN candidate_profiles cp ON cp.id = stats.politician_id
+      ORDER BY ${orderBy === 'avg_score ASC NULLS LAST' ? 'stats.avg_score_raw ASC NULLS LAST'
+              : orderBy === 'avg_score DESC NULLS LAST' ? 'stats.avg_score_raw DESC NULLS LAST'
+              : 'cp.display_name ASC'}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
-    params.push(limit, offset);
+    const result = await db.query(aggSql, aggParams);
 
-    const result = await db.query(query, params);
+    // Pull requirements for just the politicians on this page.
+    let politicians = result.rows;
+    if (politicians.length > 0) {
+      const ids = politicians.map(p => p.politician_id);
+      const reqs = await db.query(
+        `SELECT cr.politician_id, tr.requirement_type, tr.title,
+                cr.compliance_status, cr.compliance_score
+           FROM compliance_records cr
+           JOIN transparency_requirements tr ON cr.requirement_id = tr.id
+          WHERE cr.politician_id = ANY($1::uuid[])`,
+        [ids]
+      );
+      const byPolitician = new Map();
+      for (const row of reqs.rows) {
+        if (!byPolitician.has(row.politician_id)) byPolitician.set(row.politician_id, []);
+        byPolitician.get(row.politician_id).push({
+          requirement_type: row.requirement_type,
+          title: row.title,
+          compliance_status: row.compliance_status,
+          compliance_score: row.compliance_score,
+        });
+      }
+      politicians = politicians.map(p => ({
+        ...p,
+        requirements: byPolitician.get(p.politician_id) || [],
+      }));
+    }
 
     res.json({
-      politicians: result.rows,
+      politicians,
       total,
       page: parseInt(page),
       totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
+    console.error('[transparency leaderboard] query failed:', error.message, error.code || '');
     next(error);
   }
 });
@@ -154,6 +193,7 @@ router.get('/politicians/:id', async (req, res, next) => {
       },
     });
   } catch (error) {
+    console.error('[transparency] query failed:', error.message, error.code || '');
     next(error);
   }
 });
@@ -204,6 +244,7 @@ router.get('/requirements', async (req, res, next) => {
 
     res.json({ requirements: result.rows });
   } catch (error) {
+    console.error('[transparency] query failed:', error.message, error.code || '');
     next(error);
   }
 });
@@ -261,6 +302,7 @@ router.get('/stats', async (req, res, next) => {
       by_type: byType.rows,
     });
   } catch (error) {
+    console.error('[transparency] query failed:', error.message, error.code || '');
     next(error);
   }
 });
