@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Eye, CheckCircle, XCircle, AlertCircle, Filter, ChevronLeft, ChevronRight, Shield } from 'lucide-react'
+import { Eye, CheckCircle, XCircle, AlertCircle, Filter, ChevronLeft, ChevronRight, Shield, RefreshCw } from 'lucide-react'
 import api from '../utils/api'
+import DataSyncingBanner from '../components/DataSyncingBanner'
 
 const REQUIREMENT_TYPES = [
   { value: 'body_camera', label: 'Body Camera' },
@@ -51,27 +52,40 @@ function TransparencyPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-    try {
-      const params = new URLSearchParams()
-      params.set('page', String(page))
-      params.set('sort', sort)
-      if (state) params.set('state', state)
-      if (requirement_type) params.set('requirement_type', requirement_type)
-      if (compliance_status) params.set('compliance_status', compliance_status)
+    setError(null)
+    const params = new URLSearchParams()
+    params.set('page', String(page))
+    params.set('sort', sort)
+    if (state) params.set('state', state)
+    if (requirement_type) params.set('requirement_type', requirement_type)
+    if (compliance_status) params.set('compliance_status', compliance_status)
 
-      const [listData, statsData] = await Promise.all([
-        api.get(`/transparency?${params.toString()}`),
-        api.get('/transparency/stats'),
-      ])
-      setPoliticians(listData.politicians || [])
-      setTotal(listData.total || 0)
-      setTotalPages(listData.totalPages || 1)
-      setStats(statsData)
-    } catch (err) {
-      setError(err.message || 'Failed to load data')
-    } finally {
-      setLoading(false)
+    // Fetch list and stats independently — a failure on one shouldn't blank
+    // the other (and shouldn't leave the page spinning forever).
+    const [listResult, statsResult] = await Promise.allSettled([
+      api.get(`/transparency?${params.toString()}`),
+      api.get('/transparency/stats'),
+    ])
+
+    if (listResult.status === 'fulfilled') {
+      const d = listResult.value
+      setPoliticians(d.politicians || [])
+      setTotal(d.total || 0)
+      setTotalPages(d.totalPages || 1)
+    } else {
+      setPoliticians([])
+      setTotal(0)
+      setTotalPages(1)
+      setError(listResult.reason?.message || 'Failed to load compliance data')
     }
+
+    if (statsResult.status === 'fulfilled') {
+      setStats(statsResult.value)
+    } else {
+      setStats(null)
+    }
+
+    setLoading(false)
   }, [page, sort, state, requirement_type, compliance_status])
 
   useEffect(() => { fetchData() }, [fetchData])
@@ -97,6 +111,10 @@ function TransparencyPage() {
       </section>
 
       <div style={{ maxWidth: 960, margin: '0 auto', padding: 'clamp(16px, 3vw, 32px)' }}>
+        {!loading && !error && total === 0 && (
+          <DataSyncingBanner feature="transparency compliance records" />
+        )}
+
         {/* Stats */}
         {stats && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 24 }}>
@@ -178,7 +196,13 @@ function TransparencyPage() {
         )}
 
         {error && !loading && (
-          <div style={{ padding: 24, background: '#fef2f2', borderRadius: 12, color: '#9f1239', textAlign: 'center' }}>{error}</div>
+          <div style={{ padding: 24, background: '#fef2f2', borderRadius: 12, color: '#9f1239', textAlign: 'center' }}>
+            <AlertCircle size={32} style={{ marginBottom: 8 }} />
+            <p style={{ margin: '0 0 12px', fontWeight: 600 }}>{error}</p>
+            <button onClick={fetchData} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', border: '1px solid #fca5a5', borderRadius: 8, background: '#fff', color: '#9f1239', cursor: 'pointer', fontWeight: 600, fontSize: 14 }}>
+              <RefreshCw size={14} /> Try again
+            </button>
+          </div>
         )}
 
         {!loading && !error && politicians.length === 0 && (

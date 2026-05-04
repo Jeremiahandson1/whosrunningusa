@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { TrendingUp, AlertTriangle, Filter, ChevronLeft, ChevronRight, DollarSign, Clock, BarChart3 } from 'lucide-react'
 import api from '../utils/api'
+import DataSyncingBanner from '../components/DataSyncingBanner'
 
 const FLAG_LABELS = {
   timing_suspicious: 'Suspicious Timing',
@@ -107,6 +108,10 @@ function TradingMonitorPage() {
       </section>
 
       <div style={{ maxWidth: 1060, margin: '0 auto', padding: 'clamp(16px, 3vw, 32px)' }}>
+        {!loading && !error && total === 0 && (
+          <DataSyncingBanner feature="official trading activity" />
+        )}
+
         {/* Stats row */}
         {stats && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 24 }}>

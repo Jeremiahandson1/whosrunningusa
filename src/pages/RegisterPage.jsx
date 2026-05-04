@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Mail, Lock, ArrowRight, CheckCircle, Users, Award, AlertCircle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -42,6 +42,7 @@ function RegisterPage() {
   const [termsError, setTermsError] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const termsCheckboxRef = useRef(null)
   const { register } = useAuth()
   const navigate = useNavigate()
 
@@ -52,10 +53,16 @@ function RegisterPage() {
       return
     }
     if (step === 2) {
-      if (!agreedToTerms) {
+      // Trust the DOM checkbox as a fallback: programmatic fill (password
+      // managers, automation tools) can set `checked` without firing the
+      // React onChange handler, so React state may say false even when the
+      // user did "check" the box.
+      const domChecked = termsCheckboxRef.current?.checked === true
+      if (!agreedToTerms && !domChecked) {
         setTermsError('You must agree to the Terms of Service and Privacy Policy')
         return
       }
+      if (domChecked && !agreedToTerms) setAgreedToTerms(true)
       setTermsError('')
       setError('')
       setLoading(true)
@@ -203,6 +210,7 @@ function RegisterPage() {
               <div style={{ marginBottom: '1.5rem' }}>
                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--slate-700)' }}>
                   <input
+                    ref={termsCheckboxRef}
                     type="checkbox"
                     checked={agreedToTerms}
                     onChange={(e) => { setAgreedToTerms(e.target.checked); if (e.target.checked) setTermsError('') }}

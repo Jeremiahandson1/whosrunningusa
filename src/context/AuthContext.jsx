@@ -66,6 +66,9 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const data = await api.post('/auth/login', { email, password })
+    if (!data || !data.token) {
+      throw new Error('Sign-in succeeded but no session was created. Please try again.')
+    }
     localStorage.setItem('token', data.token)
     setUser(data.user)
     return data
@@ -73,6 +76,9 @@ export function AuthProvider({ children }) {
 
   const register = async (formData) => {
     const data = await api.post('/auth/register', formData)
+    if (!data || !data.token) {
+      throw new Error('Account created but no session was returned. Please sign in.')
+    }
     localStorage.setItem('token', data.token)
     setUser(data.user)
     return data

@@ -1,6 +1,6 @@
-import { Link, useLocation, Navigate } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import {
-  LayoutDashboard, Users, Shield, Vote, UserCog, RefreshCw, FileText
+  LayoutDashboard, Users, Shield, Vote, UserCog, RefreshCw, FileText, Lock
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
@@ -19,7 +19,28 @@ export default function AdminLayout({ children }) {
   const location = useLocation()
 
   if (loading) return <div className="loading-state">Loading...</div>
-  if (!user || user.user_type !== 'admin') return <Navigate to="/" replace />
+  if (!user || user.user_type !== 'admin') {
+    const redirectTo = encodeURIComponent(location.pathname + location.search)
+    return (
+      <div className="container" style={{ paddingTop: '4rem', paddingBottom: '4rem' }}>
+        <div className="empty-state" style={{ maxWidth: 480, margin: '0 auto' }}>
+          <Lock size={48} style={{ color: 'var(--slate-400)', marginBottom: '1rem' }} />
+          <h3>Admin access required</h3>
+          <p style={{ color: 'var(--slate-600)' }}>
+            {user
+              ? 'Your account does not have admin permissions. If this is a mistake, contact a platform administrator.'
+              : 'Sign in with an admin account to view this page.'}
+          </p>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap', marginTop: '1.5rem' }}>
+            {!user && (
+              <Link to={`/login?redirect=${redirectTo}`} className="btn btn-primary">Sign In</Link>
+            )}
+            <Link to="/" className="btn btn-secondary">Return Home</Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="admin-layout">

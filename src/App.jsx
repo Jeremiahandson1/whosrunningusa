@@ -1,8 +1,9 @@
-import React, { Suspense, lazy } from 'react'
+import React, { Suspense, lazy, useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import ScrollToTop from './components/ScrollToTop'
+import { useAuth } from './context/AuthContext'
 
 // Eager load the home page for fast initial render
 import HomePage from './pages/HomePage'
@@ -74,19 +75,39 @@ function PageLoader() {
       aria-live="polite"
       role="status"
       style={{
-        minHeight: '60vh',
+        minHeight: 240,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '4rem 1rem',
+        padding: '2rem 1rem',
         textAlign: 'center',
+        opacity: 0.7,
       }}
     >
       <div className="loading-spinner" />
-      Loading...
     </div>
   )
+}
+
+// Once a user is signed in, warm the cache for the routes they're most likely
+// to visit next. Calling `import()` here prepopulates Vite's chunk cache so
+// that when React.lazy reaches for the same module, it resolves synchronously
+// and the post-login navigation no longer flashes the page-loader.
+function AuthChunkPrefetcher() {
+  const { user } = useAuth()
+  useEffect(() => {
+    if (!user) return
+    import('./pages/ExplorePage')
+    import('./pages/VotingGuidePage')
+    import('./pages/PetitionsPage')
+    import('./pages/ComparePage')
+    if (user.user_type === 'candidate') {
+      import('./pages/CandidateDashboardPage')
+      import('./pages/CandidateEditPage')
+    }
+  }, [user])
+  return null
 }
 
 function App() {
@@ -112,6 +133,7 @@ function App() {
         Skip to main content
       </a>
       <ScrollToTop />
+      <AuthChunkPrefetcher />
       <Header />
       <main id="main-content">
         <Suspense fallback={<PageLoader />}>

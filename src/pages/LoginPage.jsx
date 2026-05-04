@@ -34,10 +34,14 @@ function LoginPage() {
       navigate(redirectTo)
     } catch (err) {
       const msg = (err && err.message) || ''
-      if (/failed to fetch|networkerror|network request failed/i.test(msg)) {
-        setError("We couldn't reach our servers. Please check your connection and try again in a moment.")
-      } else if (/invalid|unauthor|credential|password/i.test(msg)) {
+      const code = err && err.code
+      const status = err && err.status
+      if (code === 'TIMEOUT' || code === 'NETWORK') {
+        setError(msg)
+      } else if (status === 401 || status === 403 || /invalid|unauthor|credential|password/i.test(msg)) {
         setError('Incorrect email or password. Please try again.')
+      } else if (/failed to fetch|networkerror|network request failed/i.test(msg)) {
+        setError("We couldn't reach our servers. Please check your connection and try again in a moment.")
       } else {
         setError(msg || 'Sign-in failed. Please try again.')
       }

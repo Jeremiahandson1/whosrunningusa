@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { CheckCircle, Filter, ChevronLeft, ChevronRight, Award, XCircle, Clock, HelpCircle } from 'lucide-react'
 import api from '../utils/api'
+import DataSyncingBanner from '../components/DataSyncingBanner'
 
 const PARTY_OPTIONS = [
   { value: '', label: 'All Parties' },
@@ -138,6 +139,10 @@ function PromiseTrackerPage() {
       </section>
 
       <div style={{ maxWidth: 960, margin: '0 auto', padding: 'clamp(16px, 3vw, 32px)' }}>
+        {!loading && !error && total === 0 && (
+          <DataSyncingBanner feature="promise tracking" />
+        )}
+
         {/* Stats cards */}
         {stats && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 24 }}>

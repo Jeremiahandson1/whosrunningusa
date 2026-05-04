@@ -14,21 +14,21 @@ function OnboardingModal({ pageKey, steps, onClose }) {
     }
   }, [storageKey])
 
+  // Any dismissal (X button, backdrop click, Skip, Don't show again, completing
+  // the carousel) marks the modal as seen so it doesn't return on every visit.
   const handleClose = () => {
+    try { localStorage.setItem(storageKey, 'true') } catch { /* private mode */ }
     setVisible(false)
     if (onClose) onClose()
   }
 
-  const handleDontShowAgain = () => {
-    localStorage.setItem(storageKey, 'true')
-    handleClose()
-  }
+  const handleDontShowAgain = handleClose
+  const handleSkip = handleClose
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1)
     } else {
-      localStorage.setItem(storageKey, 'true')
       handleClose()
     }
   }
@@ -37,11 +37,6 @@ function OnboardingModal({ pageKey, steps, onClose }) {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1)
     }
-  }
-
-  const handleSkip = () => {
-    localStorage.setItem(storageKey, 'true')
-    handleClose()
   }
 
   if (!visible || !steps || steps.length === 0) return null
