@@ -28,6 +28,37 @@ async function ensureMigrationsTable() {
       applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  // Records the most recent failure for any migration that's been attempted
+  // but did not commit. Lets /api/health surface what went wrong without
+  // needing access to the deploy logs.
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS _migration_failures (
+      filename VARCHAR(255) PRIMARY KEY,
+      error_message TEXT,
+      error_code VARCHAR(20),
+      attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+}
+
+async function recordFailure(filename, err) {
+  try {
+    await db.query(
+      `INSERT INTO _migration_failures (filename, error_message, error_code, attempted_at)
+       VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+       ON CONFLICT (filename) DO UPDATE SET
+         error_message = EXCLUDED.error_message,
+         error_code = EXCLUDED.error_code,
+         attempted_at = CURRENT_TIMESTAMP`,
+      [filename, err.message || String(err), err.code || null]
+    );
+  } catch (_) { /* failure logging itself shouldn't crash the run */ }
+}
+
+async function clearFailure(filename) {
+  try {
+    await db.query(`DELETE FROM _migration_failures WHERE filename = $1`, [filename]);
+  } catch (_) { /* ignore */ }
 }
 
 async function getAppliedMigrations() {
@@ -56,11 +87,16 @@ async function getMigrationFiles() {
 
 async function runMigration(filename, sql) {
   const client = await db.getClient();
+  // Migrations sometimes need to run wide-ranging DDL (e.g., extensions,
+  // schema rewrites) that exceeds the pool-wide statement_timeout default.
+  // Disable the timeout for this connection only.
+  try { await client.query(`SET statement_timeout = 0`); } catch (_) { /* ignore */ }
   try {
     await client.query('BEGIN');
     await client.query(sql);
     await client.query('INSERT INTO _migrations (filename) VALUES ($1) ON CONFLICT (filename) DO NOTHING', [filename]);
     await client.query('COMMIT');
+    await clearFailure(filename);
     console.log(`  Applied: ${filename}`);
   } catch (err) {
     await client.query('ROLLBACK');
@@ -161,13 +197,16 @@ async function runAll() {
         await runMigration(file, sql);
         ran++;
       } catch (err) {
-        console.error(`  FAILED: ${file} — ${err.message}`);
+        console.error(`  FAILED: ${file} — ${err.message}${err.code ? ` (code ${err.code})` : ''}`);
+        await recordFailure(file, err);
         failed.push(file);
       }
     }
     if (failed.length > 0) {
       console.log(`\n  WARNING: ${failed.length} migration(s) failed (server will still start):`);
       failed.forEach(f => console.log(`    - ${f}`));
+      console.log(`\n  Failure details are persisted in the _migration_failures table`);
+      console.log(`  and exposed at /api/health for live diagnosis.`);
     }
   }
 

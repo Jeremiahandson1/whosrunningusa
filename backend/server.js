@@ -95,6 +95,36 @@ app.get('/api/health', async (req, res) => {
     body.db_error = err.message;
     return res.status(503).json(body);
   }
+
+  // Surface migration state — applied count + any failures recorded by
+  // the migrate.js runner. Lets us diagnose schema problems on prod
+  // (e.g., a migration that's been quietly failing every deploy) without
+  // needing access to the Render logs.
+  try {
+    const [appliedRes, failedRes] = await Promise.all([
+      db.query(`SELECT COUNT(*)::int AS n FROM _migrations`),
+      db.query(`SELECT filename, error_message, error_code, attempted_at
+                FROM _migration_failures
+                ORDER BY attempted_at DESC
+                LIMIT 25`),
+    ]);
+    body.migrations = {
+      applied: appliedRes.rows[0].n,
+      failed: failedRes.rows.map(r => ({
+        file: r.filename,
+        error: r.error_message,
+        code: r.error_code,
+        attempted_at: r.attempted_at,
+      })),
+    };
+    if (failedRes.rows.length > 0 && body.status === 'ok') {
+      body.status = 'degraded';
+    }
+  } catch (_) {
+    // Diagnostics tables may not exist yet on a brand-new DB. That's fine.
+    body.migrations = { applied: null, failed: [], note: 'tracking tables not initialized' };
+  }
+
   res.json(body);
 });
 
