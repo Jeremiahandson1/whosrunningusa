@@ -359,15 +359,20 @@ function logConfigStatus() {
   }
 }
 
-app.listen(PORT, () => {
-  console.log(`WhosRunningUSA API server running on port ${PORT}`);
-  logConfigStatus();
-  promoteAdminFromEnv();
-  // First warm runs after a 5s delay so health checks settle first.
-  setTimeout(warmTransparencyCaches, 5_000);
-  // Refresh every 4 minutes — well inside the 5-min leaderboard TTL and
-  // 10-min stats TTL, so the cache never goes cold while the server runs.
-  setInterval(warmTransparencyCaches, 4 * 60 * 1000);
-});
+// Don't actually listen, warm caches, or auto-promote during Jest runs —
+// those side effects fire the route handlers in the background, which
+// consumes test mocks intended for other test cases and produces flakes.
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`WhosRunningUSA API server running on port ${PORT}`);
+    logConfigStatus();
+    promoteAdminFromEnv();
+    // First warm runs after a 5s delay so health checks settle first.
+    setTimeout(warmTransparencyCaches, 5_000);
+    // Refresh every 4 minutes — well inside the 5-min leaderboard TTL and
+    // 10-min stats TTL, so the cache never goes cold while the server runs.
+    setInterval(warmTransparencyCaches, 4 * 60 * 1000);
+  });
+}
 
 module.exports = app;

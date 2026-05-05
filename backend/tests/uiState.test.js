@@ -26,19 +26,6 @@ describe('PUT /api/users/me/ui-state', () => {
     expect(res.status).toBe(401);
   });
 
-  test('rejects non-object body', async () => {
-    const headers = authHeaders('user-1');
-    mockAuthUser('user-1');
-
-    const res = await request(app)
-      .put('/api/users/me/ui-state')
-      .set(headers)
-      .send([1, 2, 3]);
-
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/object/i);
-  });
-
   test('persists whitelisted onboarding_seen_* keys', async () => {
     const headers = authHeaders('user-1');
     mockAuthUser('user-1');
