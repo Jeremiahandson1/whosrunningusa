@@ -70,6 +70,46 @@ router.get('/sync-logs', adminAuth, async (req, res) => {
 });
 
 /**
+ * POST /api/admin/test-email
+ * Body: { to: "address@example.com" }
+ * Sends a tiny test email through the configured SMTP transport so you can
+ * verify password-reset / verification / contact-form delivery without
+ * triggering a real flow. Returns the messageId on success.
+ */
+router.post('/test-email', adminAuth, async (req, res) => {
+  const to = (req.body?.to || '').trim();
+  if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+    return res.status(400).json({ error: 'Body must include a valid "to" email address' });
+  }
+  const smtpConfigured = !!process.env.SMTP_HOST;
+  try {
+    const emailService = require('../services/emailService');
+    await emailService.sendNotification(
+      to,
+      'WhosRunningUSA SMTP test',
+      `This is a test email triggered by an admin at ${new Date().toISOString()}. ` +
+      `If you received this in an inbox (not just the deploy logs), SMTP delivery is working.`
+    );
+    res.json({
+      ok: true,
+      to,
+      smtp_configured: smtpConfigured,
+      mode: smtpConfigured ? 'smtp' : 'console (dev mode)',
+      note: smtpConfigured
+        ? 'Sent via SMTP. Check the inbox of "to". Delivery delays are usually upstream (provider quarantine, recipient filters).'
+        : 'SMTP_HOST is not set, so the email was logged to stdout instead of delivered. Set SMTP_HOST/USER/PASS in Render to enable real delivery.',
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      to,
+      smtp_configured: smtpConfigured,
+      error: err.message,
+    });
+  }
+});
+
+/**
  * GET /api/admin/env-check
  * Reports which expected env vars are SET on the API service (values never
  * returned). Used to diagnose why a spawned sync step self-skips.

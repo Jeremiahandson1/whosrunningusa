@@ -300,8 +300,69 @@ async function warmTransparencyCaches() {
   console.log(`[warm] transparency caches refreshed in ${Date.now() - start}ms (leaderboard=${lb}, stats=${stats})`);
 }
 
+// Auto-promote the account named in ADMIN_EMAIL to user_type=admin. Idempotent —
+// runs every boot. Lets you bootstrap the first admin without DB shell access:
+// just register the account in the UI, set ADMIN_EMAIL in Render, redeploy.
+async function promoteAdminFromEnv() {
+  const email = (process.env.ADMIN_EMAIL || '').trim();
+  if (!email) return;
+  try {
+    const result = await db.query(
+      `UPDATE users SET user_type = 'admin', updated_at = NOW()
+         WHERE LOWER(email) = LOWER($1) AND user_type != 'admin'
+       RETURNING id`,
+      [email]
+    );
+    if (result.rowCount > 0) {
+      console.log(`[admin] Promoted ${email} to admin`);
+    } else {
+      const exists = await db.query(
+        `SELECT user_type FROM users WHERE LOWER(email) = LOWER($1)`,
+        [email]
+      );
+      if (exists.rows.length === 0) {
+        console.log(`[admin] ADMIN_EMAIL=${email} but no user with that address yet — promote will run on next boot once they register.`);
+      }
+    }
+  } catch (err) {
+    console.error('[admin] Auto-promote failed:', err.message);
+  }
+}
+
+// Surface optional-but-recommended config so a fresh deploy logs exactly
+// which features are dark. Health check ("degraded" when migrations fail)
+// covers the hard errors; this covers the silent ones.
+function logConfigStatus() {
+  const optional = [
+    { key: 'ADMIN_EMAIL',         feature: 'admin auto-promotion' },
+    { key: 'SMTP_HOST',           feature: 'email delivery (password reset, verification, contact form)' },
+    { key: 'SMTP_USER',           feature: 'email delivery — SMTP auth' },
+    { key: 'SMTP_PASS',           feature: 'email delivery — SMTP auth' },
+    { key: 'FROM_EMAIL',          feature: 'email delivery — sender address' },
+    { key: 'BACKUP_S3_ENABLED',   feature: 'off-site database backups (set to "true" + AWS_*)' },
+    { key: 'AWS_ACCESS_KEY_ID',   feature: 'S3 (backups, profile uploads)' },
+    { key: 'S3_BUCKET',           feature: 'S3 (backups, profile uploads)' },
+    { key: 'STRIPE_SECRET_KEY',   feature: 'candidate identity verification' },
+    { key: 'FEC_API_KEY',         feature: 'FEC candidate sync' },
+    { key: 'OPEN_STATES_API_KEY', feature: 'state legislator + bill sync' },
+    { key: 'CONGRESS_GOV_API_KEY', feature: 'federal vote sync' },
+    { key: 'SENTRY_DSN',          feature: 'error reporting' },
+  ];
+  const missing = optional.filter(o => !process.env[o.key]);
+  if (missing.length === 0) {
+    console.log('[config] All recommended environment variables are set.');
+    return;
+  }
+  console.warn(`[config] ${missing.length} recommended env var(s) not set — affected features will be disabled or degraded:`);
+  for (const m of missing) {
+    console.warn(`  - ${m.key.padEnd(22)} → ${m.feature}`);
+  }
+}
+
 app.listen(PORT, () => {
   console.log(`WhosRunningUSA API server running on port ${PORT}`);
+  logConfigStatus();
+  promoteAdminFromEnv();
   // First warm runs after a 5s delay so health checks settle first.
   setTimeout(warmTransparencyCaches, 5_000);
   // Refresh every 4 minutes — well inside the 5-min leaderboard TTL and

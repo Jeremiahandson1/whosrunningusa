@@ -141,6 +141,27 @@ The app will run on `http://localhost:3000` with API proxy to the backend.
 |----------|----------|-------------|
 | `VITE_API_URL` | No | Backend API URL (default: http://localhost:5000/api) |
 
+## Production launch checklist
+
+The server runs without these but several user-facing features are silently disabled until they're set. The boot logs (`[config] ...`) will print which ones are missing on every deploy. `/api/health` reports `degraded` if migrations have failed.
+
+| Variable | Effect of leaving unset |
+|----------|------------------------|
+| `ADMIN_EMAIL` | No admin auto-promotion. The first admin must be promoted manually via SQL. Setting this auto-grants `user_type=admin` to that email on every boot once the account exists. |
+| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` / `FROM_EMAIL` | Password reset, email verification, and contact-form delivery all log-only. Verify with `POST /api/admin/test-email { "to": "..." }` after setting. |
+| `BACKUP_S3_ENABLED=true` + `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `S3_BUCKET` | Daily DB backups run on the cron container but never leave it. Losing the DB without these is unrecoverable. |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | Candidate identity verification (Stripe Identity) returns 503. The "verified" badge stays whatever the seed scripts set. |
+| `FEC_API_KEY` / `OPEN_STATES_API_KEY` / `CONGRESS_GOV_API_KEY` | Nightly sync cron runs but produces no new data — federal candidates, state legislators, and bill votes don't refresh. Watch the `sync_logs` table for `steps_skipped`. |
+| `SENTRY_DSN` | Errors only land in Render logs; no Sentry dashboard / alerting. |
+
+After setting the missing vars, redeploy and check `/api/health`:
+
+```bash
+curl https://your-api.onrender.com/api/health
+```
+
+`status: "ok"` and `migrations.failed: []` means the platform is in a clean state.
+
 ## API Endpoints
 
 ### Authentication
