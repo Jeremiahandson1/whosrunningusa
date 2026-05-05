@@ -77,16 +77,24 @@ router.get('/', async (req, res, next) => {
     const conditions = [];
     const params = [];
     let paramIndex = 1;
+    // Track whether we actually need to JOIN transparency_requirements.
+    // Most requests don't filter by state/requirement_type, and the JOIN to
+    // a 666-row dimension table forces Postgres to scan via heap (defeating
+    // the (politician_id, status, score) covering index) which pushes the
+    // 5.97M-row aggregation past the 60s extended timeout.
+    let needsTrJoin = false;
 
     if (state) {
       conditions.push(`tr.state = $${paramIndex}`);
       params.push(state);
       paramIndex++;
+      needsTrJoin = true;
     }
     if (requirement_type) {
       conditions.push(`tr.requirement_type = $${paramIndex}`);
       params.push(requirement_type);
       paramIndex++;
+      needsTrJoin = true;
     }
     if (compliance_status) {
       conditions.push(`cr.compliance_status = $${paramIndex}`);
@@ -95,17 +103,18 @@ router.get('/', async (req, res, next) => {
     }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const trJoin = needsTrJoin ? 'JOIN transparency_requirements tr ON cr.requirement_id = tr.id' : '';
 
     const orderBy = sort === 'score_desc' ? 'stats.avg_score_raw DESC NULLS LAST'
                   : sort === 'name'       ? 'cp.display_name ASC'
                   :                         'stats.avg_score_raw ASC NULLS LAST';
 
-    const payload = await withExtendedTimeout(QUERY_TIMEOUT_MS, async (client) => {
+    const payload = await withExtendedTimeout(QUERY_TIMEOUT_MS * 2, async (client) => {
       const countSql = `
         SELECT COUNT(*)::int AS total FROM (
           SELECT cr.politician_id
           FROM compliance_records cr
-          JOIN transparency_requirements tr ON cr.requirement_id = tr.id
+          ${trJoin}
           ${where}
           GROUP BY cr.politician_id
         ) t
@@ -123,7 +132,7 @@ router.get('/', async (req, res, next) => {
                  COUNT(*) FILTER (WHERE cr.compliance_status = 'partial')::int AS partial_count,
                  COUNT(*) FILTER (WHERE cr.compliance_status = 'non_compliant')::int AS non_compliant_count
           FROM compliance_records cr
-          JOIN transparency_requirements tr ON cr.requirement_id = tr.id
+          ${trJoin}
           ${where}
           GROUP BY cr.politician_id
         )
