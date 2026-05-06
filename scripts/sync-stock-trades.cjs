@@ -243,17 +243,58 @@ async function fetchTradesFromAPI(days) {
 // Match trade filer name to candidate_profiles
 // ---------------------------------------------------------------------------
 
+// Pull (first, last) tokens from a name regardless of input format.
+// "Ron L Wyden"           → { first: "Ron",  last: "Wyden" }
+// "Tommy H Tuberville"    → { first: "Tommy", last: "Tuberville" }
+// "Hon. Daniel S. Goldman" → { first: "Daniel", last: "Goldman" }
+// "Pelosi, Nancy"         → { first: "Nancy", last: "Pelosi" }
+// "Wyden, Ron L"          → { first: "Ron",   last: "Wyden" }
+function extractFirstLast(name) {
+  if (!name) return null;
+  let s = String(name).trim();
+  // Drop honorifics
+  s = s.replace(/^(Hon\.|Mr\.|Mrs\.|Ms\.|Dr\.|Sen\.|Rep\.)\s+/i, '');
+  // Drop suffixes
+  s = s.replace(/[\s,]+(Jr\.?|Sr\.?|II|III|IV)$/i, '');
+  // Drop trailing periods/initials like "Daniel S." → "Daniel S"
+  s = s.replace(/\./g, '');
+  let first, last;
+  if (s.includes(',')) {
+    const [lastPart, firstPart] = s.split(',').map(p => p.trim());
+    first = (firstPart || '').split(/\s+/)[0];
+    last = lastPart.split(/\s+/).pop();
+  } else {
+    const tokens = s.split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return null;
+    first = tokens[0];
+    last = tokens[tokens.length - 1];
+  }
+  if (!first || !last || first.length < 2 || last.length < 2) return null;
+  return { first, last };
+}
+
+// Cache lookups across the run. With 7,887 records and ~120 unique senators
+// in the data, hitting the DB once per record is wasteful — and a busted
+// match query against 15k candidate_profiles isn't free either.
+const filerMatchCache = new Map();
+
 async function matchFilerToCandidate(filerName) {
   if (!filerName) return null;
+  if (filerMatchCache.has(filerName)) return filerMatchCache.get(filerName);
 
-  // Normalize: "Pelosi, Nancy" → "Nancy Pelosi"
-  const parts = filerName.split(',').map(s => s.trim());
-  const normalized = parts.length >= 2 ? `${parts[1]} ${parts[0]}` : parts[0];
+  const fl = extractFirstLast(filerName);
+  if (!fl) {
+    filerMatchCache.set(filerName, null);
+    return null;
+  }
 
-  // Committees come from committee_memberships JOIN legislative_committees
-  // (the candidate_committees alias used elsewhere doesn't exist as a real
-  // table). Empty memberships → COALESCE to '{}' so flag detection just
-  // skips the committee_relevant check instead of erroring.
+  // Match strategy, ranked by precision:
+  //  1. display_name ILIKE 'first% last' or 'first %last%' — handles
+  //     "Ron Wyden" matching for both "Ron L Wyden" and "Ron Wyden" inputs.
+  //  2. last name in display_name AND first name token in display_name —
+  //     catches reversed orders like "Wyden, Ron".
+  // The OFFICE filter restricts to senators/reps to avoid matching state
+  // legislators or candidates with the same name.
   const { rows } = await pool.query(
     `SELECT cp.id, cp.display_name, cp.fec_office_type,
             COALESCE(
@@ -264,13 +305,22 @@ async function matchFilerToCandidate(filerName) {
               ARRAY[]::text[]
             ) AS committees
        FROM candidate_profiles cp
-      WHERE cp.display_name ILIKE $1
-         OR cp.display_name ILIKE $2
+      WHERE (cp.fec_office_type IN ('S', 'H') OR cp.fec_office_type IS NULL)
+        AND cp.display_name ~* $1
+      ORDER BY
+        CASE WHEN cp.fec_office_type = 'S' THEN 0
+             WHEN cp.fec_office_type = 'H' THEN 1
+             ELSE 2 END,
+        LENGTH(cp.display_name) ASC
       LIMIT 1`,
-    [`%${normalized}%`, `%${filerName}%`]
+    // Match: display_name contains both first AND last as whole words.
+    // Postgres regex \y is a word boundary. Case-insensitive via ~*.
+    [`\\y${fl.first}\\y.*\\y${fl.last}\\y|\\y${fl.last}\\y.*\\y${fl.first}\\y`]
   );
 
-  return rows[0] || null;
+  const result = rows[0] || null;
+  filerMatchCache.set(filerName, result);
+  return result;
 }
 
 // ---------------------------------------------------------------------------
