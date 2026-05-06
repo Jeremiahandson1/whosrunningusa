@@ -121,7 +121,7 @@ router.get('/env-check', adminAuth, (req, res) => {
     'VOTE_SMART_API_KEY', 'ANTHROPIC_API_KEY',
     'ADMIN_API_KEY', 'SENTRY_DSN', 'STRIPE_SECRET_KEY',
     'AWS_ACCESS_KEY_ID', 'S3_BUCKET',
-    'QUIVER_API_KEY', 'OPENSECRETS_API_KEY',
+    'OPENSECRETS_API_KEY',
     'SYNC_FEC_CYCLE',
   ];
   const present = {};

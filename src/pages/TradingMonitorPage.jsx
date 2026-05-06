@@ -112,6 +112,25 @@ function TradingMonitorPage() {
           <DataSyncingBanner feature="official trading activity" />
         )}
 
+        {!loading && !error && total > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'flex-start', gap: 12,
+            padding: '12px 16px', marginBottom: 24,
+            background: '#fffbeb', border: '1px solid #fcd34d',
+            borderRadius: 8, fontSize: 13, color: '#78350f',
+          }}>
+            <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: 2 }} />
+            <div>
+              <strong>Historical archive (Senate, through November 2020).</strong>{' '}
+              The trades shown are real STOCK Act disclosures, but a current
+              live feed isn't available — the open-source mirror this platform
+              relied on stopped updating after the 2020 election cycle. Patterns
+              and flag detection still work on the historical data; live updates
+              will return when a sustainable data source is in place.
+            </div>
+          </div>
+        )}
+
         {/* Stats row */}
         {stats && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 24 }}>

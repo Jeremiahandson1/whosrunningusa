@@ -3,21 +3,24 @@
 /**
  * Sync Congressional Stock Trades
  *
- * Fetches STOCK Act disclosures from the House/Senate financial disclosure
- * databases and the Capitol Trades API. Flags suspicious trades based on
- * committee assignments, timing relative to legislation, and disclosure delays.
+ * Fetches STOCK Act disclosures from House Stock Watcher and Senate Stock
+ * Watcher (free public S3-hosted JSON dumps scraped from the official PTR
+ * filings). Flags suspicious trades based on committee assignments, timing
+ * relative to legislation, and disclosure delays.
+ *
+ * Updated daily upstream — same source data as paid services like Quiver,
+ * just on a 1-day delay instead of real-time.
  *
  * Usage:
- *   node scripts/sync-stock-trades.js
- *   node scripts/sync-stock-trades.js --dry-run
- *   node scripts/sync-stock-trades.js --days=90
- *   node scripts/sync-stock-trades.js --politician-id <uuid>
+ *   node scripts/sync-stock-trades.cjs
+ *   node scripts/sync-stock-trades.cjs --dry-run
+ *   node scripts/sync-stock-trades.cjs --days=90
+ *   node scripts/sync-stock-trades.cjs --politician-id <uuid>
  *
  * Required env vars:
  *   DATABASE_URL
  *
- * Optional env vars:
- *   QUIVER_API_KEY    — QuiverQuant API for congressional trades
+ * No API keys required — Stock Watcher data is public.
  */
 
 try { require('dotenv').config({ path: require('path').join(__dirname, '..', 'backend', '.env') }); } catch(_) {}
@@ -79,77 +82,42 @@ function isCommitteeRelevant(committees, assetName, ticker) {
 }
 
 // ---------------------------------------------------------------------------
-// Fetch trades from QuiverQuant API (or fallback to Senate/House sites)
+// Stock Watcher data sources
+//
+// As of May 2026 the original Stock Watcher infra (housestockwatcher.com,
+// senate-stock-watcher S3 buckets) is dead. The community GitHub mirror at
+// timothycarambat/senate-stock-watcher-data is the only freely-licensed
+// dataset still up — but it stopped updating in November 2020. We use it
+// as a HISTORICAL ARCHIVE: 8,350 real STOCK Act disclosures from
+// 2012–2020. The frontend explicitly labels this as "historical only" so
+// users aren't misled into thinking it's current.
+//
+// To switch to a live feed later: replace these URLs with whichever data
+// source has a commercial license (Quiver Commercial, FMP paid tier, or
+// a future free mirror). The flag detection + DB insert path below is
+// data-source-agnostic.
 // ---------------------------------------------------------------------------
 
-async function fetchTradesFromAPI(days) {
-  const trades = [];
+const SENATE_FEED = 'https://raw.githubusercontent.com/timothycarambat/senate-stock-watcher-data/master/aggregate/all_transactions.json';
+const HOUSE_FEED  = null;  // No working free House mirror as of May 2026.
 
-  if (process.env.QUIVER_API_KEY) {
-    console.log('Fetching from QuiverQuant API...');
-    try {
-      const since = new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
-      const res = await axios.get(`https://api.quiverquant.com/beta/live/congresstrading`, {
-        headers: { Authorization: `Bearer ${process.env.QUIVER_API_KEY}` },
-        params: { date_from: since },
-      });
-      if (Array.isArray(res.data)) {
-        for (const t of res.data) {
-          trades.push({
-            filer_name: t.Representative || t.Senator || t.Name,
-            ticker: t.Ticker || null,
-            asset_name: t.Asset || t.Description || null,
-            trade_type: (t.Transaction || '').toLowerCase().includes('purchase') ? 'purchase'
-              : (t.Transaction || '').toLowerCase().includes('sale') ? 'sale' : 'exchange',
-            amount_range_low: parseAmountRange(t.Range || t.Amount, 'low'),
-            amount_range_high: parseAmountRange(t.Range || t.Amount, 'high'),
-            trade_date: t.TransactionDate || t.Date,
-            disclosure_date: t.DisclosureDate || null,
-            source: 'quiverquant',
-            source_url: t.Link || null,
-          });
-        }
-      }
-      console.log(`  Fetched ${trades.length} trades from QuiverQuant`);
-    } catch (err) {
-      console.error(`  QuiverQuant API error: ${err.message}`);
-    }
+const USER_AGENT = 'WhosRunningUSA/1.0 (civic-data project; +https://whosrunningusa.com)';
+
+// Stock Watcher uses M/D/YYYY in some places, ISO in others. Normalize.
+function parseSwDate(value) {
+  if (!value) return null;
+  const trimmed = String(value).trim();
+  // Already ISO
+  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.slice(0, 10);
+  // M/D/YYYY or MM/DD/YYYY
+  const m = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) {
+    const [, mo, d, y] = m;
+    return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
   }
-
-  // If no API key or no results, try the Senate eFD RSS
-  if (trades.length === 0) {
-    console.log('Fetching from Senate eFD periodic transaction reports...');
-    try {
-      const since = new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
-      const res = await axios.get(
-        'https://efts.sec.gov/LATEST/search-index?q=%22periodic+transaction%22&dateRange=custom&startdt=' + since + '&enddt=' + new Date().toISOString().split('T')[0],
-        { timeout: 15000, headers: { 'User-Agent': 'WhosRunningUSA/1.0 civic-data-project' } }
-      );
-      // Parse whatever format comes back
-      if (res.data && Array.isArray(res.data.hits)) {
-        for (const hit of res.data.hits.slice(0, 500)) {
-          const name = hit._source?.person_full_name || hit._source?.filer_name || 'Unknown';
-          trades.push({
-            filer_name: name,
-            ticker: null,
-            asset_name: hit._source?.asset_description || null,
-            trade_type: (hit._source?.transaction_type || '').toLowerCase().includes('purchase') ? 'purchase' : 'sale',
-            amount_range_low: null,
-            amount_range_high: null,
-            trade_date: hit._source?.transaction_date || null,
-            disclosure_date: hit._source?.disclosure_date || null,
-            source: 'senate_efd',
-            source_url: hit._source?.url || null,
-          });
-        }
-      }
-      console.log(`  Fetched ${trades.length} from Senate eFD`);
-    } catch (err) {
-      console.warn(`  Senate eFD fetch failed (non-fatal): ${err.message}`);
-    }
-  }
-
-  return trades;
+  // Fallback: let Date parse it; bail on Invalid Date
+  const d = new Date(trimmed);
+  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 }
 
 function parseAmountRange(range, which) {
@@ -161,6 +129,114 @@ function parseAmountRange(range, which) {
   }
   const single = parseFloat(str);
   return isNaN(single) ? null : single;
+}
+
+function normalizeTradeType(raw) {
+  const lower = (raw || '').toLowerCase();
+  if (lower.includes('purchase') || lower.includes('buy')) return 'purchase';
+  if (lower.includes('sale') || lower.includes('sell')) return 'sale';
+  if (lower.includes('exchange')) return 'exchange';
+  return null;
+}
+
+// "Hon. Daniel S. Goldman" → "Daniel Goldman"
+// "Pelosi, Nancy" → "Nancy Pelosi"
+function cleanFilerName(raw) {
+  if (!raw) return null;
+  let name = String(raw).trim();
+  if (name.includes(',')) {
+    const [last, first] = name.split(',').map(s => s.trim());
+    name = `${first} ${last}`;
+  }
+  // Drop common honorifics/suffixes
+  name = name.replace(/^(Hon\.|Mr\.|Mrs\.|Ms\.|Dr\.|Sen\.|Rep\.)\s+/i, '');
+  name = name.replace(/\s+(Jr\.|Sr\.|II|III|IV)$/i, '');
+  // Collapse whitespace
+  return name.replace(/\s+/g, ' ').trim();
+}
+
+async function fetchTradesFromAPI(days) {
+  const cutoff = new Date(Date.now() - days * 86400000);
+  const trades = [];
+
+  // House: no working free mirror as of May 2026.
+  if (HOUSE_FEED) {
+    console.log('Fetching House Stock Watcher feed...');
+    try {
+      const res = await axios.get(HOUSE_FEED, {
+        headers: { 'User-Agent': USER_AGENT },
+        timeout: 60_000,
+        maxContentLength: 200 * 1024 * 1024,
+      });
+      const rows = Array.isArray(res.data) ? res.data : [];
+      let kept = 0;
+      for (const t of rows) {
+        const tradeDate = parseSwDate(t.transaction_date);
+        if (!tradeDate) continue;
+        if (new Date(tradeDate) < cutoff) continue;
+        const type = normalizeTradeType(t.type);
+        if (!type) continue;
+        trades.push({
+          filer_name: cleanFilerName(t.representative),
+          ticker: (t.ticker && t.ticker !== '--') ? t.ticker : null,
+          asset_name: t.asset_description || null,
+          trade_type: type,
+          amount_range_low: parseAmountRange(t.amount, 'low'),
+          amount_range_high: parseAmountRange(t.amount, 'high'),
+          trade_date: tradeDate,
+          disclosure_date: parseSwDate(t.disclosure_date),
+          source: 'house_stock_watcher',
+          source_url: t.ptr_link || null,
+        });
+        kept++;
+      }
+      console.log(`  House: ${rows.length} rows in feed, ${kept} within last ${days} days`);
+    } catch (err) {
+      console.error(`  House Stock Watcher fetch failed: ${err.message}`);
+    }
+  } else {
+    console.log('House feed disabled — no working free House mirror.');
+  }
+
+  // Senate (historical archive — frozen at Nov 2020, see notes above).
+  // Date filter intentionally NOT applied: the archive only goes up to Nov
+  // 2020, so any "last N days" cutoff would drop all 8,350 records. Dedup
+  // on (politician_id, trade_date, ticker, trade_type) below handles
+  // re-runs from the cron without inserting duplicates.
+  console.log('Fetching Senate Stock Watcher feed (historical archive)...');
+  try {
+    const res = await axios.get(SENATE_FEED, {
+      headers: { 'User-Agent': USER_AGENT },
+      timeout: 60_000,
+      maxContentLength: 200 * 1024 * 1024,
+    });
+    const rows = Array.isArray(res.data) ? res.data : [];
+    let kept = 0;
+    for (const t of rows) {
+      const tradeDate = parseSwDate(t.transaction_date);
+      if (!tradeDate) continue;
+      const type = normalizeTradeType(t.type);
+      if (!type) continue;
+      trades.push({
+        filer_name: cleanFilerName(t.senator),
+        ticker: (t.ticker && t.ticker !== '--') ? t.ticker : null,
+        asset_name: t.asset_description || null,
+        trade_type: type,
+        amount_range_low: parseAmountRange(t.amount, 'low'),
+        amount_range_high: parseAmountRange(t.amount, 'high'),
+        trade_date: tradeDate,
+        disclosure_date: parseSwDate(t.disclosure_date),
+        source: 'senate_stock_watcher',
+        source_url: t.ptr_link || null,
+      });
+      kept++;
+    }
+    console.log(`  Senate: ${rows.length} rows in feed, ${kept} usable historical records`);
+  } catch (err) {
+    console.error(`  Senate Stock Watcher fetch failed: ${err.message}`);
+  }
+
+  return trades;
 }
 
 // ---------------------------------------------------------------------------
