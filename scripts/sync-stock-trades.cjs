@@ -250,13 +250,23 @@ async function matchFilerToCandidate(filerName) {
   const parts = filerName.split(',').map(s => s.trim());
   const normalized = parts.length >= 2 ? `${parts[1]} ${parts[0]}` : parts[0];
 
+  // Committees come from committee_memberships JOIN legislative_committees
+  // (the candidate_committees alias used elsewhere doesn't exist as a real
+  // table). Empty memberships → COALESCE to '{}' so flag detection just
+  // skips the committee_relevant check instead of erroring.
   const { rows } = await pool.query(
-    `SELECT id, display_name, fec_office_type,
-            (SELECT array_agg(committee_name) FROM candidate_committees cc WHERE cc.candidate_id = cp.id) as committees
-     FROM candidate_profiles cp
-     WHERE display_name ILIKE $1
-        OR display_name ILIKE $2
-     LIMIT 1`,
+    `SELECT cp.id, cp.display_name, cp.fec_office_type,
+            COALESCE(
+              (SELECT array_agg(lc.name)
+                 FROM committee_memberships cm
+                 JOIN legislative_committees lc ON cm.committee_id = lc.id
+                WHERE cm.candidate_id = cp.id AND cm.is_current = TRUE),
+              ARRAY[]::text[]
+            ) AS committees
+       FROM candidate_profiles cp
+      WHERE cp.display_name ILIKE $1
+         OR cp.display_name ILIKE $2
+      LIMIT 1`,
     [`%${normalized}%`, `%${filerName}%`]
   );
 
