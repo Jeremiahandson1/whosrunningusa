@@ -132,19 +132,20 @@ router.get('/agents/:id', async (req, res, next) => {
     }
 
     const contractsQuery = `
-      SELECT fc.id, fc.principal_id, fc.contract_amount, fc.start_date,
-             fc.end_date, fc.description,
+      SELECT fc.id, fc.principal_id, fc.contract_amount,
+             fc.contract_date as start_date,
+             fc.contract_description as description,
              fp.principal_name, fp.country
       FROM fara_contracts fc
       JOIN fara_principals fp ON fp.id = fc.principal_id
       WHERE fc.registrant_id = $1
-      ORDER BY fc.start_date DESC
+      ORDER BY fc.contract_date DESC NULLS LAST
     `;
     const contractsResult = await db.query(contractsQuery, [id]);
 
     const contactsQuery = `
       SELECT fco.id, fco.contact_date, fco.contact_type, fco.description,
-             fco.candidate_id, fco.agency_or_office,
+             fco.candidate_id, fco.contact_office as agency_or_office,
              cp.display_name as politician_name, cp.party_affiliation,
              cp.fec_office_type
       FROM fara_contacts fco
@@ -155,7 +156,7 @@ router.get('/agents/:id', async (req, res, next) => {
     const contactsResult = await db.query(contactsQuery, [id]);
 
     const disbursementsQuery = `
-      SELECT id, recipient, amount, disbursement_date, purpose, category
+      SELECT id, recipient, amount, disbursement_date, purpose
       FROM fara_disbursements
       WHERE registrant_id = $1
       ORDER BY disbursement_date DESC
@@ -265,17 +266,18 @@ router.get('/principals/:id', async (req, res, next) => {
 
     const agentsQuery = `
       SELECT fr.id as registrant_id, fr.registrant_name, fr.is_active,
-             fc.contract_amount, fc.start_date, fc.end_date, fc.description
+             fc.contract_amount, fc.contract_date as start_date,
+             fc.contract_description as description
       FROM fara_contracts fc
       JOIN fara_registrants fr ON fr.id = fc.registrant_id
       WHERE fc.principal_id = $1
-      ORDER BY fc.start_date DESC
+      ORDER BY fc.contract_date DESC NULLS LAST
     `;
     const agentsResult = await db.query(agentsQuery, [id]);
 
     const politicianContactsQuery = `
       SELECT fco.id, fco.contact_date, fco.contact_type, fco.description,
-             fco.candidate_id, fco.agency_or_office,
+             fco.candidate_id, fco.contact_office as agency_or_office,
              cp.display_name as politician_name, cp.party_affiliation,
              cp.fec_office_type, cp.fec_state
       FROM fara_contacts fco
@@ -294,16 +296,16 @@ router.get('/principals/:id', async (req, res, next) => {
     if (candidateIds.length > 0) {
       const placeholders = candidateIds.map((_, i) => `$${i + 1}`).join(', ');
       const votesQuery = `
-        SELECT vr.candidate_id, vr.vote, vr.voted_at,
-               ve.event_name, ve.event_date, ve.chamber,
-               b.title as bill_title, b.bill_number, b.subject,
+        SELECT vr.candidate_id, vr.vote,
+               ve.motion_text as event_name, ve.vote_date as event_date, ve.chamber,
+               b.title as bill_title, b.bill_number,
                cp.display_name as politician_name
         FROM voting_records vr
         JOIN vote_events ve ON ve.id = vr.vote_event_id
         LEFT JOIN bills b ON b.id = ve.bill_id
         JOIN candidate_profiles cp ON cp.id = vr.candidate_id
         WHERE vr.candidate_id IN (${placeholders})
-        ORDER BY ve.event_date DESC
+        ORDER BY ve.vote_date DESC
         LIMIT 50
       `;
       const votesResult = await db.query(votesQuery, candidateIds);
@@ -326,9 +328,10 @@ router.get('/enforcement', async (req, res, next) => {
   try {
     const query = `
       SELECT id, country, registrant_id, principal_id, case_description,
-             case_date, enforcement_action, penalty_amount, resolution
+             action_date as case_date, enforcement_action, penalty_amount,
+             action_type as resolution
       FROM fara_enforcement_cases
-      ORDER BY country ASC, case_date DESC
+      ORDER BY country ASC, action_date DESC NULLS LAST
     `;
     const result = await db.query(query);
 
@@ -372,7 +375,7 @@ router.get('/think-tanks', async (req, res, next) => {
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     let orderBy = 'foreign_funding DESC NULLS LAST';
-    if (sort === 'revenue') orderBy = 'tt.annual_revenue DESC NULLS LAST';
+    if (sort === 'revenue') orderBy = 'tt.total_revenue DESC NULLS LAST';
     if (sort === 'name') orderBy = 'tt.name ASC';
 
     const countQuery = `
@@ -382,19 +385,17 @@ router.get('/think-tanks', async (req, res, next) => {
     const total = parseInt(countResult.rows[0].total);
 
     const query = `
-      SELECT tt.id, tt.name, tt.website, tt.annual_revenue, tt.transparency_score,
+      SELECT tt.id, tt.name, tt.website, tt.total_revenue as annual_revenue,
              COALESCE(SUM(ttf.amount) FILTER (WHERE ttf.donor_country != 'US'), 0) as foreign_funding,
              COUNT(DISTINCT tts.id) as staff_count,
-             COUNT(DISTINCT tts.id) FILTER (
-               WHERE tts.id IN (SELECT think_tank_staff_id FROM post_service_employment pse WHERE pse.think_tank_staff_id IS NOT NULL)
-             ) as revolving_door_count,
+             COUNT(DISTINCT tts.id) FILTER (WHERE tts.employment_id IS NOT NULL) as revolving_door_count,
              COUNT(DISTINCT ttp.id) as publication_count
       FROM think_tanks tt
       LEFT JOIN think_tank_funding ttf ON ttf.think_tank_id = tt.id
       LEFT JOIN think_tank_staff tts ON tts.think_tank_id = tt.id
       LEFT JOIN think_tank_publications ttp ON ttp.think_tank_id = tt.id
       ${where}
-      GROUP BY tt.id, tt.name, tt.website, tt.annual_revenue, tt.transparency_score
+      GROUP BY tt.id, tt.name, tt.website, tt.total_revenue
       ORDER BY ${orderBy}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
@@ -419,7 +420,8 @@ router.get('/think-tanks/:id', async (req, res, next) => {
     const { id } = req.params;
 
     const thinkTankQuery = `
-      SELECT id, name, website, annual_revenue, transparency_score, description
+      SELECT id, name, website, total_revenue as annual_revenue,
+             founded_year, city, state, policy_focus
       FROM think_tanks
       WHERE id = $1
     `;
@@ -440,7 +442,7 @@ router.get('/think-tanks/:id', async (req, res, next) => {
     const fundingResult = await db.query(fundingQuery, [id]);
 
     const staffQuery = `
-      SELECT tts.id, tts.name as staff_name, tts.title, tts.start_date, tts.end_date,
+      SELECT tts.id, tts.person_name as staff_name, tts.title, tts.start_date, tts.end_date,
              tts.candidate_id,
              cp.display_name as politician_name, cp.party_affiliation,
              cp.fec_office_type,
@@ -448,19 +450,20 @@ router.get('/think-tanks/:id', async (req, res, next) => {
              pse.is_lobbying as post_service_lobbying
       FROM think_tank_staff tts
       LEFT JOIN candidate_profiles cp ON cp.id = tts.candidate_id
-      LEFT JOIN post_service_employment pse ON pse.think_tank_staff_id = tts.id
+      LEFT JOIN post_service_employment pse ON pse.id = tts.employment_id
       WHERE tts.think_tank_id = $1
-      ORDER BY tts.start_date DESC
+      ORDER BY tts.start_date DESC NULLS LAST
     `;
     const staffResult = await db.query(staffQuery, [id]);
 
     const publicationsQuery = `
-      SELECT ttp.id, ttp.title, ttp.published_date, ttp.topic, ttp.url,
-             ttp.cited_by_count
+      SELECT ttp.id, ttp.title, ttp.publication_date as published_date,
+             ttp.topic_tags as topic, ttp.url,
+             ttp.cited_in_congressional_record, ttp.cited_by_politician_id
       FROM think_tank_publications ttp
       WHERE ttp.think_tank_id = $1
-        AND ttp.published_date >= NOW() - INTERVAL '2 years'
-      ORDER BY ttp.published_date DESC
+        AND ttp.publication_date >= NOW() - INTERVAL '2 years'
+      ORDER BY ttp.publication_date DESC
     `;
     const publicationsResult = await db.query(publicationsQuery, [id]);
 

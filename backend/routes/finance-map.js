@@ -32,7 +32,7 @@ router.get('/politicians/:id', async (req, res, next) => {
 
     const connections = await db.query(`
       SELECT dvc.*,
-             ve.vote_date, ve.question as vote_question, ve.result as vote_result,
+             ve.vote_date, ve.motion_text as vote_question, ve.result as vote_result,
              b.title as bill_title, b.bill_number,
              pdi.total_amount as industry_total, pdi.donor_count
       FROM donor_vote_connections dvc

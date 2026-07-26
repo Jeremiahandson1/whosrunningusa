@@ -19,10 +19,18 @@ router.get('/', async (req, res, next) => {
       params.push(parseInt(year));
       paramIndex++;
     }
-    if (category) {
-      conditions.push(`category = $${paramIndex}`);
-      params.push(category);
-      paramIndex++;
+    // Summaries carry one amount column per category rather than a category
+    // column — "filter by category" means countries with aid in that bucket.
+    const categoryColumns = {
+      military: 'military_amount',
+      economic: 'economic_amount',
+      humanitarian: 'humanitarian_amount',
+      democracy: 'democracy_amount',
+      health: 'health_amount',
+      other: 'other_amount',
+    };
+    if (category && categoryColumns[category]) {
+      conditions.push(`${categoryColumns[category]} > 0`);
     }
     if (search) {
       conditions.push(`country_name ILIKE $${paramIndex}`);
@@ -34,9 +42,9 @@ router.get('/', async (req, res, next) => {
 
     const sortColumns = {
       total: 'total_obligation DESC',
-      military: 'military_obligation DESC',
-      economic: 'economic_obligation DESC',
-      humanitarian: 'humanitarian_obligation DESC',
+      military: 'military_amount DESC',
+      economic: 'economic_amount DESC',
+      humanitarian: 'humanitarian_amount DESC',
     };
     const orderBy = sortColumns[sort] || 'total_obligation DESC';
 
@@ -78,12 +86,12 @@ router.get('/stats', async (req, res) => {
       SELECT
         COUNT(DISTINCT country_code) AS total_countries,
         COALESCE(SUM(total_obligation), 0) AS total_obligation,
-        COALESCE(SUM(CASE WHEN category = 'military' THEN total_obligation ELSE 0 END), 0) AS military,
-        COALESCE(SUM(CASE WHEN category = 'economic' THEN total_obligation ELSE 0 END), 0) AS economic,
-        COALESCE(SUM(CASE WHEN category = 'humanitarian' THEN total_obligation ELSE 0 END), 0) AS humanitarian,
-        COALESCE(SUM(CASE WHEN category = 'democracy' THEN total_obligation ELSE 0 END), 0) AS democracy,
-        COALESCE(SUM(CASE WHEN category = 'health' THEN total_obligation ELSE 0 END), 0) AS health,
-        COALESCE(SUM(CASE WHEN category = 'other' THEN total_obligation ELSE 0 END), 0) AS other
+        COALESCE(SUM(military_amount), 0) AS military,
+        COALESCE(SUM(economic_amount), 0) AS economic,
+        COALESCE(SUM(humanitarian_amount), 0) AS humanitarian,
+        COALESCE(SUM(democracy_amount), 0) AS democracy,
+        COALESCE(SUM(health_amount), 0) AS health,
+        COALESCE(SUM(other_amount), 0) AS other
       FROM foreign_aid_country_summaries
     `);
 
@@ -206,7 +214,7 @@ router.get('/countries/:countryCode/programs', async (req, res, next) => {
     const rows = await db.query(
       `SELECT * FROM foreign_aid_programs
        WHERE ${whereClause}
-       ORDER BY obligation_amount DESC
+       ORDER BY total_obligation DESC
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...params, limit, offset]
     );
@@ -232,8 +240,7 @@ router.get('/countries/:countryCode/influence', async (req, res, next) => {
       SELECT
         fr.id AS registrant_id,
         fr.registrant_name,
-        fc.contract_start_date,
-        fc.contract_end_date,
+        fc.contract_date,
         fc.contract_amount,
         fp.principal_name,
         fp.country_code
@@ -256,8 +263,7 @@ router.get('/countries/:countryCode/influence', async (req, res, next) => {
         fcon.description AS contact_description,
         COALESCE(donor_totals.total_donated, 0) AS total_donated
       FROM fara_contacts fcon
-      JOIN fara_contracts fc ON fc.id = fcon.contract_id
-      JOIN fara_principals fp ON fp.id = fc.principal_id
+      JOIN fara_principals fp ON fp.id = fcon.principal_id
       JOIN candidate_profiles cp ON cp.id = fcon.candidate_id
       LEFT JOIN LATERAL (
         SELECT SUM(amount) AS total_donated
@@ -280,9 +286,9 @@ router.get('/countries/:countryCode/influence', async (req, res, next) => {
       SELECT
         vr.candidate_id,
         cp.display_name,
-        vr.vote_position,
+        vr.vote AS vote_position,
         ve.vote_date,
-        ve.question AS vote_question,
+        ve.motion_text AS vote_question,
         ve.result AS vote_result,
         b.title AS bill_title,
         b.bill_number
@@ -293,8 +299,7 @@ router.get('/countries/:countryCode/influence', async (req, res, next) => {
       WHERE vr.candidate_id IN (
         SELECT DISTINCT fcon.candidate_id
         FROM fara_contacts fcon
-        JOIN fara_contracts fc ON fc.id = fcon.contract_id
-        JOIN fara_principals fp ON fp.id = fc.principal_id
+        JOIN fara_principals fp ON fp.id = fcon.principal_id
         WHERE fp.country_code = $1
           AND fcon.candidate_id IS NOT NULL
       )

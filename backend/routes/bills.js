@@ -195,7 +195,7 @@ router.get('/:id', async (req, res, next) => {
     const votesResult = await db.query(
       `SELECT
         ve.*,
-        (SELECT COUNT(*) FROM voting_records WHERE external_vote_id = ve.external_id) as recorded_votes
+        (SELECT COUNT(*) FROM voting_records WHERE vote_event_id = ve.id) as recorded_votes
        FROM vote_events ve
        WHERE ve.bill_id = $1
        ORDER BY ve.vote_date DESC`,
@@ -248,7 +248,7 @@ router.get('/:id/votes', async (req, res, next) => {
     const params = [id];
 
     if (voteEventId) {
-      query += ` AND vr.external_vote_id = $2`;
+      query += ` AND vr.vote_event_id = $2`;
       params.push(voteEventId);
     }
 

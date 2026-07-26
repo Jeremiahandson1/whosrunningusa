@@ -138,16 +138,19 @@ router.post('/admin/:id/approve', adminAuth, async (req, res, next) => {
     }
 
     const c = claim.rows[0];
-    await db.query('BEGIN');
+    // Use a dedicated client — BEGIN/COMMIT via db.query() land on different
+    // pooled connections, so the statements would not share a transaction.
+    const client = await db.getClient();
     try {
+      await client.query('BEGIN');
       // Update claim
-      await db.query(
+      await client.query(
         `UPDATE candidate_claims SET verification_status = 'approved', reviewed_at = NOW(), reviewed_by = $2 WHERE id = $1`,
         [id, req.user?.id || null]
       );
 
       // Upgrade user to candidate type
-      await db.query(
+      await client.query(
         `UPDATE users SET user_type = 'candidate' WHERE id = $1 AND user_type = 'voter'`,
         [c.user_id]
       );
@@ -156,35 +159,34 @@ router.post('/admin/:id/approve', adminAuth, async (req, res, next) => {
 
       // If new profile, create one
       if (c.claim_type === 'new' && !profileId) {
-        const newProfile = await db.query(`
+        const newProfile = await client.query(`
           INSERT INTO candidate_profiles (display_name, party_affiliation, fec_state, fec_candidate_id, candidate_verified)
           VALUES ($1, $2, $3, $4, true)
           RETURNING id
         `, [c.official_name, c.party, c.state, c.fec_candidate_id]);
         profileId = newProfile.rows[0].id;
-        await db.query(
+        await client.query(
           `UPDATE candidate_claims SET candidate_profile_id = $2 WHERE id = $1`,
           [id, profileId]
         );
       }
 
-      // Link user to profile
+      // Link user to profile — the association lives on candidate_profiles.user_id
+      // (users has no candidate_profile_id column)
       if (profileId) {
-        await db.query(
-          `UPDATE users SET candidate_profile_id = $2 WHERE id = $1`,
+        await client.query(
+          `UPDATE candidate_profiles SET user_id = $1, candidate_verified = true WHERE id = $2`,
           [c.user_id, profileId]
-        );
-        await db.query(
-          `UPDATE candidate_profiles SET candidate_verified = true WHERE id = $1`,
-          [profileId]
         );
       }
 
-      await db.query('COMMIT');
+      await client.query('COMMIT');
       res.json({ approved: true, candidate_profile_id: profileId });
     } catch (err) {
-      await db.query('ROLLBACK');
+      try { await client.query('ROLLBACK'); } catch (_) { /* ignore */ }
       throw err;
+    } finally {
+      client.release();
     }
   } catch (error) {
     next(error);

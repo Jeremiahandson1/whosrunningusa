@@ -6,8 +6,8 @@ const db = require('../db');
 // so coerce the known numeric fields to real numbers before responding.
 const NUMERIC_FIELDS = [
   'dem_vote_share', 'rep_vote_share', 'dem_seat_share', 'rep_seat_share',
-  'efficiency_gap', 'seats_votes_gap', 'partisan_advantage',
-  'margin', 'dem_votes', 'rep_votes',
+  'efficiency_gap', 'seats_votes_ratio', 'advantage_seats',
+  'avg_compactness_score',
 ];
 function coerceNumeric(row) {
   if (!row || typeof row !== 'object') return row;
@@ -42,8 +42,8 @@ const statesHandler = async (req, res) => {
     const where = `WHERE ${conditions.join(' AND ')}`;
 
     let orderBy = 'ABS(gm.efficiency_gap) DESC';
-    if (sort === 'seats_votes') orderBy = 'ABS(gm.seats_votes_gap) DESC';
-    if (sort === 'advantage') orderBy = 'ABS(gm.partisan_advantage) DESC NULLS LAST';
+    if (sort === 'seats_votes') orderBy = 'ABS(gm.seats_votes_ratio - 1) DESC NULLS LAST';
+    if (sort === 'advantage') orderBy = 'ABS(gm.advantage_seats) DESC NULLS LAST';
 
     const query = `
       SELECT gm.*

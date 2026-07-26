@@ -74,7 +74,8 @@ router.get('/state/:state', async (req, res, next) => {
 
         if (sponsor) {
           const donorsResult = await db.query(
-            `SELECT c.donor_name, c.amount, c.contribution_date, c.donor_type
+            `SELECT c.contributor_name as donor_name, c.amount, c.contribution_date,
+                    c.contributor_type as donor_type
              FROM contributions c
              WHERE c.candidate_id = $1
              ORDER BY c.amount DESC
@@ -197,7 +198,8 @@ router.get('/law/:id', async (req, res, next) => {
 
       if (sponsor) {
         const donorsResult = await db.query(
-          `SELECT c.donor_name, c.amount, c.contribution_date, c.donor_type
+          `SELECT c.contributor_name as donor_name, c.amount, c.contribution_date,
+                  c.contributor_type as donor_type
            FROM contributions c
            WHERE c.candidate_id = $1
            ORDER BY c.amount DESC

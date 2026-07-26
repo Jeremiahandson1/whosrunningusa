@@ -107,7 +107,7 @@ router.get('/officials', async (req, res, next) => {
              cp.profile_photo_url
       FROM local_officials li
       JOIN local_offices lo ON li.office_id = lo.id
-      LEFT JOIN candidate_profiles cp ON li.candidate_profile_id = cp.id
+      LEFT JOIN candidate_profiles cp ON li.candidate_id = cp.id
       ${where}
       ORDER BY lo.state, lo.jurisdiction_name, li.name
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -132,17 +132,23 @@ router.get('/by-location', async (req, res, next) => {
   try {
     let { state, county_fips, zip } = req.query;
 
-    // If zip is provided, look up state (and optionally county) from zip_codes table
+    // If zip is provided, look up state (and optionally county). No zip_codes
+    // table exists in the schema, so tolerate its absence — callers then fall
+    // back to the explicit-state requirement below.
     if (zip) {
-      const zipResult = await db.query(
-        `SELECT state, county_fips FROM zip_codes WHERE zip = $1 LIMIT 1`,
-        [zip]
-      );
-      if (zipResult.rows.length > 0) {
-        state = zipResult.rows[0].state;
-        if (!county_fips) {
-          county_fips = zipResult.rows[0].county_fips;
+      try {
+        const zipResult = await db.query(
+          `SELECT state, county_fips FROM zip_codes WHERE zip = $1 LIMIT 1`,
+          [zip]
+        );
+        if (zipResult.rows.length > 0) {
+          state = zipResult.rows[0].state;
+          if (!county_fips) {
+            county_fips = zipResult.rows[0].county_fips;
+          }
         }
+      } catch (err) {
+        if (err.code !== '42P01') throw err; // 42P01 = undefined_table
       }
     }
 
@@ -179,7 +185,7 @@ router.get('/by-location', async (req, res, next) => {
         `SELECT li.*, cp.display_name as candidate_display_name,
                 cp.party_affiliation, cp.profile_photo_url
          FROM local_officials li
-         LEFT JOIN candidate_profiles cp ON li.candidate_profile_id = cp.id
+         LEFT JOIN candidate_profiles cp ON li.candidate_id = cp.id
          WHERE li.office_id = ANY($1) AND li.is_current = true
          ORDER BY li.name`,
         [officeIds]

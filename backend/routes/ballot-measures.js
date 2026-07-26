@@ -19,7 +19,8 @@ router.get('/', async (req, res, next) => {
       paramIndex++;
     }
     if (category) {
-      conditions.push(`bm.category = $${paramIndex}`);
+      // categories is TEXT[] on ballot_measures
+      conditions.push(`$${paramIndex} = ANY(bm.categories)`);
       params.push(category);
       paramIndex++;
     }
@@ -43,7 +44,7 @@ router.get('/', async (req, res, next) => {
 
     let orderBy = 'bm.created_at DESC';
     if (sort === 'funding') orderBy = 'total_support_funding DESC NULLS LAST';
-    if (sort === 'votes') orderBy = 'bm.votes_yes DESC NULLS LAST';
+    if (sort === 'votes') orderBy = 'bm.yes_votes DESC NULLS LAST';
 
     const countResult = await db.query(
       `SELECT COUNT(*) as total FROM ballot_measures bm ${where}`, params
@@ -61,7 +62,7 @@ router.get('/', async (req, res, next) => {
                SUM(amount) as total_support,
                COUNT(*) as support_count
         FROM ballot_measure_funding
-        WHERE side = 'support'
+        WHERE support_oppose = 'support'
         GROUP BY measure_id
       ) fs ON fs.measure_id = bm.id
       LEFT JOIN (
@@ -69,7 +70,7 @@ router.get('/', async (req, res, next) => {
                SUM(amount) as total_oppose,
                COUNT(*) as oppose_count
         FROM ballot_measure_funding
-        WHERE side = 'oppose'
+        WHERE support_oppose = 'oppose'
         GROUP BY measure_id
       ) fo ON fo.measure_id = bm.id
       ${where}
@@ -149,7 +150,7 @@ router.get('/:id', async (req, res, next) => {
     const measure = measureResult.rows[0];
 
     const positionsResult = await db.query(
-      `SELECT cmp.id, cmp.candidate_id, cmp.position, cmp.statement, cmp.source_url,
+      `SELECT cmp.id, cmp.candidate_id, cmp.position, cmp.position_statement as statement, cmp.source_url,
               cp.display_name, cp.party_affiliation, cp.profile_photo_url,
               cp.fec_state, cp.fec_office_type
        FROM candidate_measure_positions cmp
@@ -160,11 +161,11 @@ router.get('/:id', async (req, res, next) => {
     );
 
     const fundingResult = await db.query(
-      `SELECT side, funder_type, SUM(amount) as total
+      `SELECT support_oppose as side, funder_type, SUM(amount) as total
        FROM ballot_measure_funding
        WHERE measure_id = $1
-       GROUP BY side, funder_type
-       ORDER BY side, total DESC`,
+       GROUP BY support_oppose, funder_type
+       ORDER BY support_oppose, total DESC`,
       [id]
     );
 
@@ -199,7 +200,7 @@ router.get('/:id/funding', async (req, res, next) => {
     let paramIndex = 2;
 
     if (side) {
-      conditions.push(`bmf.side = $${paramIndex}`);
+      conditions.push(`bmf.support_oppose = $${paramIndex}`);
       params.push(side);
       paramIndex++;
     }

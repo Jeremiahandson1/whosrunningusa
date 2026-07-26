@@ -87,7 +87,7 @@ router.get('/roi', async (req, res, next) => {
 
     // Single entity lookup by slug
     if (entity) {
-      const conditions = ['slug = $1'];
+      const conditions = ['entity_slug = $1'];
       const params = [entity];
       if (entity_type) {
         conditions.push('entity_type = $2');
@@ -118,8 +118,8 @@ router.get('/roi', async (req, res, next) => {
 
     const sortColumns = {
       roi_ratio: 'roi_ratio DESC NULLS LAST',
-      spend: 'total_spend DESC NULLS LAST',
-      return: 'total_return DESC NULLS LAST'
+      spend: 'total_political_spend DESC NULLS LAST',
+      return: 'total_policy_return DESC NULLS LAST'
     };
     const orderBy = sortColumns[sort] || sortColumns.roi_ratio;
 
