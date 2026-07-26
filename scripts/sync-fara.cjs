@@ -79,7 +79,12 @@ async function syncRegistrants(dryRun) {
       console.error(`  Failed to fetch ${status} registrants: ${err.message}`);
       continue;
     }
-    const records = Array.isArray(data) ? data : (data.REGISTRANTS_ROWS || data.data || []);
+    // Response shape (verified 2026-07): {"REGISTRANTS_ACTIVE":{"ROW":[...]}}
+    // (REGISTRANTS_TERMINATED for the terminated list). A single row may come
+    // back as a bare object rather than an array.
+    const rowset = (data && typeof data === 'object') ? data[`REGISTRANTS_${status.toUpperCase()}`] : null;
+    const rawRows = rowset && rowset.ROW ? rowset.ROW : [];
+    const records = Array.isArray(rawRows) ? rawRows : [rawRows];
     console.log(`  Received ${records.length} ${status} registrant records`);
     for (const r of records) allRecords.push({ ...r, _status: status });
   }
@@ -160,7 +165,12 @@ async function syncPrincipals(activeRegNumbers, dryRun) {
       continue;
     }
 
-    const records = Array.isArray(data) ? data : (data.FOREIGN_PRINCIPALS_ROWS || data.data || []);
+    // Response shape (verified 2026-07): {"ROWSET":{"ROW":[...]}} with rows
+    // like {FP_NAME, COUNTRY_NAME, REG_NUMBER, ...}. Empty registrants return
+    // {"ROWSET":""}; some return a non-JSON error body (data is a string).
+    const rowset = (data && typeof data === 'object') ? data.ROWSET : null;
+    const rawRows = rowset && rowset.ROW ? rowset.ROW : [];
+    const records = Array.isArray(rawRows) ? rawRows : [rawRows];
     if (records.length === 0) continue;
 
     // Resolve registrant id once per regNumber
@@ -174,12 +184,15 @@ async function syncPrincipals(activeRegNumbers, dryRun) {
     }
 
     for (const p of records) {
-      const name = p.Foreign_Principal || p.foreign_principal || p.Name || '';
-      const country = p.Country || p.country || p.FP_Country || '';
+      const name = p.FP_NAME || p.Foreign_Principal || p.foreign_principal || p.Name || '';
+      const country = p.COUNTRY_NAME || p.Country || p.country || p.FP_Country || '';
       if (!name || !country) continue;
 
       const govEntity = p.Government_Entity || p.government_entity || null;
-      const isGov = !!(govEntity || (p.Principal_Type || '').toLowerCase().includes('government'));
+      // The API exposes no explicit government flag — infer from the name.
+      const isGov = !!(govEntity ||
+        (p.Principal_Type || '').toLowerCase().includes('government') ||
+        /embassy|consulate|ministry|government|republic of|state of/i.test(name));
 
       if (dryRun) {
         console.log(`  [dry-run] ${regNumber} → ${name} (${country})`);
@@ -187,25 +200,25 @@ async function syncPrincipals(activeRegNumbers, dryRun) {
         continue;
       }
 
-      // Upsert principal by name + country (no natural unique key in FARA data)
-      const { rows } = await pool.query(
-        `INSERT INTO fara_principals
-           (principal_name, country, government_entity, is_government, updated_at)
-         VALUES ($1, $2, $3, $4, NOW())
-         ON CONFLICT DO NOTHING
-         RETURNING id`,
-        [name, country, govEntity, isGov]
-      );
-
+      // Upsert principal by name + country. The table has no unique
+      // constraint on the pair, so ON CONFLICT can never fire — check for an
+      // existing row first or every re-run duplicates every principal.
       let principalId;
-      if (rows.length > 0) {
-        principalId = rows[0].id;
+      const existing = await pool.query(
+        `SELECT id FROM fara_principals WHERE principal_name = $1 AND country = $2 LIMIT 1`,
+        [name, country]
+      );
+      if (existing.rows.length > 0) {
+        principalId = existing.rows[0].id;
       } else {
-        const existing = await pool.query(
-          `SELECT id FROM fara_principals WHERE principal_name = $1 AND country = $2 LIMIT 1`,
-          [name, country]
+        const { rows } = await pool.query(
+          `INSERT INTO fara_principals
+             (principal_name, country, government_entity, is_government, updated_at)
+           VALUES ($1, $2, $3, $4, NOW())
+           RETURNING id`,
+          [name, country, govEntity, isGov]
         );
-        principalId = existing.rows[0]?.id;
+        principalId = rows[0].id;
       }
 
       // Link principal to registrant via fara_contracts
