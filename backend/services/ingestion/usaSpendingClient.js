@@ -167,9 +167,9 @@ class USASpendingClient {
             },
           ],
           award_type_codes: codes,
-          place_of_performance_locations: [
-            { country: 'FOREIGN' },
-          ],
+          // 'FOREIGN' is not a valid 3-char country code — the API's way to
+          // say "any non-US place of performance" is the scope filter.
+          place_of_performance_scope: 'foreign',
         },
         fields: USASpendingClient.fieldsForGroup(amountField),
         limit: 100,
@@ -204,9 +204,11 @@ class USASpendingClient {
             },
           ],
           award_type_codes: codes,
-          place_of_performance_locations: [
-            { country: countryCode },
-          ],
+          // 'FOREIGN' pseudo-code means "any non-US place of performance" —
+          // the API only accepts real 3-char codes in the locations array.
+          ...(countryCode === 'FOREIGN'
+            ? { place_of_performance_scope: 'foreign' }
+            : { place_of_performance_locations: [{ country: countryCode }] }),
         },
         fields: USASpendingClient.fieldsForGroup(amountField, ['generated_internal_id']),
         limit: 100,
