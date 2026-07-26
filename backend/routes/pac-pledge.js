@@ -111,7 +111,7 @@ router.get('/candidate/:id', async (req, res, next) => {
       `SELECT pac_contributions, total_raised
        FROM campaign_finance_summaries
        WHERE candidate_id = $1
-       ORDER BY cycle DESC
+       ORDER BY election_cycle DESC
        LIMIT 1`,
       [id]
     );

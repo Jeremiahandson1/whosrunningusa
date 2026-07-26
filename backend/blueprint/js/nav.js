@@ -10,10 +10,12 @@ const NAV_SECTIONS = [
     { href: '/loans', label: 'Banking & Loans' },
     { href: '/business', label: 'Small Business' },
     { href: '/poverty', label: 'Anti-Poverty' },
+    { href: '/minimum-wage', label: 'Minimum Wage' },
     { href: '/fed', label: 'Federal Reserve' },
   ]},
   { label: 'People', children: [
     { href: '/healthcare', label: 'Healthcare' },
+    { href: '/pharma', label: 'Pharmaceutical Reform' },
     { href: '/veterans', label: 'Veterans' },
     { href: '/seniors', label: 'Seniors & SS' },
     { href: '/education', label: 'Education' },
@@ -24,6 +26,8 @@ const NAV_SECTIONS = [
   ]},
   { label: 'Reform', children: [
     { href: '/government', label: 'Government Reform' },
+    { href: '/agencies', label: 'Agency Reform' },
+    { href: '/integrity', label: 'Public Service Integrity' },
     { href: '/military', label: 'Military' },
     { href: '/criminal-justice', label: 'Criminal Justice' },
     { href: '/transparency', label: 'Transparency & AEGIS' },

@@ -858,7 +858,7 @@ router.get('/:id/transparency', async (req, res, next) => {
         b.bill_number, b.title, b.status
        FROM voting_records vr
        JOIN vote_events ve ON vr.vote_event_id = ve.id
-       LEFT JOIN bills b ON vr.bill_id IS NOT NULL AND vr.bill_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' AND vr.bill_id::uuid = b.id
+       LEFT JOIN bills b ON vr.bill_id = b.id
        WHERE vr.candidate_id = $1
        ORDER BY ve.vote_date DESC NULLS LAST
        LIMIT 10`,
@@ -921,7 +921,7 @@ router.get('/:id/background', async (req, res) => {
   try {
     const [educationResult, experienceResult, committeesResult] = await Promise.all([
       safe(
-        `SELECT * FROM candidate_education WHERE candidate_id = $1 ORDER BY year DESC NULLS LAST`,
+        `SELECT * FROM candidate_education WHERE candidate_id = $1 ORDER BY graduation_year DESC NULLS LAST`,
         [id]
       ),
       safe(

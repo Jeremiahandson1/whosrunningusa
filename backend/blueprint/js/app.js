@@ -44,6 +44,10 @@ function route() {
     '/consumer': pageConsumer,
     '/university': pageUniversity,
     '/certification': pageCertification,
+    '/agencies': pageAgencies,
+    '/pharma': pagePharma,
+    '/minimum-wage': pageMinimumWage,
+    '/integrity': pageIntegrity,
     '/ask': pageAsk,
   };
 
@@ -91,6 +95,7 @@ function pageLanding(main) {
     { href:'/veterans', icon:'🎖️', title:'Veterans', desc:'Up to $400/month per year served toward the income floor. No forms. No case workers.' },
     { href:'/seniors', icon:'👴', title:'Seniors & Social Security', desc:'Senior UBI up to $5,000/mo. SS buyout option.' },
     { href:'/healthcare', icon:'🏥', title:'Healthcare', desc:'Universal coverage. No copays. Mental health parity.' },
+    { href:'/pharma', icon:'🧪', title:'Pharmaceutical Reform', desc:'Medicare negotiation. Reference pricing. Insulin at $35.' },
     { href:'/loans', icon:'🏦', title:'Banking & Loans', desc:'15% rate cap. End payday lending. Break up too-big-to-fail.' },
     { href:'/housing', icon:'🔑', title:'Housing Reform', desc:'Ban corporate homeownership. End speculation.' },
     { href:'/military', icon:'🛡️', title:'Military Reform', desc:'Cut contractor corruption. $550B budget that buys more.' },
@@ -99,6 +104,7 @@ function pageLanding(main) {
     { href:'/criminal-justice', icon:'⚖️', title:'Criminal Justice', desc:'End private prisons. End qualified immunity. Real reform.' },
     { href:'/immigration', icon:'🗽', title:'Immigration', desc:'Welcome America system. Capacity-based. Humane.' },
     { href:'/government', icon:'🏛️', title:'Government Reform', desc:'Term limits. End corruption. Ban lobbying.' },
+    { href:'/agencies', icon:'🏢', title:'Reducing Redundant Agencies', desc:'Cut overhead, not people. $100B/yr in consolidation savings.' },
     { href:'/infrastructure', icon:'🌉', title:'Infrastructure', desc:'$1.5T rebuild. High-speed rail. Broadband everywhere.' },
     { href:'/business', icon:'🏪', title:'Small Business', desc:'Zero-interest microloans. Cut red tape. Break monopolies.' },
     { href:'/agriculture', icon:'🌾', title:'Agriculture & Food', desc:'End junk food subsidies. Ban EU-banned chemicals.' },
@@ -112,9 +118,11 @@ function pageLanding(main) {
     { href:'/guns', icon:'🎯', title:'Gun Policy', desc:'Universal background checks. Treat the wound, not just the weapon.' },
     { href:'/reproductive', icon:'🤰', title:'Reproductive Rights', desc:'Pro-life before and after birth. Extenuating circumstances respected.' },
     { href:'/transparency', icon:'🔍', title:'Transparency & AEGIS', desc:'AI-powered government oversight. Every dollar tracked.' },
+    { href:'/integrity', icon:'🚫', title:'Public Service Integrity', desc:'No stock trading for officials. Two-year revolving-door ban.' },
     { href:'/corporate', icon:'🔨', title:'Corporate Accountability', desc:'Fines always exceed profits. Executives go to jail.' },
     { href:'/fed', icon:'🏛️', title:'Federal Reserve Reform', desc:'Replace the Fed. Full transparency. End the shadows.' },
     { href:'/poverty', icon:'📈', title:'Anti-Poverty', desc:'Living wage. Baby bonds. End the poverty penalty.' },
+    { href:'/minimum-wage', icon:'💵', title:'Minimum Wage', desc:'$15/hr — worth $19–20 today after taxes vanish.' },
     { href:'/democracy', icon:'🗳️', title:'Democracy Reform', desc:'Term limits. Age limits. Ranked choice. Fair elections.' },
     { href:'/university', icon:'🎓', title:'Public University System', desc:'Federalize state universities. Free tuition. Consolidation pays for it.' },
     { href:'/certification', icon:'📜', title:'Skills Certification', desc:'National competency-based certification. The credential is what you can do, not where you went.' },
@@ -125,7 +133,7 @@ function pageLanding(main) {
       <div class="container hero-content">
         <h1>A Blueprint for <span>American Renewal</span></h1>
         <p class="hero-tagline">"We're going to fix the world and it starts here."</p>
-        <p>39 policy chapters. Personalized calculators. See exactly how each proposal affects <em>your</em> household.</p>
+        <p>41 policy chapters. Personalized calculators. See exactly how each proposal affects <em>your</em> household.</p>
         <div class="hero-actions">
           <button class="btn btn-primary" onclick="renderProfileModal()">Build Your Profile</button>
           <a href="/tax" class="btn btn-secondary" data-nav>Start with Tax Reform</a>
@@ -172,7 +180,7 @@ function pageLanding(main) {
 // ─── TAX REFORM ────────────────────────────────────────────
 function pageTax(main) {
   policyPage(main, {
-    title: 'Tax Reform — The Andson Tax System',
+    title: 'Tax Reform — The Phillips Tax System',
     subtitle: '"We don\'t tax what you build. We tax what you hoard."',
     icon: '💰',
     impactId: 'tax-impact',
@@ -196,13 +204,13 @@ function pageTax(main) {
       const net = totalEliminated - nst;
       return {
         level: net > 0 ? 'affects' : 'partial',
-        message: `You currently pay ~${fmtDollar(fedTax)} in federal income tax and ~${fmtDollar(payroll)} in payroll tax (${fmtDollar(totalEliminated)} total). Under the Andson Tax System, those are eliminated. Your estimated NST on non-essential spending: ${fmtDollar(nst)}/year. Net change: <strong>${net >= 0 ? '+' : '-'}${fmtDollar(net)}/year (${net >= 0 ? '+' : '-'}${fmtDollar(net/12)}/month)</strong>.`
+        message: `You currently pay ~${fmtDollar(fedTax)} in federal income tax and ~${fmtDollar(payroll)} in payroll tax (${fmtDollar(totalEliminated)} total). Under the Phillips Tax System, those are eliminated. Your estimated NST on non-essential spending: ${fmtDollar(nst)}/year. Net change: <strong>${net >= 0 ? '+' : '-'}${fmtDollar(net)}/year (${net >= 0 ? '+' : '-'}${fmtDollar(net/12)}/month)</strong>.`
       };
     },
     content: `
       <div class="calc-card">
         <h3>Real Wage Calculator</h3>
-        <p style="color:var(--slate-600)">See what your paycheck actually becomes under the Andson Tax System.</p>
+        <p style="color:var(--slate-600)">See what your paycheck actually becomes under the Phillips Tax System.</p>
         <div class="calc-grid">
           ${calcField('tax-income', 'Annual Income ($)', '55000')}
           ${calcField('tax-spending', 'Monthly Non-Essential Spending ($)', '1500')}
@@ -2323,6 +2331,235 @@ function formatMarkdown(s) {
 }
 
 // ─── 404 ───────────────────────────────────────────────────
+// ─── REDUCING REDUNDANT AGENCIES ───────────────────────────
+function pageAgencies(main) {
+  policyPage(main, {
+    title: 'Reducing Redundant Agencies',
+    subtitle: '"We\'re clearing the house. We\'re cutting overhead — not people."',
+    icon: '🏢',
+    impactId: 'agencies-impact',
+    impactFn: p => ({ level: 'affects', message: 'Agency consolidation removes duplicate bureaucracy — an estimated <strong>$100 billion per year</strong> in overhead — while every service you rely on (food assistance, housing support, job training, emergency help) keeps running through a system that actually works.' }),
+    content: `
+      <div class="calc-card">
+        <h3>What We're Doing</h3>
+        <p style="color:var(--slate-700)">The federal government has accumulated agencies the way old houses accumulate furniture — one piece at a time until nobody remembers why half of it is there. We're clearing the house.</p>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>Presidential Reorganization Office established in Year 1</li>
+          <li>Top-to-bottom audit of every federal agency within 18 months</li>
+          <li>Consolidate overlapping programs into unified, accountable entities</li>
+          <li>Mandatory real-time public dashboards for every major agency</li>
+          <li>Independent annual audits for all agencies above $1B budget</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>Target Areas — Documented Overlap</h3>
+        <table class="data-table">
+          <thead><tr><th>Function</th><th>The Redundancy</th></tr></thead>
+          <tbody>
+            <tr><td>Job training</td><td>47 separate programs across 9 agencies</td></tr>
+            <tr><td>Food safety</td><td>Split between USDA and FDA with overlapping jurisdictions</td></tr>
+            <tr><td>Housing assistance</td><td>Fragmented across HUD, USDA, Treasury, and others</td></tr>
+            <tr><td>Emergency management</td><td>Coordination failures that cost lives</td></tr>
+            <tr><td>Consumer product safety</td><td>At least 20 federal agencies with overlapping jurisdiction</td></tr>
+            <tr><td>Non-emergency medical transport</td><td>42 programs across 6 departments serving the same people</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="calc-card">
+        <h3>What We're Not Doing</h3>
+        <p style="color:var(--slate-700)">This is not about gutting services. People who need food assistance, housing support, job training, and emergency help will still receive those things — from a system that actually works. We're cutting overhead. We're not cutting people.</p>
+        <div class="stats-row" style="margin-top:1rem;">
+          <div class="stat-card"><div class="stat-value">$100B</div><div class="stat-label">Annual Savings</div></div>
+          <div class="stat-card"><div class="stat-value">18 mo</div><div class="stat-label">Full Audit Timeline</div></div>
+          <div class="stat-card"><div class="stat-value">$1B+</div><div class="stat-label">Independent Audit Threshold</div></div>
+        </div>
+      </div>
+    `
+  });
+}
+
+// ─── PHARMACEUTICAL MONOPOLY ───────────────────────────────
+function pagePharma(main) {
+  policyPage(main, {
+    title: 'Ending the Pharmaceutical Monopoly',
+    subtitle: '"Medications Americans invented and paid to develop — priced for Americans to actually afford."',
+    icon: '🧪',
+    impactId: 'pharma-impact',
+    impactFn: p => {
+      if (p.healthcareCosts) {
+        return { level: 'affects', message: `You report ${fmtDollar(p.healthcareCosts)}/year in healthcare costs. Reference pricing and Medicare negotiation target the prescription share of that directly — Americans pay <strong>2.78× the OECD average</strong> (4.22× for brand-name drugs) today. Insulin drops to $35.` };
+      }
+      return { level: 'affects', message: 'Every American pays inflated drug prices — at the pharmacy and indirectly through premiums and taxes. Reference pricing ties U.S. prices to what other developed nations pay. Insulin at $35.' };
+    },
+    content: `
+      <div class="calc-card">
+        <h3>The Problem</h3>
+        <p style="color:var(--slate-700)">An American diabetic pays ten times what a Canadian pays for the same insulin made by the same company. A senior chooses between medication and groceries every month until one of them runs out. This is not a supply problem. It is a legalized monopoly problem — enforced by a government that took the money and looked the other way.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>The Fix</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>Medicare negotiates drug prices — immediately, fully, no exceptions</li>
+          <li>Reference pricing — if a drug costs $X in Canada or Germany, it costs $X here</li>
+          <li>Patent reform — end evergreening, one meaningful extension per drug</li>
+          <li>Fast-track generic approval — eliminate pay-to-delay deals</li>
+          <li>Ban pharmaceutical lobbying — period</li>
+          <li>End direct-to-consumer prescription drug advertising (only the U.S. and New Zealand allow it)</li>
+          <li>Fine companies twice their total sales for any drug knowingly released unsafe</li>
+          <li>Publicly funded research must produce public benefit — or the loans are repaid</li>
+          <li>Domestic drug manufacturing — end foreign supply-chain dependency</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>The Result</h3>
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-value">$35</div><div class="stat-label">Insulin, Capped</div></div>
+          <div class="stat-card"><div class="stat-value">$6–7B</div><div class="stat-label">Annual Drug Ads Eliminated</div></div>
+          <div class="stat-card"><div class="stat-value">2.78×</div><div class="stat-label">U.S. Prices vs OECD</div></div>
+        </div>
+        <p style="font-size:0.875rem;color:var(--slate-600);margin-top:1rem;">The $6–7 billion pharmaceutical companies spend annually on consumer advertising — a cost embedded in every drug price — is eliminated, producing immediate downward pricing pressure.</p>
+      </div>
+    `
+  });
+}
+
+// ─── MINIMUM WAGE ──────────────────────────────────────────
+function pageMinimumWage(main) {
+  policyPage(main, {
+    title: 'Minimum Wage — The Real Math',
+    subtitle: '"Politicians argue about the number. I\'m showing you the math."',
+    icon: '💵',
+    impactId: 'wage-impact',
+    impactFn: p => {
+      if (!p.income) return { level: 'none', message: 'Add your income to your profile to see how the eliminated taxes change your take-home pay.' };
+      const inc = Number(p.income);
+      const taxable = Math.max(0, inc - 15000);
+      let fedTax = 0;
+      const brackets = [[11600,0.10],[47150,0.12],[100525,0.22],[191950,0.24],[243725,0.32],[609350,0.35],[Infinity,0.37]];
+      let prev = 0;
+      for (const [cap, rate] of brackets) { if (taxable <= prev) break; fedTax += (Math.min(taxable, cap) - prev) * rate; prev = cap; }
+      const payroll = Math.min(inc, 176100) * 0.0765;
+      const gain = fedTax + payroll + 4800;
+      return { level: 'affects', message: `Without raising your wage one dollar, eliminating federal income tax (${fmtDollar(fedTax)}), payroll tax (${fmtDollar(payroll)}), and healthcare premiums (~$4,800) puts about <strong>${fmtDollar(gain)}/year more (${fmtDollar(gain/12)}/month)</strong> in your pocket.` };
+    },
+    content: `
+      <div class="calc-card">
+        <h3>The Floor</h3>
+        <p style="color:var(--slate-700)"><strong>$15 per hour</strong> federal minimum wage. Mandatory cost-of-living adjustments every two years tied to local indexes. No state may fall below the federal floor.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Real Take-Home Calculator</h3>
+        <p style="color:var(--slate-600)">See what your paycheck becomes when income tax, payroll tax, and healthcare premiums all go to zero.</p>
+        <div class="calc-grid">
+          ${calcField('wage-rate', 'Hourly Wage ($)', '15')}
+          ${calcField('wage-hours', 'Hours Per Week', '40')}
+        </div>
+        <button class="btn btn-primary" onclick="calcWage()">Calculate</button>
+        <div id="wage-result"></div>
+      </div>
+
+      <div class="calc-card">
+        <h3>$15/hour, 40 hours — Side by Side</h3>
+        <table class="data-table">
+          <thead><tr><th></th><th>Current System</th><th>Under This Platform</th></tr></thead>
+          <tbody>
+            <tr><td>Gross monthly</td><td>$2,600</td><td>$2,600</td></tr>
+            <tr><td>Federal income tax</td><td>−$260</td><td class="text-success">$0 — eliminated</td></tr>
+            <tr><td>Payroll tax</td><td>−$199</td><td class="text-success">$0 — eliminated</td></tr>
+            <tr><td>Healthcare premiums</td><td>−$400</td><td class="text-success">$0 — universal</td></tr>
+            <tr style="background:var(--success-bg)"><td><strong>Take home</strong></td><td><strong>~$1,741</strong></td><td><strong>~$2,600</strong></td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:0.9375rem;color:var(--slate-700);margin-top:1rem;">That's <strong>$859 more per month</strong> in real purchasing power without raising the wage a single dollar. Add agricultural reform saving $100–200/month on groceries, housing reform stabilizing rents, and prescription drugs at negotiated prices — and the real value of $15/hour under this platform is closer to <strong>$19–20/hour</strong> today.</p>
+      </div>
+    `
+  });
+  prefillCalc();
+}
+
+function calcWage() {
+  const rate = Number(document.getElementById('wage-rate')?.value) || 0;
+  const hours = Number(document.getElementById('wage-hours')?.value) || 0;
+  if (!rate || !hours) return;
+  const annual = rate * hours * 52;
+  const taxable = Math.max(0, annual - 15000);
+  let fedTax = 0;
+  const brackets = [[11600,0.10],[47150,0.12],[100525,0.22],[191950,0.24],[243725,0.32],[609350,0.35],[Infinity,0.37]];
+  let prev = 0;
+  for (const [cap, brate] of brackets) { if (taxable <= prev) break; fedTax += (Math.min(taxable, cap) - prev) * brate; prev = cap; }
+  const payroll = Math.min(annual, 176100) * 0.0765;
+  const currentTakeMo = (annual - fedTax - payroll - 4800) / 12;
+  const platformTakeMo = annual / 12;
+  const gainMo = platformTakeMo - currentTakeMo;
+  document.getElementById('wage-result').innerHTML = `
+    <div class="result-box">
+      <h4>Your Monthly Take-Home</h4>
+      <div class="result-row"><span class="result-row-label">Current system</span><span class="result-row-value">${fmtDollar(currentTakeMo)}/mo</span></div>
+      <div class="result-row"><span class="result-row-label">Under this platform</span><span class="result-row-value result-positive">${fmtDollar(platformTakeMo)}/mo</span></div>
+      <div class="result-row" style="border-top:2px solid rgba(255,255,255,0.3);padding-top:1rem;">
+        <span class="result-row-label" style="font-weight:700;">You Keep</span>
+        <span class="result-row-value result-positive" style="font-size:1.5rem;">+${fmtDollar(gainMo)}/mo</span>
+      </div>
+      <div class="result-label" style="margin-top:0.5rem;">+${fmtDollar(gainMo*12)} per year — same wage, more money.</div>
+    </div>`;
+}
+
+// ─── PUBLIC SERVICE FINANCIAL INTEGRITY ────────────────────
+function pageIntegrity(main) {
+  policyPage(main, {
+    title: 'Public Service Financial Integrity Act',
+    subtitle: '"You want to serve the American people? Put your portfolio in a blind trust and govern."',
+    icon: '🚫',
+    impactId: 'integrity-impact',
+    impactFn: p => ({ level: 'affects', message: 'This applies to every federal elected official, appointee, senior executive, and regulator — plus their immediate household. For everyone else, it means a government where officials can no longer trade on what they know before you do, with every flag published publicly on OpenLedger.' }),
+    content: `
+      <div class="calc-card">
+        <h3>The Problem</h3>
+        <p style="color:var(--slate-700)">The single most corrupting force in American government is not bribery — it is the legal, normalized practice of officials using non-public policy information to enrich themselves through financial markets. A senator on the banking committee trading bank stocks. A congressman who gets a classified briefing and sells airline stocks the next morning. This is insider trading. It is legal for members of Congress. That ends.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>The No-Trading Rule</h3>
+        <p style="color:var(--slate-700)">Any federal elected official, appointed official, senior executive-branch employee, federal regulator — and any member of their immediate household — is prohibited from buying or selling individual stocks, bonds, options, derivatives, or any other individual financial instrument for the duration of their service and for <strong>two years after</strong>.</p>
+        <h4 style="margin-top:1rem;">What Is Permitted</h4>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>Widely diversified index funds held in a blind trust</li>
+          <li>A blind trust managed by an independent fiduciary — no communication with the official</li>
+          <li>Government bonds</li>
+          <li>Real property not subject to government regulatory decisions</li>
+        </ul>
+        <p style="color:var(--slate-600);font-size:0.9375rem;">You may participate in the broad success of the American economy. You may not trade on your knowledge of what the government is about to do.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>The Two-Year Revolving-Door Ban</h3>
+        <p style="color:var(--slate-700)">A defense official who approves a $10 billion contract retires and joins the contractor's board six months later. The implicit promise of future employment corrupts present decision-making. Former officials are barred for two years from employment, consulting, board membership, or any compensated relationship with any entity they regulated, contracted with, or had authority over — and from lobbying any federal agency on related matters.</p>
+      </div>
+
+      <div class="calc-card">
+        <h3>Enforcement — Criminal, Not an Ethics Memo</h3>
+        <ul style="padding-left:1.5rem;color:var(--slate-700);line-height:2;">
+          <li>All holdings of covered officials disclosed in real time on OpenLedger — within 48 hours of any transaction</li>
+          <li>AEGIS cross-references disclosures against market data automatically</li>
+          <li>Violations referred automatically to the Corporate Accountability Division — criminal prosecution, not an ethics-committee referral</li>
+          <li>Penalty: disgorgement of all profits plus 10%, plus personal criminal prosecution for knowing violations</li>
+          <li>AEGIS flags unusual trading by anyone preceding government action — every flag published publicly with a relationship map; a preliminary investigation opens within 72 hours</li>
+        </ul>
+      </div>
+
+      <div class="calc-card">
+        <h3>The Sacrifice Principle</h3>
+        <p style="color:var(--slate-700)">Public service requires sacrifice. You are asking the American people to trust you with their money, their laws, and their future. The minimum demonstration of that trustworthiness is the willingness to set aside personal financial enrichment for the duration of that service. If you're here for the right reasons, that's not a sacrifice — it's obvious.</p>
+      </div>
+    `
+  });
+}
+
 function page404(main) {
   main.innerHTML = `
     <div class="section" style="text-align:center;padding:5rem 0;">

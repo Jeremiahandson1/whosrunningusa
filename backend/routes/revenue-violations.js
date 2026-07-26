@@ -118,9 +118,12 @@ router.get('/:id', async (req, res, next) => {
         [id]
       ),
       db.query(
-        `SELECT rva.*, cp.display_name as politician_name, cp.party, cp.state, cp.office_level
+        `SELECT rva.*, cp.display_name as politician_name,
+                cp.party_affiliation as party, cp.fec_state as state,
+                CASE WHEN cp.fec_office_type IS NOT NULL THEN 'federal' ELSE 'state' END as office_level
          FROM revenue_violation_actors rva
          LEFT JOIN candidate_profiles cp ON cp.id = rva.candidate_id
+         WHERE rva.violation_id = $1
          ORDER BY rva.actor_name`,
         [id]
       ),

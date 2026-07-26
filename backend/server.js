@@ -99,6 +99,8 @@ app.get('/api/health', async (req, res) => {
     body.status = 'degraded';
     body.db = 'error';
     body.db_error = err.message;
+    body.db_code = err.code || null;
+    body.db_unavailable = db.isDbUnavailable(err);
     return res.status(503).json(body);
   }
 
@@ -259,11 +261,22 @@ app.get('/blueprint/{*path}', (req, res) => {
 
 // Error handling
 app.use((err, req, res, next) => {
+  // A database-unreachable error (DNS/refused/shutdown/pool exhaustion) is an
+  // infrastructure outage, not a code bug — return a clear, retryable 503 so
+  // the frontend can show a "temporarily unavailable" state, and don't flood
+  // Sentry with one event per request for the duration of the outage.
+  if (db.isDbUnavailable(err)) {
+    console.error('Database unavailable:', err.code || '', err.message);
+    return res.status(503).json({
+      error: 'Database temporarily unavailable. Please try again shortly.',
+      code: 'DB_UNAVAILABLE',
+    });
+  }
   Sentry.captureException(err);
   console.error(err.stack);
   res.status(err.status || 500).json({
-    error: process.env.NODE_ENV === 'production' 
-      ? 'Something went wrong' 
+    error: process.env.NODE_ENV === 'production'
+      ? 'Something went wrong'
       : err.message
   });
 });

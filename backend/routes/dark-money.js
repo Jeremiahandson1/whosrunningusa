@@ -18,10 +18,12 @@ router.get('/', async (req, res, next) => {
       params.push(party);
       paramIndex++;
     }
-    if (office) {
-      conditions.push(`cp.office_level = $${paramIndex}`);
-      params.push(office);
-      paramIndex++;
+    // candidate_profiles has no office_level column — federal candidates are
+    // the ones with an FEC office type (H/S/P); everyone else is state-level.
+    if (office === 'federal') {
+      conditions.push(`cp.fec_office_type IS NOT NULL`);
+    } else if (office === 'state') {
+      conditions.push(`cp.fec_office_type IS NULL`);
     }
     if (state) {
       conditions.push(`cp.fec_state = $${paramIndex}`);
@@ -46,7 +48,8 @@ router.get('/', async (req, res, next) => {
 
     const query = `
       SELECT cp.id, cp.display_name, cp.party_affiliation as party,
-             cp.fec_state as state, cp.office_level,
+             cp.fec_state as state,
+             CASE WHEN cp.fec_office_type IS NOT NULL THEN 'federal' ELSE 'state' END as office_level,
              dms.total_outside_spending, dms.disclosed_amount,
              dms.unaccounted_amount, dms.dark_money_percentage,
              dms.c4_group_count, dms.c4_total_spent
@@ -125,7 +128,9 @@ router.get('/candidates/:id', async (req, res, next) => {
 
     const candidateResult = await db.query(
       `SELECT cp.id, cp.display_name, cp.party_affiliation as party,
-              cp.fec_state as state, cp.office_level, cp.profile_photo_url
+              cp.fec_state as state,
+              CASE WHEN cp.fec_office_type IS NOT NULL THEN 'federal' ELSE 'state' END as office_level,
+              cp.profile_photo_url
        FROM candidate_profiles cp
        WHERE cp.id = $1`,
       [id]

@@ -1,9 +1,17 @@
 # Render Blueprint - WhosRunningUSA
 # https://render.com/docs/blueprint-spec
 
+# NOTE ON region: every resource that talks to the database is pinned to the
+# SAME region below. Render's internal database hostname (dpg-…-a) only
+# resolves to services in the same region, so a region mismatch shows up as
+# `getaddrinfo ENOTFOUND`. region is set at CREATION and cannot be changed on
+# an existing resource — if your dashboard shows these already live in a
+# different region (e.g. virginia/ohio/frankfurt/singapore), change ALL of the
+# `region:` values below to match it rather than the reverse.
 databases:
   - name: whosrunningusa-db
     plan: free
+    region: oregon
     databaseName: whosrunningusa
     postgresMajorVersion: 16
 
@@ -14,6 +22,7 @@ services:
     name: whosrunningusa-api
     runtime: node
     plan: starter
+    region: oregon
     rootDir: backend
     # Install backend + root deps so /admin/trigger-sync can spawn
     # root-dir scripts (compute-rubber-stamp, sync-foreign-aid, etc.)
@@ -102,6 +111,7 @@ services:
     name: whosrunningusa-sync
     runtime: node
     plan: starter
+    region: oregon
     rootDir: backend
     buildCommand: npm install && cd .. && npm install --omit=dev && cd backend
     schedule: "0 2 * * *"
@@ -133,6 +143,7 @@ services:
     name: whosrunningusa-backup
     runtime: node
     plan: starter
+    region: oregon
     rootDir: backend
     buildCommand: npm install
     schedule: "0 4 * * *"
@@ -146,8 +157,15 @@ services:
           property: connectionString
       - key: BACKUP_RETAIN_COUNT
         value: "7"
+      # Off-site backups are ON. The free Postgres tier expires and the cron's
+      # local disk is ephemeral, so without S3 there is NO recoverable backup.
+      # For uploads to actually run you MUST set these three secrets in the
+      # Render dashboard for this cron (they're sync:false = dashboard-only):
+      #   S3_BUCKET, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+      # Until they're set, backup.js logs a warning and skips the upload
+      # (it does not crash).
       - key: BACKUP_S3_ENABLED
-        sync: false
+        value: "true"
       - key: S3_BUCKET
         sync: false
       - key: AWS_ACCESS_KEY_ID

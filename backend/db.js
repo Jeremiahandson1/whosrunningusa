@@ -35,8 +35,26 @@ pool.on('error', (err) => {
   console.error('Idle pg client error (non-fatal):', err.message);
 });
 
+// Classify a thrown error as "the database itself is unreachable" — a
+// connection / DNS / shutdown / pool-exhaustion failure rather than a normal
+// query error (bad SQL, missing table, constraint). Lets routes and the
+// health check return a clear 503 ("temporarily unavailable") instead of a
+// generic 500 when Postgres is down. Example: a suspended or expired Render
+// database surfaces as `getaddrinfo ENOTFOUND dpg-…`.
+function isDbUnavailable(err) {
+  if (!err) return false;
+  // Node socket/DNS level
+  const NET = ['ENOTFOUND', 'ECONNREFUSED', 'ETIMEDOUT', 'EAI_AGAIN', 'ECONNRESET', 'EPIPE'];
+  // Postgres connection-class SQLSTATEs: admin shutdown, cannot-connect-now,
+  // connection failure/exception, too-many-connections.
+  const PG = ['57P01', '57P03', '08006', '08001', '08004', '08003', '53300', '53400'];
+  if (NET.includes(err.code) || PG.includes(err.code)) return true;
+  return /getaddrinfo|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|Connection terminated|server closed the connection|terminating connection/i.test(err.message || '');
+}
+
 module.exports = {
   query: (text, params) => pool.query(text, params),
   getClient: () => pool.connect(),
+  isDbUnavailable,
   pool
 };
