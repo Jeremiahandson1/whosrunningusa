@@ -22,6 +22,7 @@ try { require('dotenv').config({ path: require('path').join(__dirname, '..', 'ba
 
 const { Pool } = require('pg');
 const axios = require('axios');
+const { toIso3 } = require('./lib/country-codes.cjs');
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
@@ -213,10 +214,10 @@ async function syncPrincipals(activeRegNumbers, dryRun) {
       } else {
         const { rows } = await pool.query(
           `INSERT INTO fara_principals
-             (principal_name, country, government_entity, is_government, updated_at)
-           VALUES ($1, $2, $3, $4, NOW())
+             (principal_name, country, country_code, government_entity, is_government, updated_at)
+           VALUES ($1, $2, $3, $4, $5, NOW())
            RETURNING id`,
-          [name, country, govEntity, isGov]
+          [name, country, toIso3(country), govEntity, isGov]
         );
         principalId = rows[0].id;
       }
@@ -265,6 +266,35 @@ async function syncPrincipals(activeRegNumbers, dryRun) {
 // no-op so the cron stops 404-ing.
 
 // ---------------------------------------------------------------------------
+// Backfill country_code on principals inserted before the mapping existed.
+// The influence-chain views join fara_principals to foreign-aid data on
+// country_code (ISO alpha-3), so rows without it never appear in the chain.
+// ---------------------------------------------------------------------------
+
+async function backfillCountryCodes(dryRun) {
+  const { rows } = await pool.query(
+    `SELECT DISTINCT country FROM fara_principals WHERE country_code IS NULL`
+  );
+  let updated = 0;
+  const unmapped = [];
+  for (const { country } of rows) {
+    const code = toIso3(country);
+    if (!code) { unmapped.push(country); continue; }
+    if (dryRun) { updated++; continue; }
+    const res = await pool.query(
+      `UPDATE fara_principals SET country_code = $1, updated_at = NOW()
+       WHERE country = $2 AND country_code IS NULL`,
+      [code, country]
+    );
+    updated += res.rowCount;
+  }
+  if (unmapped.length > 0) {
+    console.log(`  Unmapped country names (left NULL): ${unmapped.join('; ')}`);
+  }
+  console.log(`  Backfilled country_code on ${updated} principals`);
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -278,6 +308,9 @@ async function main() {
 
   const { upserted: registrants, activeRegNumbers } = await syncRegistrants(args.dryRun);
   const principals = await syncPrincipals(activeRegNumbers, args.dryRun);
+
+  console.log('\nBackfilling ISO country codes...');
+  await backfillCountryCodes(args.dryRun);
 
   console.log('\n=== Summary ===');
   console.log(`Registrants upserted:        ${registrants}`);
