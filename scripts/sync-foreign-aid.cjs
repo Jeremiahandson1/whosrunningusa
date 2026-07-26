@@ -125,16 +125,15 @@ async function upsertTransaction(award, category, fiscalYear) {
   const { rows } = await pool.query(
     `INSERT INTO foreign_aid_transactions
        (usaspending_award_id, country_code, country_name, fiscal_year,
-        award_amount, total_outlays, cfda_number, agency_name, sub_agency_name,
-        recipient_name, description, category, start_date, end_date, source_url)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        obligation_amount, disbursement_amount, program_name, agency_name,
+        recipient_name, program_description, category, source_url)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
      ON CONFLICT (usaspending_award_id) DO UPDATE SET
-       award_amount = EXCLUDED.award_amount,
-       total_outlays = EXCLUDED.total_outlays,
+       obligation_amount = EXCLUDED.obligation_amount,
+       disbursement_amount = EXCLUDED.disbursement_amount,
        category = EXCLUDED.category,
-       description = EXCLUDED.description,
+       program_description = EXCLUDED.program_description,
        agency_name = EXCLUDED.agency_name,
-       sub_agency_name = EXCLUDED.sub_agency_name,
        recipient_name = EXCLUDED.recipient_name,
        updated_at = NOW()
      RETURNING id`,
@@ -147,12 +146,9 @@ async function upsertTransaction(award, category, fiscalYear) {
       outlays,
       award['CFDA Number'] || null,
       award['Awarding Agency'] || null,
-      award['Awarding Sub Agency'] || null,
       award['Recipient Name'] || null,
       award['Description'] || null,
       category,
-      award['Start Date'] || null,
-      award['End Date'] || null,
       sourceUrl,
     ]
   );
@@ -168,37 +164,37 @@ async function upsertCountrySummary(countryCode, countryName, fiscalYear) {
   await pool.query(
     `INSERT INTO foreign_aid_country_summaries
        (country_code, country_name, fiscal_year,
-        total_amount, total_outlays,
+        total_obligation, total_disbursement,
         military_amount, economic_amount, humanitarian_amount,
-        democracy_promotion_amount, health_amount, other_amount,
-        transaction_count)
+        democracy_amount, health_amount, other_amount,
+        program_count)
      SELECT
        country_code,
        $2,
        fiscal_year,
-       COALESCE(SUM(award_amount), 0),
-       COALESCE(SUM(total_outlays), 0),
-       COALESCE(SUM(CASE WHEN category = 'military' THEN award_amount ELSE 0 END), 0),
-       COALESCE(SUM(CASE WHEN category = 'economic' THEN award_amount ELSE 0 END), 0),
-       COALESCE(SUM(CASE WHEN category = 'humanitarian' THEN award_amount ELSE 0 END), 0),
-       COALESCE(SUM(CASE WHEN category = 'democracy_promotion' THEN award_amount ELSE 0 END), 0),
-       COALESCE(SUM(CASE WHEN category = 'health' THEN award_amount ELSE 0 END), 0),
-       COALESCE(SUM(CASE WHEN category = 'other' THEN award_amount ELSE 0 END), 0),
+       COALESCE(SUM(obligation_amount), 0),
+       COALESCE(SUM(disbursement_amount), 0),
+       COALESCE(SUM(CASE WHEN category = 'military' THEN obligation_amount ELSE 0 END), 0),
+       COALESCE(SUM(CASE WHEN category = 'economic' THEN obligation_amount ELSE 0 END), 0),
+       COALESCE(SUM(CASE WHEN category = 'humanitarian' THEN obligation_amount ELSE 0 END), 0),
+       COALESCE(SUM(CASE WHEN category = 'democracy_promotion' THEN obligation_amount ELSE 0 END), 0),
+       COALESCE(SUM(CASE WHEN category = 'health' THEN obligation_amount ELSE 0 END), 0),
+       COALESCE(SUM(CASE WHEN category = 'other' THEN obligation_amount ELSE 0 END), 0),
        COUNT(*)
      FROM foreign_aid_transactions
      WHERE country_code = $1 AND fiscal_year = $3
      GROUP BY country_code, fiscal_year
      ON CONFLICT (country_code, fiscal_year) DO UPDATE SET
        country_name = EXCLUDED.country_name,
-       total_amount = EXCLUDED.total_amount,
-       total_outlays = EXCLUDED.total_outlays,
+       total_obligation = EXCLUDED.total_obligation,
+       total_disbursement = EXCLUDED.total_disbursement,
        military_amount = EXCLUDED.military_amount,
        economic_amount = EXCLUDED.economic_amount,
        humanitarian_amount = EXCLUDED.humanitarian_amount,
-       democracy_promotion_amount = EXCLUDED.democracy_promotion_amount,
+       democracy_amount = EXCLUDED.democracy_amount,
        health_amount = EXCLUDED.health_amount,
        other_amount = EXCLUDED.other_amount,
-       transaction_count = EXCLUDED.transaction_count,
+       program_count = EXCLUDED.program_count,
        updated_at = NOW()`,
     [countryCode, countryName, fiscalYear]
   );
@@ -208,28 +204,31 @@ async function upsertCountrySummary(countryCode, countryName, fiscalYear) {
 // Aggregate and upsert program-level summaries
 // ---------------------------------------------------------------------------
 
-async function upsertProgramSummaries(countryCode, fiscalYear) {
+async function upsertProgramSummaries(countryCode, countryName, fiscalYear) {
   await pool.query(
     `INSERT INTO foreign_aid_programs
-       (country_code, fiscal_year, program_name, agency_name,
-        category, total_amount, transaction_count)
+       (country_code, country_name, fiscal_year, program_name, agency_name,
+        category, total_obligation, total_disbursement, transaction_count)
      SELECT
        country_code,
+       $2,
        fiscal_year,
-       COALESCE(cfda_number, 'Unknown Program'),
+       COALESCE(program_name, 'Unknown Program'),
        COALESCE(agency_name, 'Unknown Agency'),
-       category,
-       COALESCE(SUM(award_amount), 0),
+       mode() WITHIN GROUP (ORDER BY category),
+       COALESCE(SUM(obligation_amount), 0),
+       COALESCE(SUM(disbursement_amount), 0),
        COUNT(*)
      FROM foreign_aid_transactions
-     WHERE country_code = $1 AND fiscal_year = $2
-     GROUP BY country_code, fiscal_year, COALESCE(cfda_number, 'Unknown Program'), COALESCE(agency_name, 'Unknown Agency'), category
+     WHERE country_code = $1 AND fiscal_year = $3
+     GROUP BY country_code, fiscal_year, COALESCE(program_name, 'Unknown Program'), COALESCE(agency_name, 'Unknown Agency')
      ON CONFLICT (country_code, fiscal_year, program_name, agency_name) DO UPDATE SET
        category = EXCLUDED.category,
-       total_amount = EXCLUDED.total_amount,
+       total_obligation = EXCLUDED.total_obligation,
+       total_disbursement = EXCLUDED.total_disbursement,
        transaction_count = EXCLUDED.transaction_count,
        updated_at = NOW()`,
-    [countryCode, fiscalYear]
+    [countryCode, countryName, fiscalYear]
   );
 }
 
@@ -269,7 +268,7 @@ async function processCountry(client, countryCode, countryName, fiscalYear, dryR
   // Aggregate summaries
   if (!dryRun && inserted > 0) {
     await upsertCountrySummary(countryCode, countryName, fiscalYear);
-    await upsertProgramSummaries(countryCode, fiscalYear);
+    await upsertProgramSummaries(countryCode, countryName, fiscalYear);
   }
 
   // Log category breakdown
