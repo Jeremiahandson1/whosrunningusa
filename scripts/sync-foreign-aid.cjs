@@ -114,9 +114,15 @@ async function fetchCountryList(client, fiscalYear) {
 // Upsert a single transaction
 // ---------------------------------------------------------------------------
 
-async function upsertTransaction(award, category, fiscalYear) {
+async function upsertTransaction(award, category, fiscalYear, countryCode, countryName) {
   const awardId = award['Award ID'] || award['generated_internal_id'];
   if (!awardId) return null;
+
+  // The spending_by_award endpoint returns 'Place of Performance Country
+  // Name' as null (verified 2026-07), and country_code/country_name are
+  // NOT NULL — fall back to the country being processed.
+  const code = award['Place of Performance Country Code'] || countryCode;
+  const name = award['Place of Performance Country Name'] || countryName || code;
 
   const amount = parseFloat(award['Award Amount']) || 0;
   const outlays = parseFloat(award['Total Outlays']) || 0;
@@ -139,8 +145,8 @@ async function upsertTransaction(award, category, fiscalYear) {
      RETURNING id`,
     [
       awardId,
-      award['Place of Performance Country Code'],
-      award['Place of Performance Country Name'],
+      code,
+      name,
       fiscalYear,
       amount,
       outlays,
@@ -261,7 +267,7 @@ async function processCountry(client, countryCode, countryName, fiscalYear, dryR
       continue;
     }
 
-    const result = await upsertTransaction(award, category, fiscalYear);
+    const result = await upsertTransaction(award, category, fiscalYear, countryCode, countryName);
     if (result) inserted++;
   }
 
