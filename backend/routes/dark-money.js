@@ -9,7 +9,7 @@ router.get('/', async (req, res, next) => {
     const limit = 20;
     const offset = (Math.max(1, parseInt(page)) - 1) * limit;
 
-    const conditions = ['dms.cycle = $1'];
+    const conditions = ['dms.cycle_year = $1'];
     const params = [cycle];
     let paramIndex = 2;
 
@@ -93,14 +93,14 @@ router.get('/stats', async (req, res) => {
               COUNT(*) as candidates_tracked,
               COALESCE(ROUND(AVG(dark_money_percentage), 2), 0) as avg_dark_money_pct
        FROM dark_money_summaries
-       WHERE cycle = $1`,
+       WHERE cycle_year = $1`,
       [cycle]
     );
 
     const topGroupsResult = await db.query(
       `SELECT id, name, is_501c4, total_spent, donor_disclosure_percentage
        FROM outside_spending_groups
-       WHERE cycle = $1
+       WHERE cycle_year = $1
        ORDER BY total_spent DESC NULLS LAST
        LIMIT 5`,
       [cycle]
@@ -141,25 +141,26 @@ router.get('/candidates/:id', async (req, res, next) => {
     }
 
     const summaryResult = await db.query(
-      `SELECT cycle, total_outside_spending, disclosed_amount,
+      `SELECT cycle_year as cycle, total_outside_spending, disclosed_amount,
               unaccounted_amount, dark_money_percentage,
               c4_group_count, c4_total_spent
        FROM dark_money_summaries
        WHERE candidate_id = $1
-       ORDER BY cycle DESC`,
+       ORDER BY cycle_year DESC`,
       [id]
     );
 
     const transactionsResult = await db.query(
-      `SELECT ost.id as transaction_id, ost.amount, ost.spending_type,
-              ost.purpose, ost.support_oppose, ost.filing_date, ost.cycle,
+      `SELECT ost.id as transaction_id, ost.amount,
+              ost.expenditure_description as purpose, ost.support_oppose,
+              ost.expenditure_date as filing_date, ost.cycle_year as cycle,
               osg.id as group_id, osg.name as group_name, osg.is_501c4,
               osg.total_spent as group_total_spent,
               osg.donor_disclosure_percentage
        FROM outside_spending_transactions ost
        JOIN outside_spending_groups osg ON ost.group_id = osg.id
        WHERE ost.candidate_id = $1
-       ORDER BY osg.total_spent DESC NULLS LAST, ost.filing_date DESC`,
+       ORDER BY osg.total_spent DESC NULLS LAST, ost.expenditure_date DESC`,
       [id]
     );
 
@@ -179,7 +180,6 @@ router.get('/candidates/:id', async (req, res, next) => {
       groupMap.get(key).transactions.push({
         id: tx.transaction_id,
         amount: tx.amount,
-        spending_type: tx.spending_type,
         purpose: tx.purpose,
         support_oppose: tx.support_oppose,
         filing_date: tx.filing_date,
@@ -214,7 +214,7 @@ router.get('/groups', async (req, res, next) => {
       paramIndex++;
     }
     if (cycle) {
-      conditions.push(`osg.cycle = $${paramIndex}`);
+      conditions.push(`osg.cycle_year = $${paramIndex}`);
       params.push(cycle);
       paramIndex++;
     }
@@ -237,13 +237,13 @@ router.get('/groups', async (req, res, next) => {
 
     const query = `
       SELECT osg.id, osg.name, osg.is_501c4, osg.total_spent,
-             osg.donor_disclosure_percentage, osg.cycle,
+             osg.donor_disclosure_percentage, osg.cycle_year as cycle,
              COUNT(DISTINCT ost.candidate_id) as candidates_targeted
       FROM outside_spending_groups osg
       LEFT JOIN outside_spending_transactions ost ON ost.group_id = osg.id
       ${where}
       GROUP BY osg.id, osg.name, osg.is_501c4, osg.total_spent,
-               osg.donor_disclosure_percentage, osg.cycle
+               osg.donor_disclosure_percentage, osg.cycle_year
       ORDER BY ${orderBy}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
