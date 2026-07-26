@@ -54,11 +54,31 @@ const HTTP_OPTS = {
 // Fetch helpers with rate limiting
 // ---------------------------------------------------------------------------
 
+// DOJ's FARA API rate-limits aggressively: at 2 req/s it starts returning
+// 429 for every request after a few hundred calls. Pace at 2s/request and
+// back off hard on 429 (honoring Retry-After when present).
+const RATE_LIMIT_MS = 2000;
+const MAX_RETRIES = 4;
+
 async function fetchJSON(url) {
-  await sleep(500); // rate limit: 500ms between requests
-  console.log(`  Fetching ${url}...`);
-  const res = await axios.get(url, HTTP_OPTS);
-  return res.data;
+  for (let attempt = 1; ; attempt++) {
+    await sleep(RATE_LIMIT_MS);
+    console.log(`  Fetching ${url}...`);
+    try {
+      const res = await axios.get(url, HTTP_OPTS);
+      return res.data;
+    } catch (err) {
+      const status = err.response?.status;
+      if (status === 429 && attempt <= MAX_RETRIES) {
+        const retryAfter = parseInt(err.response?.headers?.['retry-after'], 10);
+        const waitMs = Number.isFinite(retryAfter) ? retryAfter * 1000 : attempt * 30000;
+        console.log(`  429 rate-limited, waiting ${Math.round(waitMs / 1000)}s (attempt ${attempt}/${MAX_RETRIES})...`);
+        await sleep(waitMs);
+        continue;
+      }
+      throw err;
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
