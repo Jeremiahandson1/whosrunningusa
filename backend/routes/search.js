@@ -110,7 +110,7 @@ router.get('/candidates/by-location', async (req, res, next) => {
       SELECT DISTINCT cp.id, cp.display_name, cp.party_affiliation, cp.official_title,
              cp.campaign_website, cp.fec_candidate_id, cp.candidate_verified,
              cp.identity_verified, cp.incumbent_verified, cp.is_shadow_profile,
-             cp.qa_response_rate, u.first_name, u.last_name,
+             cp.qa_response_rate, cp.total_questions_received, u.first_name, u.last_name,
              o.office_level, o.name as office_name,
              'local' as source
       FROM candidate_profiles cp
@@ -200,7 +200,7 @@ router.get('/candidates/by-location', async (req, res, next) => {
         SELECT DISTINCT cp.id, cp.display_name, cp.party_affiliation, cp.official_title,
                cp.campaign_website, cp.fec_candidate_id, cp.candidate_verified,
                cp.identity_verified, cp.incumbent_verified, cp.is_shadow_profile,
-               cp.qa_response_rate, NULL as first_name, NULL as last_name,
+               cp.qa_response_rate, cp.total_questions_received, NULL as first_name, NULL as last_name,
                'federal' as office_level,
                CASE
                  WHEN cp.fec_office_type = 'H' THEN 'U.S. House of Representatives'
@@ -224,7 +224,7 @@ router.get('/candidates/by-location', async (req, res, next) => {
         SELECT DISTINCT cp.id, cp.display_name, cp.party_affiliation, cp.official_title,
                cp.campaign_website, cp.fec_candidate_id, cp.candidate_verified,
                cp.identity_verified, cp.incumbent_verified, cp.is_shadow_profile,
-               cp.qa_response_rate, NULL as first_name, NULL as last_name,
+               cp.qa_response_rate, cp.total_questions_received, NULL as first_name, NULL as last_name,
                'federal' as office_level,
                CASE
                  WHEN cp.fec_office_type = 'H' THEN
@@ -274,7 +274,7 @@ router.get('/candidates/by-location', async (req, res, next) => {
         SELECT DISTINCT cp.id, cp.display_name, cp.party_affiliation, cp.official_title,
                cp.campaign_website, cp.fec_candidate_id, cp.candidate_verified,
                cp.identity_verified, cp.incumbent_verified, cp.is_shadow_profile,
-               cp.qa_response_rate, NULL as first_name, NULL as last_name,
+               cp.qa_response_rate, cp.total_questions_received, NULL as first_name, NULL as last_name,
                'federal' as office_level,
                'U.S. House District ' || TRIM(LEADING '0' FROM cp.fec_district) as office_name,
                'fec_district' as source
@@ -443,7 +443,7 @@ router.post('/candidates/match', async (req, res, next) => {
         ms.total_compared,
         ROUND(ms.matches::numeric / ms.total_compared * 100) AS match_pct,
         c.id, c.display_name, c.party_affiliation, c.official_title,
-        c.qa_response_rate, c.candidate_verified, c.profile_photo_url
+        c.qa_response_rate, c.total_questions_received, c.candidate_verified, c.profile_photo_url
       FROM match_scores ms
       JOIN candidate_profiles c ON ms.candidate_id = c.id
       WHERE c.is_active = TRUE
