@@ -34,7 +34,10 @@ router.get('/', async (req, res, next) => {
     }
 
     if (state) {
-      query += ` AND (o.state = $${paramIndex} OR o.office_level = 'federal')`;
+      // Match the state's own offices plus nationwide federal offices
+      // (President/VP have no state). Federal offices for OTHER states
+      // (their Senate/House seats) carry o.state and are excluded.
+      query += ` AND (o.state = $${paramIndex} OR (o.office_level = 'federal' AND o.state IS NULL))`;
       params.push(state);
       paramIndex++;
     }

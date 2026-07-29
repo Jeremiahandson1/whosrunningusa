@@ -4,6 +4,7 @@ import { MapPin, Search, ChevronRight, CheckCircle, ArrowRight, Users } from 'lu
 import api from '../utils/api'
 import Breadcrumbs from '../components/Breadcrumbs'
 import { partyColor, responseRateDisplay } from '../utils/candidateDisplay'
+import { formatDate } from '../utils/dateFormat'
 
 const STATE_NAMES = {
   AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',
@@ -60,7 +61,6 @@ function FindMyBallotPage() {
     let useState = state
     let useCounty = county
     let useDistrict = null
-    let matched = null
 
     try {
       if (address.trim()) {
@@ -70,8 +70,7 @@ function FindMyBallotPage() {
           useState = geo.state
           useCounty = geo.county || ''
           useDistrict = geo.district || null
-          matched = geo.matchedAddress
-          setResolvedAddress(matched)
+          setResolvedAddress(geo.matchedAddress)
           setResolvedDistrict(useDistrict)
           // Reflect resolved values in the form so the user sees what we used
           if (geo.state && geo.state !== state) setState(geo.state)
@@ -92,7 +91,7 @@ function FindMyBallotPage() {
 
       const [candidateData, raceData] = await Promise.all([
         api.get(`/search/candidates/by-location?${params.toString()}`).catch(() => ({ candidates: [] })),
-        api.get(`/races?state=${useState}&limit=50`).catch(() => ({ races: [] })),
+        api.get(`/races?state=${useState}&upcoming=true&limit=50`).catch(() => ({ races: [] })),
       ])
 
       setCandidates(candidateData.candidates || [])
@@ -332,7 +331,7 @@ function FindMyBallotPage() {
                       <div>
                         <h4 style={{ marginBottom: '0.25rem' }}>{race.name}</h4>
                         <span style={{ fontSize: '0.875rem', color: 'var(--slate-500)' }}>
-                          {race.office_name || ''}{race.election_date ? ` • ${new Date(race.election_date).toLocaleDateString()}` : ''}
+                          {race.office_name || ''}{race.election_date ? ` • ${formatDate(race.election_date)}` : ''}
                         </span>
                       </div>
                       <ChevronRight size={20} style={{ color: 'var(--slate-400)' }} />
