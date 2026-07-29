@@ -46,10 +46,14 @@ async function upsertMember(member) {
   // Convert state name to abbreviation
   const stateAbbr = stateAbbreviations[transformed.state] || transformed.state;
   
-  // Check if we have this member by bioguide ID
+  // Check if we have this member by bioguide ID. congress_gov_id is the
+  // stable key — verification_source/external_id get overwritten when the
+  // FEC sync later reclaims the same profile, so match either.
   const existing = await db.query(
-    `SELECT id FROM candidate_profiles 
-     WHERE verification_external_id = $1 AND verification_source = 'congress_gov'`,
+    `SELECT id FROM candidate_profiles
+     WHERE congress_gov_id = $1
+        OR (verification_external_id = $1 AND verification_source = 'congress_gov')
+     LIMIT 1`,
     [transformed.bioguideId]
   );
 
@@ -79,30 +83,33 @@ async function upsertMember(member) {
   // Try to match by FEC ID or name
   let candidateId = null;
 
-  // Try matching FEC profiles by last name + state + office type
-  // FEC names: "VAN ORDEN, DERRICK F. MR." / Congress names: "Van Orden, Derrick"
-  const lastName = (transformed.lastName || transformed.name.split(',')[0] || '').trim();
+  // Try matching FEC profiles by normalized name + state. Chamber is a
+  // PREFERENCE, not a requirement: a member who moved House → Senate (e.g.
+  // won a Senate seat after serving as a representative) must match their
+  // existing House-typed profile instead of getting a second row.
   const officeType = transformed.chamber === 'lower' ? 'H' : 'S';
   const fecMatch = await db.query(`
     SELECT id FROM candidate_profiles
     WHERE fec_state = $1
-      AND fec_office_type = $2
-      AND (
-        LOWER(display_name) LIKE LOWER($3)
-        OR LOWER(display_name) = LOWER($4)
-      )
+      AND normalize_candidate_name(display_name) = normalize_candidate_name($3)
     ORDER BY
-      CASE WHEN LOWER(display_name) = LOWER($4) THEN 0 ELSE 1 END
+      CASE WHEN fec_office_type = $2 THEN 0 ELSE 1 END,
+      CASE WHEN LOWER(display_name) = LOWER($3) THEN 0 ELSE 1 END
     LIMIT 1
-  `, [stateAbbr, officeType, `${lastName},%`, transformed.name]);
+  `, [stateAbbr, officeType, transformed.name]);
 
   if (fecMatch.rows.length > 0) {
     candidateId = fecMatch.rows[0].id;
 
+    // Congress.gov is authoritative for a sitting member's current chamber:
+    // update fec_office_type so search/office labels reflect the seat they
+    // hold now, and drop the stale House district when they moved to Senate.
     await db.query(`
       UPDATE candidate_profiles SET
         display_name = $2,
         official_title = $3,
+        fec_office_type = $6,
+        fec_district = CASE WHEN $6 = 'S' THEN NULL ELSE fec_district END,
         campaign_website = COALESCE($4, campaign_website),
         verification_source = 'congress_gov',
         verification_external_id = $5,
@@ -114,7 +121,7 @@ async function upsertMember(member) {
       WHERE id = $1
     `, [candidateId, transformed.name,
         transformed.chamber === 'lower' ? 'U.S. Representative' : 'U.S. Senator',
-        transformed.officialUrl, transformed.bioguideId]);
+        transformed.officialUrl, transformed.bioguideId, officeType]);
 
     return { id: candidateId, action: 'linked' };
   }
@@ -452,10 +459,13 @@ async function syncBills(congress, options = {}) {
  * Ensure congress_gov data source exists and start a sync run
  */
 async function startTrackedSync(metadata) {
+  // NOTE: uuid ...0008, NOT ...0005 — that id belongs to vote_smart
+  // (migration 007); claiming it here used to rename the Vote Smart source
+  // every night. Conflict on name so an existing row keeps its id.
   await db.query(`
     INSERT INTO data_sources (id, name, display_name, source_type, base_url, api_key_env_var, sync_frequency_hours)
     VALUES (
-      '00000000-0000-0000-0000-000000000005',
+      '00000000-0000-0000-0000-000000000008',
       'congress_gov',
       'Congress.gov',
       'api',
@@ -463,14 +473,15 @@ async function startTrackedSync(metadata) {
       'CONGRESS_GOV_API_KEY',
       168
     )
-    ON CONFLICT (id) DO UPDATE SET
+    ON CONFLICT (name) DO UPDATE SET
       display_name = EXCLUDED.display_name,
-      base_url = EXCLUDED.base_url,
-      name = EXCLUDED.name
+      base_url = EXCLUDED.base_url
   `);
 
   const result = await db.query(
-    `INSERT INTO sync_runs (data_source_id, metadata) VALUES ('00000000-0000-0000-0000-000000000005', $1) RETURNING id`,
+    `INSERT INTO sync_runs (data_source_id, metadata)
+     VALUES ((SELECT id FROM data_sources WHERE name = 'congress_gov'), $1)
+     RETURNING id`,
     [JSON.stringify(metadata)]
   );
   return result.rows[0].id;

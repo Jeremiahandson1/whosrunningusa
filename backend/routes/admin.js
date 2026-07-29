@@ -8,6 +8,7 @@ const router = express.Router();
 const ingestionService = require('../services/ingestion');
 const db = require('../db');
 const { authenticate } = require('../middleware/auth');
+const { discoverReferencingColumns, mergeProfileInto } = require('../services/profileMerge');
 
 // Track which sync jobs are currently running
 const activeSyncs = new Set();
@@ -612,19 +613,12 @@ router.post('/candidates/merge', adminAuth, async (req, res, next) => {
     if (keepResult.rows.length === 0) return res.status(404).json({ error: 'Keep candidate not found' });
     if (mergeResult.rows.length === 0) return res.status(404).json({ error: 'Merge candidate not found' });
 
-    // Move all references from mergeId to keepId
-    await client.query('UPDATE candidacies SET candidate_id = $1 WHERE candidate_id = $2 AND NOT EXISTS (SELECT 1 FROM candidacies WHERE candidate_id = $1 AND race_id = candidacies.race_id)', [keepId, mergeId]);
-    await client.query('UPDATE candidate_positions SET candidate_id = $1 WHERE candidate_id = $2 AND NOT EXISTS (SELECT 1 FROM candidate_positions WHERE candidate_id = $1 AND issue_id = candidate_positions.issue_id)', [keepId, mergeId]);
-    await client.query('UPDATE questions SET candidate_id = $1 WHERE candidate_id = $2', [keepId, mergeId]);
-    await client.query('UPDATE posts SET candidate_id = $1 WHERE candidate_id = $2', [keepId, mergeId]);
-    await client.query('UPDATE town_halls SET candidate_id = $1 WHERE candidate_id = $2', [keepId, mergeId]);
-    await client.query('UPDATE candidate_source_links SET candidate_id = $1 WHERE candidate_id = $2', [keepId, mergeId]);
-
-    // Delete the merged candidate
-    await client.query('DELETE FROM candidacies WHERE candidate_id = $1', [mergeId]);
-    await client.query('DELETE FROM candidate_positions WHERE candidate_id = $1', [mergeId]);
-    await client.query('DELETE FROM follows WHERE candidate_id = $1', [mergeId]);
-    await client.query('DELETE FROM candidate_profiles WHERE id = $1', [mergeId]);
+    // Fold profile data into the keeper, re-point every FK that references
+    // candidate_profiles (discovered dynamically — 60+ tables), and delete
+    // the duplicate. Rows the keeper already has (same race candidacy, same
+    // source link, per-politician score rows) are dropped, not duplicated.
+    const refCols = await discoverReferencingColumns(client);
+    await mergeProfileInto(client, refCols, keepId, mergeId);
 
     await client.query('COMMIT');
     res.json({ message: 'Candidates merged', keptId: keepId });
