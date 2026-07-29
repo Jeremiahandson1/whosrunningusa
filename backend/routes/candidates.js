@@ -419,6 +419,33 @@ router.post('/positions', authenticate, requireCandidate, async (req, res, next)
   }
 });
 
+// Clear position on an issue
+router.delete('/positions/:issueId', authenticate, requireCandidate, async (req, res, next) => {
+  try {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.issueId)) {
+      return res.status(404).json({ error: 'Issue not found' });
+    }
+
+    const profileResult = await db.query(
+      'SELECT id FROM candidate_profiles WHERE user_id = $1',
+      [req.user.id]
+    );
+
+    if (profileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Candidate profile not found' });
+    }
+
+    await db.query(
+      'DELETE FROM candidate_positions WHERE candidate_id = $1 AND issue_id = $2',
+      [profileResult.rows[0].id, req.params.issueId]
+    );
+
+    res.json({ message: 'Position cleared' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Endorse another candidate
 router.post('/endorse/:endorsedId', authenticate, requireCandidate, async (req, res, next) => {
   try {

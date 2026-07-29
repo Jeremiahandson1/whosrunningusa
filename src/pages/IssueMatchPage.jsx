@@ -27,7 +27,7 @@ function IssueMatchPage() {
   const [results, setResults] = useState(null)
   const [loading, setLoading] = useState(true)
   const [matching, setMatching] = useState(false)
-  const [state, setState] = useState('')
+  const [state] = useState('')
 
   useEffect(() => {
     api.get('/issues')
@@ -133,7 +133,8 @@ function IssueMatchPage() {
                     Topics covered ▾
                   </summary>
                   <div style={{ textAlign: 'left', lineHeight: 1.55, paddingTop: '0.375rem' }}>
-                    Healthcare · Economy &amp; jobs · Climate · Education · Immigration · Guns · Abortion · Foreign policy
+                    {/* Derived from the same picker that builds the quiz, so it can't drift */}
+                    {pickQuickIssues(allIssues).map(i => i.name).join(' · ') || 'Loading topics…'}
                   </div>
                 </details>
               </button>

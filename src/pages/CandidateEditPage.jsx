@@ -21,6 +21,11 @@ function CandidateEditPage() {
   const [statementText, setStatementText] = useState('')
   const [profilePic, setProfilePic] = useState(null)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [issues, setIssues] = useState([])
+  const [myPositions, setMyPositions] = useState({}) // issueId -> { stance, explanation }
+  const [positionSaving, setPositionSaving] = useState(null) // issueId being saved
+  const [expandedIssue, setExpandedIssue] = useState(null)
+  const [explanationDraft, setExplanationDraft] = useState('')
   const [showDraftBanner, setShowDraftBanner] = useState(false)
   const [draftData, setDraftData] = useState(null)
   const formRef = useRef(null)
@@ -54,6 +59,11 @@ function CandidateEditPage() {
     api.get(`/candidates/${profileId}`, true)
       .then(data => {
         const c = data.candidate || data
+        const positionMap = {}
+        for (const p of data.positions || []) {
+          positionMap[p.issue_id] = { stance: p.stance, explanation: p.explanation || '' }
+        }
+        setMyPositions(positionMap)
         if (c.profile_pic_url) setProfilePic(c.profile_pic_url)
         const serverForm = {
           displayName: c.display_name || '',
@@ -99,7 +109,48 @@ function CandidateEditPage() {
     api.get('/criminal-records/my-records', true)
       .then(data => setCriminalRecords(data.records || []))
       .catch(() => {})
+    api.get('/issues')
+      .then(data => setIssues(data.issues || []))
+      .catch(() => setIssues([]))
   }, [user, draftKey])
+
+  const handleStanceClick = async (issueId, stance) => {
+    const current = myPositions[issueId]
+    setPositionSaving(issueId)
+    try {
+      if (current?.stance === stance) {
+        // Clicking the active stance clears the position
+        await api.delete(`/candidates/positions/${issueId}`, true)
+        setMyPositions(prev => {
+          const next = { ...prev }
+          delete next[issueId]
+          return next
+        })
+      } else {
+        await api.post('/candidates/positions', { issueId, stance, explanation: current?.explanation || null }, true)
+        setMyPositions(prev => ({ ...prev, [issueId]: { stance, explanation: current?.explanation || '' } }))
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to save position')
+    } finally {
+      setPositionSaving(null)
+    }
+  }
+
+  const handleSaveExplanation = async (issueId) => {
+    const current = myPositions[issueId]
+    if (!current?.stance) return
+    setPositionSaving(issueId)
+    try {
+      await api.post('/candidates/positions', { issueId, stance: current.stance, explanation: explanationDraft || null }, true)
+      setMyPositions(prev => ({ ...prev, [issueId]: { ...prev[issueId], explanation: explanationDraft } }))
+      setExpandedIssue(null)
+    } catch (err) {
+      alert(err.message || 'Failed to save explanation')
+    } finally {
+      setPositionSaving(null)
+    }
+  }
 
   // Keep formRef in sync for the autosave interval
   useEffect(() => {
@@ -339,6 +390,95 @@ function CandidateEditPage() {
             <Save size={18} /> {saving ? 'Saving...' : 'Save Profile'}
           </button>
         </form>
+
+        {/* Issue Positions — feeds the public profile and the voter Issue Match quiz */}
+        <div className="card" style={{ padding: '1.5rem', marginTop: '1.5rem' }}>
+          <h3 style={{ marginBottom: '0.5rem' }}>Issue Positions</h3>
+          <p style={{ fontSize: '0.875rem', color: 'var(--slate-600)', marginBottom: '1rem' }}>
+            Record where you stand. Your positions appear on your public profile and let
+            voters find you through the Issue Match quiz. Click a stance to save it;
+            click it again to clear it.
+          </p>
+
+          {issues.length === 0 && (
+            <p style={{ color: 'var(--slate-500)', fontSize: '0.875rem', margin: 0 }}>Issues are unavailable right now.</p>
+          )}
+
+          {Object.entries(issues.reduce((groups, issue) => {
+            const cat = issue.category_name || 'Other'
+            if (!groups[cat]) groups[cat] = []
+            groups[cat].push(issue)
+            return groups
+          }, {})).map(([category, categoryIssues]) => (
+            <div key={category} style={{ marginBottom: '1rem' }}>
+              <h4 style={{ fontSize: '0.8125rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--slate-500)', margin: '0 0 0.5rem' }}>{category}</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {categoryIssues.map(issue => {
+                  const pos = myPositions[issue.id]
+                  const saving = positionSaving === issue.id
+                  const stanceBtn = (stance, label, activeBg) => (
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={() => handleStanceClick(issue.id, stance)}
+                      style={{
+                        padding: '0.25rem 0.75rem', borderRadius: 999, fontSize: '0.8125rem',
+                        cursor: saving ? 'wait' : 'pointer',
+                        border: pos?.stance === stance ? `1px solid ${activeBg}` : '1px solid var(--slate-300)',
+                        background: pos?.stance === stance ? activeBg : 'transparent',
+                        color: pos?.stance === stance ? 'white' : 'var(--slate-600)',
+                        fontWeight: pos?.stance === stance ? 600 : 400,
+                      }}
+                    >
+                      {label}
+                    </button>
+                  )
+                  return (
+                    <div key={issue.id} style={{ padding: '0.625rem 0.75rem', border: '1px solid var(--slate-200)', borderRadius: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 500, fontSize: '0.9375rem' }}>{issue.name}</span>
+                        <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
+                          {stanceBtn('support', 'Support', 'var(--success, #16a34a)')}
+                          {stanceBtn('oppose', 'Oppose', 'var(--error, #c53030)')}
+                          {stanceBtn('complicated', "It's Complicated", 'var(--slate-500, #64748b)')}
+                        </div>
+                      </div>
+                      {pos?.stance && (
+                        <div style={{ marginTop: '0.5rem' }}>
+                          {expandedIssue === issue.id ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                              <textarea
+                                value={explanationDraft}
+                                onChange={e => setExplanationDraft(e.target.value)}
+                                rows={2}
+                                placeholder="Explain your position to voters (optional)"
+                                style={{ resize: 'vertical', fontSize: '0.875rem' }}
+                              />
+                              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <button type="button" className="btn btn-primary" disabled={saving} style={{ padding: '0.25rem 0.75rem', fontSize: '0.8125rem' }} onClick={() => handleSaveExplanation(issue.id)}>
+                                  {saving ? 'Saving...' : 'Save Note'}
+                                </button>
+                                <button type="button" className="btn btn-secondary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8125rem' }} onClick={() => setExpandedIssue(null)}>Cancel</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--navy-600)', padding: 0, fontSize: '0.8125rem' }}
+                              onClick={() => { setExpandedIssue(issue.id); setExplanationDraft(pos.explanation || '') }}
+                            >
+                              {pos.explanation ? `Note: "${pos.explanation.slice(0, 80)}${pos.explanation.length > 80 ? '…' : ''}" — edit` : '+ Add a note explaining your position'}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
 
         {/* Criminal Records Self-Report */}
         <div className="card" style={{ padding: '1.5rem', marginTop: '1.5rem' }}>
