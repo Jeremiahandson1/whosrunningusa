@@ -10,6 +10,7 @@
  *   SYNC_STEPS       — Comma-separated steps to run (default: all)
  *                       Options: districts, fec, finance, bills, congress, openstates,
  *                                congress-legislators, wikidata, votesmart,
+ *                                dedup-profiles, link-candidates, cleanup-candidacies,
  *                                transparency-seed, trades, revolving-door, compliance,
  *                                explanations, donor-map, gaps
  *   SYNC_STATE       — Limit to a single state (e.g. "CA")
@@ -40,10 +41,14 @@ const ALL_STEPS = [
   'districts', 'fec', 'finance', 'bills', 'congress', 'congress-bills',
   'congress-sponsorships', 'openstates',
   'congress-legislators', 'backfill-bioguides',
+  // Dedup right after the profile-creating syncs, before committees/votes/
+  // candidacy-linking attach data to what may be duplicate rows.
+  'dedup-profiles',
   'committees', 'votes', 'wikidata', 'votesmart',
   // Candidacy linking — after FEC sync populates candidate_profiles but
-  // before any race-centric computation depends on it.
-  'link-candidates',
+  // before any race-centric computation depends on it. cleanup-candidacies
+  // then removes rows FEC data contradicts (e.g. senators not up this cycle).
+  'link-candidates', 'cleanup-candidacies',
   // Platform feature syncs (root scripts/ dir)
   'transparency-seed', 'trades', 'revolving-door', 'compliance',
   // Module 6 new syncs
@@ -85,8 +90,12 @@ function buildCommand(step) {
       return ['sync-committees.js'];
     case 'backfill-bioguides':
       return ['backfill-bioguides.js'];
+    case 'dedup-profiles':
+      return ['dedup-candidate-profiles.js'];
     case 'link-candidates':
       return ['link-candidates-to-races.js', `--cycle=${cycle}`];
+    case 'cleanup-candidacies':
+      return ['cleanup-stale-candidacies.js'];
     case 'votes':
       return ['sync-votes.js', '--chamber=house'];
     case 'bills':
