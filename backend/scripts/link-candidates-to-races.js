@@ -33,15 +33,27 @@ async function main() {
   console.log(`\n=== Link FEC Candidates to ${cycle} Races ===`);
   const startedAt = Date.now();
 
-  // Pull all FEC candidates that don't already have a candidacy row
+  // Pull FEC candidates who are actually on this cycle's ballot. A profile
+  // keeps its fec_candidate_id forever, so "has an FEC ID" is NOT evidence of
+  // running this cycle — e.g. a senator elected in 2024 is not up in 2026.
+  // The raw FEC record (candidate_source_links.external_data) carries
+  // election_years; require it to contain the cycle being linked.
   const candidates = await db.query(`
     SELECT cp.id, cp.display_name, cp.fec_state, cp.fec_office_type, cp.fec_district
       FROM candidate_profiles cp
      WHERE cp.fec_candidate_id IS NOT NULL
        AND cp.is_active = TRUE
        AND cp.fec_office_type IN ('H', 'S', 'P')
-  `);
-  console.log(`  Candidates with FEC office data: ${candidates.rows.length}`);
+       AND EXISTS (
+         SELECT 1
+           FROM candidate_source_links csl
+           JOIN data_sources ds ON ds.id = csl.data_source_id
+          WHERE csl.candidate_id = cp.id
+            AND ds.name = 'fec'
+            AND csl.external_data->'election_years' @> to_jsonb($1::int)
+       )
+  `, [cycle]);
+  console.log(`  Candidates with an FEC record for the ${cycle} cycle: ${candidates.rows.length}`);
 
   let linked = 0;
   let alreadyLinked = 0;

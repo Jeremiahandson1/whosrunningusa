@@ -721,8 +721,8 @@ class IngestionService {
       );
       candidateId = insertResult.rows[0].id;
 
-      // Create office and candidacy
-      await this.ensureStateLegislatorOffice(transformed, candidateId);
+      // Create office record (no candidacy — see ensureStateLegislatorOffice)
+      await this.ensureStateLegislatorOffice(transformed);
     }
 
     // Create/update source link
@@ -742,9 +742,9 @@ class IngestionService {
   }
 
   /**
-   * Ensure state legislator office exists and create candidacy
+   * Ensure state legislator office exists
    */
-  async ensureStateLegislatorOffice(transformed, candidateId) {
+  async ensureStateLegislatorOffice(transformed) {
     if (!transformed.state || !transformed.officeName) {
       return null;
     }
@@ -782,75 +782,14 @@ class IngestionService {
       }
     }
 
-    if (!officeId) return null;
-
-    // Find or create election (current term)
-    const currentYear = new Date().getFullYear();
-    const electionYear = currentYear % 2 === 0 ? currentYear : currentYear - 1;
-    
-    let electionId;
-    const existingElection = await db.query(
-      `SELECT id FROM elections 
-       WHERE state = $1 
-         AND EXTRACT(YEAR FROM election_date) = $2
-         AND election_type = 'general'
-       LIMIT 1`,
-      [transformed.state, electionYear]
-    );
-
-    if (existingElection.rows.length > 0) {
-      electionId = existingElection.rows[0].id;
-    } else {
-      // Create general election for this state/year
-      const electionResult = await db.query(
-        `INSERT INTO elections (name, election_date, election_type, scope, state)
-         VALUES ($1, $2, 'general', 'state', $3)
-         ON CONFLICT DO NOTHING
-         RETURNING id`,
-        [
-          `${electionYear} ${transformed.state} General Election`,
-          `${electionYear}-11-05`,
-          transformed.state
-        ]
-      );
-      electionId = electionResult.rows[0]?.id;
-    }
-
-    if (!electionId) return null;
-
-    // Find or create race
-    let raceId;
-    const existingRace = await db.query(
-      `SELECT id FROM races WHERE office_id = $1 AND election_id = $2`,
-      [officeId, electionId]
-    );
-
-    if (existingRace.rows.length > 0) {
-      raceId = existingRace.rows[0].id;
-    } else {
-      const raceResult = await db.query(
-        `INSERT INTO races (office_id, election_id, name, is_special_election)
-         VALUES ($1, $2, 'General', FALSE)
-         ON CONFLICT DO NOTHING
-         RETURNING id`,
-        [officeId, electionId]
-      );
-      raceId = raceResult.rows[0]?.id;
-    }
-
-    if (!raceId) return null;
-
-    // Create candidacy (link candidate to race)
-    await db.query(
-      `INSERT INTO candidacies (candidate_id, race_id, filing_status, filed_at)
-       VALUES ($1, $2, 'certified', NOW())
-       ON CONFLICT (candidate_id, race_id) DO UPDATE SET
-         filing_status = 'certified',
-         updated_at = NOW()`,
-      [candidateId, raceId]
-    );
-
     return officeId;
+
+    // NOTE: this method used to also create a state general election for the
+    // current even year, a race for it, and a 'certified' candidacy for every
+    // ingested legislator. That fabricated ballot data: holding office is not
+    // evidence of running in the next election (state senates have staggered
+    // 4-year terms, members retire, etc.), and Open States provides no term
+    // end date to gate on. Candidacies must come from a real filings source.
   }
 
   /**
