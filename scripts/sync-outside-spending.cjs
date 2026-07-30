@@ -105,9 +105,46 @@ async function fetchAllScheduleE(fecCandidateId, cycle) {
   return results;
 }
 
-async function fetchCommitteeDetails(committeeId) {
+// Committee details + REAL donor-disclosure percentage, cached per run (the
+// same committees spend against many candidates; refetching per candidate
+// burned the 1,000/hr FEC budget).
+//
+// Disclosure % comes from the committee's own FEC receipts filings:
+// (itemized individual + other-committee + party contributions) / receipts.
+// A spender with no receipts filings (e.g. a 501(c)(4) that only files IE
+// reports) is genuinely 0% FEC-disclosed. This replaces the old
+// donor_disclosure_percentage column that nothing ever wrote — which made
+// every candidate show "100% unaccounted" as a structural artifact.
+const committeeCache = new Map();
+async function fetchCommitteeInfo(committeeId, cycle) {
+  const key = `${committeeId}|${cycle}`;
+  if (committeeCache.has(key)) return committeeCache.get(key);
+
   const data = await fecGet(`/committee/${committeeId}/`);
-  return data.results && data.results.length > 0 ? data.results[0] : null;
+  const details = data.results && data.results.length > 0 ? data.results[0] : null;
+
+  let disclosurePct = 0;
+  if (details) {
+    try {
+      const totalsData = await fecGet(`/committee/${committeeId}/totals/`, { cycle });
+      const t = totalsData.results && totalsData.results[0];
+      const receipts = t ? parseFloat(t.receipts) || 0 : 0;
+      if (receipts > 0) {
+        const disclosed =
+          (parseFloat(t.individual_itemized_contributions) || 0) +
+          (parseFloat(t.other_political_committee_contributions) || 0) +
+          (parseFloat(t.political_party_committee_contributions) || 0);
+        disclosurePct = Math.max(0, Math.min(100, (disclosed / receipts) * 100));
+      }
+    } catch (err) {
+      console.log(`  WARNING: no totals for committee ${committeeId}: ${err.message}`);
+    }
+    await sleep(100);
+  }
+
+  const info = { details, disclosurePct };
+  committeeCache.set(key, info);
+  return info;
 }
 
 // ---------------------------------------------------------------------------
@@ -130,20 +167,25 @@ function classifyGroup(committee) {
 // Database operations
 // ---------------------------------------------------------------------------
 
-async function getCandidates(state) {
+async function getCandidates(state, cycle) {
+  // Least-recently-synced first: the nightly step has a 30-minute timeout
+  // and no resume marker, so alphabetical ordering re-processed the same
+  // prefix every night and never reached the rest of the field.
   let query = `
-    SELECT id, fec_candidate_id, display_name, fec_state
-    FROM candidate_profiles
-    WHERE fec_candidate_id IS NOT NULL AND fec_candidate_id != ''
+    SELECT cp.id, cp.fec_candidate_id, cp.display_name, cp.fec_state
+    FROM candidate_profiles cp
+    LEFT JOIN dark_money_summaries dms
+      ON dms.candidate_id = cp.id AND dms.cycle_year = $1
+    WHERE cp.fec_candidate_id IS NOT NULL AND cp.fec_candidate_id != ''
   `;
-  const params = [];
+  const params = [cycle];
 
   if (state) {
     params.push(state);
-    query += ` AND fec_state = $${params.length}`;
+    query += ` AND cp.fec_state = $${params.length}`;
   }
 
-  query += ' ORDER BY display_name';
+  query += ' ORDER BY dms.last_updated ASC NULLS FIRST, cp.display_name';
   const { rows } = await pool.query(query, params);
   return rows;
 }
@@ -152,8 +194,8 @@ async function upsertSpendingGroup(client, group, cycle) {
   const { rows } = await client.query(
     `INSERT INTO outside_spending_groups
        (fec_committee_id, name, organization_type, designation, filing_frequency,
-        is_501c4, is_super_pac, cycle_year, source_url)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        is_501c4, is_super_pac, cycle_year, source_url, donor_disclosure_percentage)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      ON CONFLICT (fec_committee_id) DO UPDATE SET
        name = EXCLUDED.name,
        organization_type = EXCLUDED.organization_type,
@@ -163,6 +205,7 @@ async function upsertSpendingGroup(client, group, cycle) {
        is_super_pac = EXCLUDED.is_super_pac,
        cycle_year = EXCLUDED.cycle_year,
        source_url = EXCLUDED.source_url,
+       donor_disclosure_percentage = EXCLUDED.donor_disclosure_percentage,
        updated_at = NOW()
      RETURNING id, is_501c4, donor_disclosure_percentage`,
     [
@@ -175,6 +218,7 @@ async function upsertSpendingGroup(client, group, cycle) {
       group.is_super_pac,
       cycle,
       `https://www.fec.gov/data/independent-expenditures/?data_type=processed&committee_id=${group.fec_committee_id}`,
+      group.donor_disclosure_percentage,
     ]
   );
   return rows[0];
@@ -258,7 +302,7 @@ async function main() {
   console.log(`\n=== Sync Outside Spending ===`);
   console.log(`Cycle: ${opts.cycle}  State: ${opts.state || 'ALL'}  Dry run: ${opts.dryRun}\n`);
 
-  const candidates = await getCandidates(opts.state);
+  const candidates = await getCandidates(opts.state, opts.cycle);
   console.log(`Found ${candidates.length} candidates with FEC IDs\n`);
 
   let totalTransactions = 0;
@@ -311,11 +355,11 @@ async function main() {
     const committeeIds = [...new Set(expenditures.map(e => e.committee_id).filter(Boolean))];
     console.log(`  ${committeeIds.length} unique spending groups`);
 
-    // Fetch committee details
+    // Fetch committee details + real disclosure percentage (cached per run)
     const committeeMap = {};
     for (const cid of committeeIds) {
       try {
-        const details = await fetchCommitteeDetails(cid);
+        const { details, disclosurePct } = await fetchCommitteeInfo(cid, opts.cycle);
         if (details) {
           const { is501c4, isSuperPac } = classifyGroup(details);
           committeeMap[cid] = {
@@ -326,6 +370,7 @@ async function main() {
             filing_frequency: details.filing_frequency || null,
             is_501c4: is501c4,
             is_super_pac: isSuperPac,
+            donor_disclosure_percentage: Math.round(disclosurePct * 100) / 100,
           };
         }
       } catch (err) {
@@ -393,6 +438,21 @@ async function main() {
         totalAmount += amt;
       }
 
+      // Keep each group's cycle total in sync with its stored transactions —
+      // total_spent was another column nothing ever wrote, so the "top
+      // groups" list on /dark-money/stats ranked on permanent zeros.
+      const affectedGroupIds = [...new Set(Object.values(groupIdMap))];
+      if (affectedGroupIds.length > 0) {
+        await client.query(
+          `UPDATE outside_spending_groups g
+              SET total_spent = (SELECT COALESCE(SUM(t.amount), 0)
+                                   FROM outside_spending_transactions t
+                                  WHERE t.group_id = g.id AND t.cycle_year = $2)
+            WHERE g.id = ANY($1::uuid[])`,
+          [affectedGroupIds, opts.cycle]
+        );
+      }
+
       // Calculate dark money summary
       let disclosed = 0;
       let c4GroupCount = 0;
@@ -410,9 +470,10 @@ async function main() {
         const meta = groupMetaMap[cid];
         if (!meta) continue;
 
-        if (meta.donorDisclosurePct > 0) {
-          disclosed += spent;
-        }
+        // Weight each group's spending by its real FEC-derived disclosure
+        // percentage — the old binary (>0 → fully disclosed) collapsed to
+        // "100% dark for everyone" when the column was never populated.
+        disclosed += spent * (meta.donorDisclosurePct / 100);
         if (meta.is501c4) {
           c4GroupCount++;
           c4TotalSpent += spent;
