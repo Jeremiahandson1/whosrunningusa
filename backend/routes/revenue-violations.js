@@ -81,14 +81,15 @@ router.get('/stats', async (req, res, next) => {
     `);
 
     const stats = result.rows[0];
+    // snake_case, flat: RevenueViolationsPage reads stats.total_violations,
+    // stats.trust_fund_raids etc. — the camelCase/nested payload left the
+    // header stat cards stuck at 0.
     res.json({
-      totalViolations: parseInt(stats.total_violations),
-      totalDollars: parseFloat(stats.total_dollars) || 0,
-      byCategory: {
-        trustFundRaid: parseInt(stats.trust_fund_raids),
-        corporateBailout: parseInt(stats.corporate_bailouts),
-        pensionFailure: parseInt(stats.pension_failures),
-      },
+      total_violations: parseInt(stats.total_violations),
+      total_dollars: parseFloat(stats.total_dollars) || 0,
+      trust_fund_raids: parseInt(stats.trust_fund_raids),
+      corporate_bailouts: parseInt(stats.corporate_bailouts),
+      pension_failures: parseInt(stats.pension_failures),
       largest: largest.rows[0] || null,
     });
   } catch (error) {

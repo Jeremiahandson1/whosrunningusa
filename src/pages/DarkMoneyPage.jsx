@@ -200,14 +200,14 @@ function DarkMoneyPage() {
                               </span>
                             </div>
                             <div style={{ fontSize: 13, color: '#475569', marginTop: 2 }}>
-                              {[c.state, c.office].filter(Boolean).join(' · ')}
+                              {[c.state, c.office_level].filter(Boolean).join(' · ')}
                             </div>
                           </div>
                         </div>
-                        {c.dark_money_pct != null && (
+                        {c.dark_money_percentage != null && (
                           <div style={{ textAlign: 'right' }}>
                             <div style={{ fontSize: 28, fontWeight: 800, color: '#dc2626' }}>
-                              {c.dark_money_pct.toFixed(1)}%
+                              {Number(c.dark_money_percentage).toFixed(1)}%
                             </div>
                             <div style={{ fontSize: 11, color: '#475569' }}>dark money</div>
                           </div>

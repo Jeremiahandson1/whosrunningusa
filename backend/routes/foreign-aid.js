@@ -74,11 +74,17 @@ router.get('/', async (req, res, next) => {
 });
 
 // GET /stats — Aggregate statistics
+// snake_case + *_pct: ForeignAidPage reads stats.total_countries,
+// stats.military_pct etc. — the old camelCase/dollar payload left the
+// header stat cards stuck at 0.
 const EMPTY_FOREIGN_AID_STATS = {
-  totalCountries: 0,
-  totalObligation: 0,
-  byCategory: { military: 0, economic: 0, humanitarian: 0, democracy: 0, health: 0, other: 0 },
-  topRecipients: [],
+  total_countries: 0,
+  total_obligation: 0,
+  military_pct: 0,
+  economic_pct: 0,
+  humanitarian_pct: 0,
+  by_category: { military: 0, economic: 0, humanitarian: 0, democracy: 0, health: 0, other: 0 },
+  top_recipients: [],
 };
 router.get('/stats', async (req, res) => {
   try {
@@ -113,10 +119,15 @@ router.get('/stats', async (req, res) => {
     }
 
     const row = totals.rows[0];
+    const totalObligation = parseFloat(row.total_obligation);
+    const pct = (v) => totalObligation > 0 ? Math.round((parseFloat(v) / totalObligation) * 100) : 0;
     res.json({
-      totalCountries: parseInt(row.total_countries),
-      totalObligation: parseFloat(row.total_obligation),
-      byCategory: {
+      total_countries: parseInt(row.total_countries),
+      total_obligation: totalObligation,
+      military_pct: pct(row.military),
+      economic_pct: pct(row.economic),
+      humanitarian_pct: pct(row.humanitarian),
+      by_category: {
         military: parseFloat(row.military),
         economic: parseFloat(row.economic),
         humanitarian: parseFloat(row.humanitarian),
@@ -124,7 +135,7 @@ router.get('/stats', async (req, res) => {
         health: parseFloat(row.health),
         other: parseFloat(row.other),
       },
-      topRecipients,
+      top_recipients: topRecipients,
     });
   } catch (error) {
     console.warn('/foreign-aid/stats fallback:', error.message);

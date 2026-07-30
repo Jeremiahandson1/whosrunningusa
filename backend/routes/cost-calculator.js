@@ -92,7 +92,7 @@ router.get('/calculate', async (req, res, next) => {
     const avgFamilySize = 2.5;
 
     const itemResult = await db.query(
-      `SELECT id, title, total_cost, duration_years, source_url
+      `SELECT id, title, description, total_cost, duration_years, source_url, source_label
        FROM cost_calculator_items
        WHERE id = $1 AND is_active = true`,
       [item_id]
@@ -117,18 +117,28 @@ router.get('/calculate', async (req, res, next) => {
     const yourTotalShare = baseShare * (parsedFamilySize / avgFamilySize);
     const yourAnnualShare = item.duration_years ? yourTotalShare / parseInt(item.duration_years) : null;
 
+    // tax_share_pct is a FRACTION (0.019-0.239, summing to ~1 across
+    // brackets) — multiply by 100 for display.
     const explanation = `Based on the ${bracket.bracket_label} bracket, your household's tax share is `
-      + `${bracket.tax_share_pct}% of the $${Number(item.total_cost).toLocaleString()} total cost, `
+      + `${(parseFloat(bracket.tax_share_pct) * 100).toFixed(1)}% of the $${Number(item.total_cost).toLocaleString()} total cost, `
       + `split across ${Number(bracket.household_count).toLocaleString()} households in this bracket`
       + (parsedFamilySize !== avgFamilySize ? `, adjusted for a family size of ${parsedFamilySize} (avg ${avgFamilySize})` : '')
       + (yourAnnualShare ? `, spread over ${item.duration_years} years` : '')
       + '.';
 
+    // Flat, snake_case: CostCalculatorPage reads result.household_cost,
+    // result.item_title, result.duration_years etc. — the old nested
+    // your_total_share shape rendered as "$0" for every calculation.
     res.json({
-      item: { title: item.title, total_cost: item.total_cost, source_url: item.source_url },
-      bracket: { bracket_label: bracket.bracket_label },
-      your_total_share: Math.round(yourTotalShare * 100) / 100,
-      your_annual_share: yourAnnualShare ? Math.round(yourAnnualShare * 100) / 100 : null,
+      household_cost: Math.round(yourTotalShare * 100) / 100,
+      annual_cost: yourAnnualShare ? Math.round(yourAnnualShare * 100) / 100 : null,
+      duration_years: item.duration_years ? parseInt(item.duration_years) : null,
+      item_title: item.title,
+      total_cost: item.total_cost,
+      description: item.description,
+      source_url: item.source_url,
+      source_label: item.source_label,
+      bracket_label: bracket.bracket_label,
       family_size: parsedFamilySize,
       calculation_explanation: explanation
     });

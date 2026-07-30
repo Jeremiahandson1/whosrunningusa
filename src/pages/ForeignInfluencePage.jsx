@@ -629,7 +629,9 @@ function ForeignInfluencePage() {
     async function fetchStats() {
       try {
         const data = await api.get('/foreign-influence')
-        setStats(data)
+        // The route wraps the numbers in { stats: {...}, topCountries } —
+        // storing the envelope left every stat card reading undefined.
+        setStats(data.stats || data)
       } catch {
         /* stats are non-critical */
       }

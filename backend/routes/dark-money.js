@@ -34,8 +34,9 @@ router.get('/', async (req, res, next) => {
     const where = `WHERE ${conditions.join(' AND ')}`;
 
     let orderBy = 'dms.unaccounted_amount DESC NULLS LAST';
-    if (sort === 'percentage') orderBy = 'dms.dark_money_percentage DESC NULLS LAST';
-    if (sort === 'total') orderBy = 'dms.total_outside_spending DESC NULLS LAST';
+    // Accept both the page's values (dark_pct/total_outside) and the legacy ones
+    if (sort === 'percentage' || sort === 'dark_pct') orderBy = 'dms.dark_money_percentage DESC NULLS LAST';
+    if (sort === 'total' || sort === 'total_outside') orderBy = 'dms.total_outside_spending DESC NULLS LAST';
 
     const countResult = await db.query(
       `SELECT COUNT(*) as total
@@ -76,12 +77,14 @@ router.get('/', async (req, res, next) => {
 });
 
 // GET /dark-money/stats — aggregate dark money statistics
+// snake_case: DarkMoneyPage reads stats.total_outside_spending etc. — the
+// old camelCase payload left every stat card stuck at $0.
 const EMPTY_DARK_MONEY_STATS = {
-  totalOutsideSpending: 0,
-  totalUnaccounted: 0,
-  candidatesTracked: 0,
-  avgDarkMoneyPct: 0,
-  topGroups: [],
+  total_outside_spending: 0,
+  total_unaccounted: 0,
+  candidates_tracked: 0,
+  avg_dark_money_pct: 0,
+  top_groups: [],
 };
 router.get('/stats', async (req, res) => {
   try {
@@ -109,11 +112,11 @@ router.get('/stats', async (req, res) => {
     const stats = summaryResult.rows[0];
 
     res.json({
-      totalOutsideSpending: stats.total_outside_spending,
-      totalUnaccounted: stats.total_unaccounted,
-      candidatesTracked: parseInt(stats.candidates_tracked),
-      avgDarkMoneyPct: parseFloat(stats.avg_dark_money_pct),
-      topGroups: topGroupsResult.rows,
+      total_outside_spending: stats.total_outside_spending,
+      total_unaccounted: stats.total_unaccounted,
+      candidates_tracked: parseInt(stats.candidates_tracked),
+      avg_dark_money_pct: parseFloat(stats.avg_dark_money_pct),
+      top_groups: topGroupsResult.rows,
     });
   } catch (error) {
     console.warn('/dark-money/stats fallback:', error.message);
