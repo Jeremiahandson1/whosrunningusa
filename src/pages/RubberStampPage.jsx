@@ -46,7 +46,10 @@ function RubberStampPage() {
   const party = searchParams.get('party') || ''
   const chamber = searchParams.get('chamber') || ''
   const state = searchParams.get('state') || ''
-  const cycle = searchParams.get('cycle') || '2024'
+  // Default must match the cycle compute-rubber-stamp.cjs writes (the
+  // current election cycle) — defaulting to 2024 pointed at rows that
+  // don't exist and rendered the whole page empty.
+  const cycle = searchParams.get('cycle') || '2026'
   const sort = searchParams.get('sort') || 'party_loyalty'
   const page = parseInt(searchParams.get('page') || '1', 10)
 

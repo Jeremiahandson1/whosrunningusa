@@ -19,7 +19,11 @@ const { Pool } = require('pg');
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 function parseArgs() {
-  const args = { cycle: new Date().getFullYear() };
+  // Default to the even ELECTION-CYCLE year (2025 → 2026), not the raw
+  // wall-clock year: rows stamped with an odd cycle_year are unreachable
+  // from the UI's cycle dropdown (2026/2024/2022/2020).
+  const y = new Date().getFullYear();
+  const args = { cycle: y % 2 === 0 ? y : y + 1 };
   for (const arg of process.argv.slice(2)) {
     if (arg.startsWith('--cycle=')) {
       args.cycle = parseInt(arg.split('=')[1], 10);
@@ -49,7 +53,7 @@ async function main() {
       FROM voting_records vr
       JOIN vote_events ve ON ve.id = vr.vote_event_id
       JOIN candidate_profiles cp ON cp.id = vr.candidate_id
-      WHERE EXTRACT(YEAR FROM ve.vote_date) = $1
+      WHERE EXTRACT(YEAR FROM ve.vote_date) IN ($1 - 1, $1)
         AND vr.vote IN ('yes', 'no')
         AND cp.party_affiliation IS NOT NULL
       GROUP BY vr.vote_event_id, cp.party_affiliation, vr.vote
@@ -72,7 +76,7 @@ async function main() {
       LEFT JOIN party_majorities pm
         ON pm.vote_event_id = vr.vote_event_id
        AND pm.party_affiliation = cp.party_affiliation
-      WHERE EXTRACT(YEAR FROM ve.vote_date) = $1
+      WHERE EXTRACT(YEAR FROM ve.vote_date) IN ($1 - 1, $1)
         AND vr.vote IN ('yes', 'no')
     ),
     politician_counts AS (

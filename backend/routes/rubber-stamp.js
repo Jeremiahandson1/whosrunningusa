@@ -16,17 +16,25 @@ router.get('/stats', async (req, res) => {
       FROM rubber_stamp_scores
       WHERE cycle_year = $1
     `, [cycle]);
+    const rubberStampCount = await db.query(
+      `SELECT COUNT(*)::int AS n FROM rubber_stamp_scores
+        WHERE cycle_year = $1 AND party_loyalty_pct > 80`,
+      [cycle]
+    );
     const row = r.rows[0];
+    // snake_case: RubberStampPage reads stats.total_scored,
+    // stats.avg_party_loyalty etc. — camelCase left every tile at 0.
     res.json({
-      tracked: row.tracked,
-      avgPartyLoyalty: parseFloat(row.avg_party_loyalty),
-      avgDonorAlignment: parseFloat(row.avg_donor_alignment),
-      totalIndependentVotes: row.total_independent_votes,
-      totalPartyLineVotes: row.total_party_line_votes,
+      total_scored: row.tracked,
+      avg_party_loyalty: parseFloat(row.avg_party_loyalty),
+      avg_donor_alignment: parseFloat(row.avg_donor_alignment),
+      rubber_stamp_count: rubberStampCount.rows[0].n,
+      total_independent_votes: row.total_independent_votes,
+      total_party_line_votes: row.total_party_line_votes,
     });
   } catch (error) {
     console.warn('/rubber-stamp/stats fallback:', error.message);
-    res.json({ tracked: 0, avgPartyLoyalty: 0, avgDonorAlignment: 0, totalIndependentVotes: 0, totalPartyLineVotes: 0 });
+    res.json({ total_scored: 0, avg_party_loyalty: 0, avg_donor_alignment: 0, rubber_stamp_count: 0, total_independent_votes: 0, total_party_line_votes: 0 });
   }
 });
 

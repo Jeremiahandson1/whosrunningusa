@@ -132,7 +132,9 @@ function buildCommand(step) {
     case 'promise-scores':
       return [path.join(ROOT_SCRIPTS_DIR, 'compute-promise-scores.cjs')];
     case 'rubber-stamp':
-      return [path.join(ROOT_SCRIPTS_DIR, 'compute-rubber-stamp.cjs')];
+      // Pass the election cycle explicitly — the script's wall-clock-year
+      // default once stamped odd cycle_year values the UI can't select.
+      return [path.join(ROOT_SCRIPTS_DIR, 'compute-rubber-stamp.cjs'), `--cycle=${cycle}`];
     case 'pac-violations':
       return [path.join(ROOT_SCRIPTS_DIR, 'check-pac-violations.cjs')];
     case 'auto-check-promises':

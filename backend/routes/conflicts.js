@@ -127,7 +127,9 @@ router.get('/stats', async (req, res, next) => {
          COUNT(*) FILTER (WHERE severity = 'critical') as critical,
          COUNT(*) FILTER (WHERE severity = 'high') as high,
          COUNT(*) FILTER (WHERE severity = 'medium') as medium,
-         COUNT(*) FILTER (WHERE severity = 'low') as low
+         COUNT(*) FILTER (WHERE severity = 'low') as low,
+         COUNT(DISTINCT politician_id) as officials_flagged,
+         COALESCE(SUM(trade_amount_range_high), 0) as total_trade_value
        FROM conflict_of_interest_flags
        WHERE published = TRUE`
     );
@@ -147,15 +149,18 @@ router.get('/stats', async (req, res, next) => {
 
     const stats = totalResult.rows[0];
 
+    // snake_case, flat: ConflictsPage reads stats.total_conflicts,
+    // stats.critical_count etc. — the camelCase/nested payload left the
+    // stat tiles undefined.
     res.json({
-      totalConflicts: parseInt(stats.total),
-      bySeverity: {
-        critical: parseInt(stats.critical),
-        high: parseInt(stats.high),
-        medium: parseInt(stats.medium),
-        low: parseInt(stats.low)
-      },
-      topOffenders: topResult.rows.map(r => ({
+      total_conflicts: parseInt(stats.total),
+      critical_count: parseInt(stats.critical),
+      high_count: parseInt(stats.high),
+      medium_count: parseInt(stats.medium),
+      low_count: parseInt(stats.low),
+      officials_flagged: parseInt(stats.officials_flagged),
+      total_trade_value: parseFloat(stats.total_trade_value) || 0,
+      top_offenders: topResult.rows.map(r => ({
         ...r,
         conflict_count: parseInt(r.conflict_count)
       }))

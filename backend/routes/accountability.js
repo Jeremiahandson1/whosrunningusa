@@ -224,7 +224,7 @@ router.get('/mirror', async (req, res, next) => {
                json_agg(DISTINCT jsonb_build_object(
                  'industry_name', pdi.industry_name,
                  'total_amount', pdi.total_amount
-               )) FILTER (WHERE pdi.industry_name IS NOT NULL) as donor_connections
+               )) FILTER (WHERE pdi.industry_name IS NOT NULL) as top_donors
         FROM candidate_profiles cp
         JOIN public_statements ps ON ps.politician_id = cp.id AND ${statementCondition}
         JOIN accountability_gaps ag ON ag.politician_id = cp.id AND ag.published = true AND ag.verified = true${gapCondition}
@@ -251,7 +251,7 @@ router.get('/mirror', async (req, res, next) => {
                json_agg(DISTINCT jsonb_build_object(
                  'industry_name', pdi.industry_name,
                  'total_amount', pdi.total_amount
-               )) FILTER (WHERE pdi.industry_name IS NOT NULL) as donor_connections
+               )) FILTER (WHERE pdi.industry_name IS NOT NULL) as top_donors
         FROM candidate_profiles cp
         JOIN accountability_gaps ag ON ag.politician_id = cp.id AND ag.published = true AND ag.verified = true${gapCondition}
         LEFT JOIN accountability_scores asc2 ON asc2.politician_id = cp.id
@@ -265,7 +265,10 @@ router.get('/mirror', async (req, res, next) => {
 
     const result = await db.query(query, params);
 
-    res.json({ data: result.rows });
+    // AccountabilityMirrorPage reads data.politicians and each row's
+    // top_donors — the old { data } / donor_connections shape rendered an
+    // empty list even with published gaps.
+    res.json({ politicians: result.rows });
   } catch (error) {
     next(error);
   }
