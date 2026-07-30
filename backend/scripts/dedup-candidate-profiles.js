@@ -38,7 +38,7 @@
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const db = require('../db');
-const { discoverReferencingColumns, mergeProfileInto } = require('../services/profileMerge');
+const { discoverReferencingColumns, mergeProfilesBulk } = require('../services/profileMerge');
 
 function surnameTokens(normName) {
   // normalize_candidate_name returns "lastname,firstname"
@@ -62,12 +62,6 @@ function pickKeeper(group) {
     || richness(b) - richness(a)
     || new Date(a.created_at) - new Date(b.created_at)
   )[0];
-}
-
-async function mergeGroup(client, refCols, keep, removes) {
-  for (const rm of removes) {
-    await mergeProfileInto(client, refCols, keep.id, rm.id);
-  }
 }
 
 async function main() {
@@ -170,35 +164,45 @@ async function main() {
   console.log(`  Referencing FK columns discovered: ${refCols.length}`);
   console.log(`  Duplicate groups: ${groups.length}`);
 
+  // Plan all pairs first, then merge the whole batch set-based in one
+  // transaction — per-group transactions were ~54 round-trips per duplicate
+  // and took hours against a remote database.
   let merged = 0, removed = 0, skippedClaimed = 0, failed = 0;
-  const client = await db.pool.connect();
-  try {
-    for (const group of groups) {
-      const claimed = group.filter(p => p.user_id);
-      if (claimed.length > 1) {
-        skippedClaimed++;
-        console.log(`  SKIP (2+ claimed profiles): ${group.map(p => p.display_name).join(' / ')}`);
-        continue;
-      }
-      const keep = pickKeeper(group);
-      const removes = group.filter(p => p.id !== keep.id);
-      console.log(`  MERGE → "${keep.display_name}" (${keep.fec_state || '—'}) absorbs: ${removes.map(p => `"${p.display_name}"`).join(', ')}`);
-      if (dryRun) continue;
-
-      try {
-        await client.query('BEGIN');
-        await mergeGroup(client, refCols, keep, removes);
-        await client.query('COMMIT');
-        merged++;
-        removed += removes.length;
-      } catch (err) {
-        await client.query('ROLLBACK');
-        failed++;
-        console.error(`  FAILED merging "${keep.display_name}": ${err.message}`);
-      }
+  const pairs = [];
+  const plannedRemoves = new Set();
+  for (const group of groups) {
+    const claimed = group.filter(p => p.user_id);
+    if (claimed.length > 1) {
+      skippedClaimed++;
+      console.log(`  SKIP (2+ claimed profiles): ${group.map(p => p.display_name).join(' / ')}`);
+      continue;
     }
-  } finally {
-    client.release();
+    const keep = pickKeeper(group);
+    const removes = group.filter(p => p.id !== keep.id && !plannedRemoves.has(p.id));
+    if (removes.length === 0) continue;
+    console.log(`  MERGE → "${keep.display_name}" (${keep.fec_state || '—'}) absorbs: ${removes.map(p => `"${p.display_name}"`).join(', ')}`);
+    for (const rm of removes) {
+      plannedRemoves.add(rm.id);
+      pairs.push({ keepId: keep.id, removeId: rm.id });
+    }
+    merged++;
+  }
+
+  if (!dryRun && pairs.length > 0) {
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await mergeProfilesBulk(client, refCols, pairs, label => console.log(`  … ${label}`));
+      await client.query('COMMIT');
+      removed = pairs.length;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      merged = 0;
+      failed = 1;
+      console.error(`  FAILED — transaction rolled back, nothing merged: ${err.message}`);
+    } finally {
+      client.release();
+    }
   }
 
   const elapsedMs = Date.now() - startedAt;
