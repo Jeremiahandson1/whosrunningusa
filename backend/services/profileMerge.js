@@ -84,25 +84,27 @@ async function bulkTransferColumn(client, table, column) {
 
   for (const cols of uniqueKeys) {
     const others = cols.filter(c => c !== column);
+    // NULL-safe equality that stays HASH-JOINABLE. `IS NOT DISTINCT FROM`
+    // is not hashable, and inside a correlated EXISTS it degraded to
+    // hundreds of filtered index probes per outer row — a 441k-row
+    // voting_records pass blew the statement timeout that way.
     const eq = others
-      .map(c => `t2."${c}" IS NOT DISTINCT FROM t."${c}"`)
+      .map(c => `COALESCE(t2."${c}"::text, '\\x01null') = COALESCE(t."${c}"::text, '\\x01null')`)
       .join(' AND ');
 
     // Keeper already has an equivalent unique row — the duplicate's copy is
     // redundant.
     await client.query(`
       DELETE FROM "${table}" t
-       USING dedup_map m
+       USING dedup_map m, "${table}" t2
        WHERE t."${column}" = m.remove_id
-         AND EXISTS (
-           SELECT 1 FROM "${table}" t2
-            WHERE t2."${column}" = m.keep_id
-              ${others.length ? `AND ${eq}` : ''}
-         )
+         AND t2."${column}" = m.keep_id
+         ${others.length ? `AND ${eq}` : ''}
     `);
 
     // Two duplicates of the same keeper carrying the same unique row would
-    // collide with each other after re-pointing — keep one.
+    // collide with each other after re-pointing — keep one. (Same hashable
+    // equality; ctid ordering picks the survivor.)
     await client.query(`
       DELETE FROM "${table}" t
        USING dedup_map m, "${table}" t2, dedup_map m2
