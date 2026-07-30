@@ -50,11 +50,32 @@ function sleep(ms) {
 // FEC API helpers
 // ---------------------------------------------------------------------------
 
+// FEC allows 1,000 requests/hour. Pace every call to stay under it and back
+// off on 429 — the previous 100ms pacing burned the whole budget in ~2
+// minutes and then spent the rest of the run collecting 429s for 6,500
+// candidates. (Same treatment the FARA sync needed.)
+const FEC_MIN_INTERVAL_MS = 3700;
+let lastFecCall = 0;
 async function fecGet(path, params = {}) {
   params.api_key = FEC_API_KEY;
   const url = `${FEC_BASE}${path}`;
-  const resp = await axios.get(url, { params, timeout: 30000 });
-  return resp.data;
+  for (let attempt = 0; ; attempt++) {
+    const wait = lastFecCall + FEC_MIN_INTERVAL_MS - Date.now();
+    if (wait > 0) await sleep(wait);
+    lastFecCall = Date.now();
+    try {
+      const resp = await axios.get(url, { params, timeout: 30000 });
+      return resp.data;
+    } catch (err) {
+      if (err.response && err.response.status === 429 && attempt < 3) {
+        const backoff = 60000 * (attempt + 1);
+        console.log(`  429 from FEC — backing off ${Math.round(backoff / 1000)}s`);
+        await sleep(backoff);
+        continue;
+      }
+      throw err;
+    }
+  }
 }
 
 async function fetchAllScheduleE(fecCandidateId, cycle) {
