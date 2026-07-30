@@ -438,12 +438,22 @@ async function main() {
       continue;
     }
 
-    // Check for duplicate
+    // Check for duplicate. IS NOT DISTINCT FROM, not '=': ticker is NULL for
+    // every non-stock asset (bonds, funds), and 'ticker = NULL' is never
+    // true — so null-ticker rows were re-inserted on every nightly run
+    // (inflating the table past the source's ~8,350 records). asset_name and
+    // amount_range_low are part of the key so two genuinely different
+    // same-day assets still both insert.
     const { rows: existingTrade } = await pool.query(
       `SELECT id FROM official_trades
-       WHERE politician_id = $1 AND trade_date = $2 AND ticker = $3 AND trade_type = $4
+       WHERE politician_id = $1 AND trade_date = $2
+         AND ticker IS NOT DISTINCT FROM $3
+         AND trade_type = $4
+         AND asset_name IS NOT DISTINCT FROM $5
+         AND amount_range_low IS NOT DISTINCT FROM $6
        LIMIT 1`,
-      [candidate.id, trade.trade_date, trade.ticker, trade.trade_type]
+      [candidate.id, trade.trade_date, trade.ticker, trade.trade_type,
+       trade.asset_name, trade.amount_range_low]
     );
 
     if (existingTrade.length > 0) {

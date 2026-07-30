@@ -59,7 +59,7 @@ async function fecGet(path, params = {}) {
 
 async function fetchAllScheduleE(fecCandidateId, cycle) {
   const results = [];
-  let page = 1;
+  const seen = new Set();
   let lastIndex = null;
   let lastExpenditureDate = null;
 
@@ -78,7 +78,20 @@ async function fetchAllScheduleE(fecCandidateId, cycle) {
     const data = await fecGet('/schedules/schedule_e/', params);
     if (!data.results || data.results.length === 0) break;
 
-    results.push(...data.results);
+    // Dedup by sub_id and bail out if the seek cursor stalls (a null
+    // last_expenditure_date gets dropped from params and the API re-serves
+    // the same window) — without this the loop appends the same page until
+    // results.length reaches pagination.count, multiplying totals.
+    let added = 0;
+    for (const r of data.results) {
+      const key = r.sub_id
+        || `${r.transaction_id || ''}|${r.committee_id}|${r.expenditure_date}|${r.expenditure_amount}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      results.push(r);
+      added++;
+    }
+    if (added === 0) break;
 
     if (!data.pagination || !data.pagination.last_indexes) break;
     lastIndex = data.pagination.last_indexes.last_index;
@@ -87,7 +100,6 @@ async function fetchAllScheduleE(fecCandidateId, cycle) {
     if (results.length >= data.pagination.count) break;
 
     await sleep(100);
-    page++;
   }
 
   return results;
@@ -270,6 +282,29 @@ async function main() {
       continue;
     }
 
+    // Sanity cap: the FEC processed feed contains unvalidated filer-entered
+    // amounts, including outright garbage (real example: two "expenditures"
+    // of $8B and $9B against one candidate, payee "SHAWN BETTIS/TANKING").
+    // The largest legitimate single independent expenditures are low tens of
+    // millions; anything above the cap is skipped and logged, never summed.
+    const MAX_PLAUSIBLE_IE_AMOUNT = 50_000_000;
+    const implausible = expenditures.filter(
+      e => (parseFloat(e.expenditure_amount) || 0) > MAX_PLAUSIBLE_IE_AMOUNT
+    );
+    for (const e of implausible) {
+      console.log(`  SKIPPING implausible amount $${Number(e.expenditure_amount).toLocaleString()} `
+        + `(committee ${e.committee_id}, payee "${e.payee_name || '?'}") — over $${MAX_PLAUSIBLE_IE_AMOUNT.toLocaleString()} cap`);
+    }
+    if (implausible.length > 0) {
+      expenditures = expenditures.filter(
+        e => (parseFloat(e.expenditure_amount) || 0) <= MAX_PLAUSIBLE_IE_AMOUNT
+      );
+      if (expenditures.length === 0) {
+        console.log('  No plausible expenditures remain');
+        continue;
+      }
+    }
+
     console.log(`  Found ${expenditures.length} expenditure records`);
 
     // Collect unique committees
@@ -316,6 +351,14 @@ async function main() {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+
+      // Snapshot semantics: replace this candidate/cycle's transactions
+      // instead of appending — the bare INSERT (no unique key on the table)
+      // used to duplicate the full result set on every nightly run.
+      await client.query(
+        `DELETE FROM outside_spending_transactions WHERE candidate_id = $1 AND cycle_year = $2`,
+        [candidate.id, opts.cycle]
+      );
 
       // Upsert groups and build group_id map
       const groupIdMap = {};
