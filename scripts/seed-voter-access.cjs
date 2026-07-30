@@ -25,64 +25,14 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const dryRun = process.argv.includes('--dry-run');
 
 // ---------------------------------------------------------------------------
-// State Scores (100 = most accessible)
-// Based on: voter ID requirements, early voting, mail voting, registration
-//           ease, felon re-enfranchisement, same-day registration, etc.
+// State scores REMOVED (2026-07-30): the 1-100 rankings this script used to
+// seed were hand-assigned numbers with no citation, no methodology, and
+// counts that contradicted the sourced laws below — the same fabricated-data
+// class migrations 023-026 purged. If state scores return, they must be
+// COMPUTED from the sourced voter_access_laws/impacts rows or imported from
+// a citable dataset (NCSL / Brennan Center), never hardcoded.
+// The laws and impacts below carry per-record source_url citations and stay.
 // ---------------------------------------------------------------------------
-
-const STATE_SCORES = [
-  { state: 'AL', state_name: 'Alabama', overall_score: 32, voter_id_score: 20, early_voting_score: 30, mail_voting_score: 25, registration_score: 40, felon_voting_score: 15, restrictive_law_count: 5, expansive_law_count: 1 },
-  { state: 'AK', state_name: 'Alaska', overall_score: 62, voter_id_score: 55, early_voting_score: 70, mail_voting_score: 65, registration_score: 60, felon_voting_score: 55, restrictive_law_count: 2, expansive_law_count: 3 },
-  { state: 'AZ', state_name: 'Arizona', overall_score: 48, voter_id_score: 35, early_voting_score: 60, mail_voting_score: 55, registration_score: 45, felon_voting_score: 30, restrictive_law_count: 6, expansive_law_count: 3 },
-  { state: 'AR', state_name: 'Arkansas', overall_score: 28, voter_id_score: 15, early_voting_score: 40, mail_voting_score: 20, registration_score: 30, felon_voting_score: 25, restrictive_law_count: 6, expansive_law_count: 1 },
-  { state: 'CA', state_name: 'California', overall_score: 95, voter_id_score: 95, early_voting_score: 90, mail_voting_score: 95, registration_score: 95, felon_voting_score: 90, restrictive_law_count: 0, expansive_law_count: 12 },
-  { state: 'CO', state_name: 'Colorado', overall_score: 98, voter_id_score: 90, early_voting_score: 95, mail_voting_score: 100, registration_score: 95, felon_voting_score: 90, restrictive_law_count: 0, expansive_law_count: 11 },
-  { state: 'CT', state_name: 'Connecticut', overall_score: 75, voter_id_score: 85, early_voting_score: 70, mail_voting_score: 70, registration_score: 75, felon_voting_score: 65, restrictive_law_count: 1, expansive_law_count: 6 },
-  { state: 'DE', state_name: 'Delaware', overall_score: 68, voter_id_score: 80, early_voting_score: 65, mail_voting_score: 60, registration_score: 70, felon_voting_score: 55, restrictive_law_count: 1, expansive_law_count: 4 },
-  { state: 'FL', state_name: 'Florida', overall_score: 40, voter_id_score: 30, early_voting_score: 55, mail_voting_score: 35, registration_score: 40, felon_voting_score: 20, restrictive_law_count: 7, expansive_law_count: 2 },
-  { state: 'GA', state_name: 'Georgia', overall_score: 45, voter_id_score: 25, early_voting_score: 50, mail_voting_score: 35, registration_score: 45, felon_voting_score: 40, restrictive_law_count: 7, expansive_law_count: 2 },
-  { state: 'HI', state_name: 'Hawaii', overall_score: 92, voter_id_score: 90, early_voting_score: 85, mail_voting_score: 100, registration_score: 90, felon_voting_score: 85, restrictive_law_count: 0, expansive_law_count: 9 },
-  { state: 'ID', state_name: 'Idaho', overall_score: 55, voter_id_score: 40, early_voting_score: 55, mail_voting_score: 50, registration_score: 70, felon_voting_score: 50, restrictive_law_count: 3, expansive_law_count: 3 },
-  { state: 'IL', state_name: 'Illinois', overall_score: 82, voter_id_score: 85, early_voting_score: 80, mail_voting_score: 75, registration_score: 85, felon_voting_score: 80, restrictive_law_count: 1, expansive_law_count: 8 },
-  { state: 'IN', state_name: 'Indiana', overall_score: 35, voter_id_score: 15, early_voting_score: 45, mail_voting_score: 25, registration_score: 35, felon_voting_score: 50, restrictive_law_count: 5, expansive_law_count: 1 },
-  { state: 'IA', state_name: 'Iowa', overall_score: 42, voter_id_score: 30, early_voting_score: 55, mail_voting_score: 45, registration_score: 55, felon_voting_score: 25, restrictive_law_count: 5, expansive_law_count: 2 },
-  { state: 'KS', state_name: 'Kansas', overall_score: 40, voter_id_score: 20, early_voting_score: 50, mail_voting_score: 45, registration_score: 40, felon_voting_score: 40, restrictive_law_count: 5, expansive_law_count: 2 },
-  { state: 'KY', state_name: 'Kentucky', overall_score: 33, voter_id_score: 20, early_voting_score: 35, mail_voting_score: 25, registration_score: 35, felon_voting_score: 20, restrictive_law_count: 6, expansive_law_count: 1 },
-  { state: 'LA', state_name: 'Louisiana', overall_score: 34, voter_id_score: 25, early_voting_score: 40, mail_voting_score: 25, registration_score: 35, felon_voting_score: 30, restrictive_law_count: 5, expansive_law_count: 1 },
-  { state: 'ME', state_name: 'Maine', overall_score: 88, voter_id_score: 90, early_voting_score: 80, mail_voting_score: 85, registration_score: 95, felon_voting_score: 100, restrictive_law_count: 0, expansive_law_count: 8 },
-  { state: 'MD', state_name: 'Maryland', overall_score: 85, voter_id_score: 80, early_voting_score: 85, mail_voting_score: 80, registration_score: 90, felon_voting_score: 75, restrictive_law_count: 0, expansive_law_count: 9 },
-  { state: 'MA', state_name: 'Massachusetts', overall_score: 80, voter_id_score: 85, early_voting_score: 75, mail_voting_score: 80, registration_score: 80, felon_voting_score: 75, restrictive_law_count: 1, expansive_law_count: 7 },
-  { state: 'MI', state_name: 'Michigan', overall_score: 78, voter_id_score: 70, early_voting_score: 80, mail_voting_score: 85, registration_score: 80, felon_voting_score: 65, restrictive_law_count: 1, expansive_law_count: 7 },
-  { state: 'MN', state_name: 'Minnesota', overall_score: 87, voter_id_score: 85, early_voting_score: 85, mail_voting_score: 80, registration_score: 95, felon_voting_score: 80, restrictive_law_count: 0, expansive_law_count: 9 },
-  { state: 'MS', state_name: 'Mississippi', overall_score: 30, voter_id_score: 20, early_voting_score: 20, mail_voting_score: 20, registration_score: 30, felon_voting_score: 10, restrictive_law_count: 7, expansive_law_count: 0 },
-  { state: 'MO', state_name: 'Missouri', overall_score: 38, voter_id_score: 25, early_voting_score: 40, mail_voting_score: 35, registration_score: 40, felon_voting_score: 45, restrictive_law_count: 5, expansive_law_count: 1 },
-  { state: 'MT', state_name: 'Montana', overall_score: 52, voter_id_score: 45, early_voting_score: 55, mail_voting_score: 50, registration_score: 60, felon_voting_score: 55, restrictive_law_count: 3, expansive_law_count: 3 },
-  { state: 'NE', state_name: 'Nebraska', overall_score: 55, voter_id_score: 40, early_voting_score: 60, mail_voting_score: 55, registration_score: 60, felon_voting_score: 50, restrictive_law_count: 3, expansive_law_count: 3 },
-  { state: 'NV', state_name: 'Nevada', overall_score: 82, voter_id_score: 80, early_voting_score: 80, mail_voting_score: 90, registration_score: 85, felon_voting_score: 70, restrictive_law_count: 1, expansive_law_count: 8 },
-  { state: 'NH', state_name: 'New Hampshire', overall_score: 65, voter_id_score: 50, early_voting_score: 55, mail_voting_score: 55, registration_score: 90, felon_voting_score: 70, restrictive_law_count: 2, expansive_law_count: 4 },
-  { state: 'NJ', state_name: 'New Jersey', overall_score: 78, voter_id_score: 80, early_voting_score: 75, mail_voting_score: 80, registration_score: 80, felon_voting_score: 70, restrictive_law_count: 1, expansive_law_count: 7 },
-  { state: 'NM', state_name: 'New Mexico', overall_score: 80, voter_id_score: 85, early_voting_score: 80, mail_voting_score: 75, registration_score: 80, felon_voting_score: 70, restrictive_law_count: 1, expansive_law_count: 7 },
-  { state: 'NY', state_name: 'New York', overall_score: 72, voter_id_score: 80, early_voting_score: 65, mail_voting_score: 65, registration_score: 70, felon_voting_score: 75, restrictive_law_count: 2, expansive_law_count: 6 },
-  { state: 'NC', state_name: 'North Carolina', overall_score: 43, voter_id_score: 25, early_voting_score: 55, mail_voting_score: 35, registration_score: 50, felon_voting_score: 35, restrictive_law_count: 6, expansive_law_count: 2 },
-  { state: 'ND', state_name: 'North Dakota', overall_score: 50, voter_id_score: 30, early_voting_score: 55, mail_voting_score: 50, registration_score: 60, felon_voting_score: 55, restrictive_law_count: 3, expansive_law_count: 2 },
-  { state: 'OH', state_name: 'Ohio', overall_score: 42, voter_id_score: 25, early_voting_score: 50, mail_voting_score: 40, registration_score: 45, felon_voting_score: 50, restrictive_law_count: 5, expansive_law_count: 2 },
-  { state: 'OK', state_name: 'Oklahoma', overall_score: 36, voter_id_score: 25, early_voting_score: 40, mail_voting_score: 30, registration_score: 40, felon_voting_score: 35, restrictive_law_count: 5, expansive_law_count: 1 },
-  { state: 'OR', state_name: 'Oregon', overall_score: 100, voter_id_score: 95, early_voting_score: 95, mail_voting_score: 100, registration_score: 100, felon_voting_score: 95, restrictive_law_count: 0, expansive_law_count: 13 },
-  { state: 'PA', state_name: 'Pennsylvania', overall_score: 55, voter_id_score: 60, early_voting_score: 50, mail_voting_score: 60, registration_score: 55, felon_voting_score: 50, restrictive_law_count: 3, expansive_law_count: 4 },
-  { state: 'RI', state_name: 'Rhode Island', overall_score: 65, voter_id_score: 50, early_voting_score: 65, mail_voting_score: 70, registration_score: 70, felon_voting_score: 60, restrictive_law_count: 2, expansive_law_count: 4 },
-  { state: 'SC', state_name: 'South Carolina', overall_score: 34, voter_id_score: 20, early_voting_score: 35, mail_voting_score: 25, registration_score: 35, felon_voting_score: 40, restrictive_law_count: 5, expansive_law_count: 1 },
-  { state: 'SD', state_name: 'South Dakota', overall_score: 48, voter_id_score: 35, early_voting_score: 55, mail_voting_score: 45, registration_score: 50, felon_voting_score: 55, restrictive_law_count: 3, expansive_law_count: 2 },
-  { state: 'TN', state_name: 'Tennessee', overall_score: 32, voter_id_score: 15, early_voting_score: 40, mail_voting_score: 20, registration_score: 35, felon_voting_score: 15, restrictive_law_count: 6, expansive_law_count: 1 },
-  { state: 'TX', state_name: 'Texas', overall_score: 35, voter_id_score: 20, early_voting_score: 50, mail_voting_score: 20, registration_score: 30, felon_voting_score: 30, restrictive_law_count: 8, expansive_law_count: 1 },
-  { state: 'UT', state_name: 'Utah', overall_score: 75, voter_id_score: 65, early_voting_score: 75, mail_voting_score: 90, registration_score: 70, felon_voting_score: 60, restrictive_law_count: 1, expansive_law_count: 6 },
-  { state: 'VT', state_name: 'Vermont', overall_score: 92, voter_id_score: 95, early_voting_score: 85, mail_voting_score: 90, registration_score: 95, felon_voting_score: 100, restrictive_law_count: 0, expansive_law_count: 10 },
-  { state: 'VA', state_name: 'Virginia', overall_score: 60, voter_id_score: 40, early_voting_score: 65, mail_voting_score: 55, registration_score: 65, felon_voting_score: 55, restrictive_law_count: 3, expansive_law_count: 5 },
-  { state: 'WA', state_name: 'Washington', overall_score: 96, voter_id_score: 90, early_voting_score: 95, mail_voting_score: 100, registration_score: 95, felon_voting_score: 85, restrictive_law_count: 0, expansive_law_count: 11 },
-  { state: 'WV', state_name: 'West Virginia', overall_score: 38, voter_id_score: 30, early_voting_score: 40, mail_voting_score: 35, registration_score: 40, felon_voting_score: 30, restrictive_law_count: 4, expansive_law_count: 1 },
-  { state: 'WI', state_name: 'Wisconsin', overall_score: 50, voter_id_score: 30, early_voting_score: 55, mail_voting_score: 50, registration_score: 80, felon_voting_score: 45, restrictive_law_count: 4, expansive_law_count: 3 },
-  { state: 'WY', state_name: 'Wyoming', overall_score: 48, voter_id_score: 40, early_voting_score: 50, mail_voting_score: 45, registration_score: 50, felon_voting_score: 50, restrictive_law_count: 3, expansive_law_count: 2 },
-  { state: 'DC', state_name: 'District of Columbia', overall_score: 90, voter_id_score: 90, early_voting_score: 85, mail_voting_score: 85, registration_score: 95, felon_voting_score: 100, restrictive_law_count: 0, expansive_law_count: 9 },
-];
 
 // ---------------------------------------------------------------------------
 // Voter Access Laws (battleground + notable states)
@@ -377,51 +327,6 @@ async function main() {
   console.log(`Dry run: ${dryRun}\n`);
 
   // -- State scores --
-  let scoresInserted = 0;
-  let scoresUpdated = 0;
-
-  console.log('--- State Scores ---');
-  for (const s of STATE_SCORES) {
-    if (dryRun) {
-      console.log(`[DRY RUN] Would upsert: ${s.state_name} (${s.state}) — score ${s.overall_score}`);
-      continue;
-    }
-
-    const { rows } = await pool.query(
-      `INSERT INTO voter_access_state_scores
-         (state, state_name, overall_score, voter_id_score, early_voting_score,
-          mail_voting_score, registration_score, felon_voting_score,
-          restrictive_law_count, expansive_law_count, last_computed_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
-       ON CONFLICT (state) DO UPDATE SET
-         state_name = EXCLUDED.state_name,
-         overall_score = EXCLUDED.overall_score,
-         voter_id_score = EXCLUDED.voter_id_score,
-         early_voting_score = EXCLUDED.early_voting_score,
-         mail_voting_score = EXCLUDED.mail_voting_score,
-         registration_score = EXCLUDED.registration_score,
-         felon_voting_score = EXCLUDED.felon_voting_score,
-         restrictive_law_count = EXCLUDED.restrictive_law_count,
-         expansive_law_count = EXCLUDED.expansive_law_count,
-         last_computed_at = NOW(),
-         updated_at = NOW()
-       RETURNING (xmax = 0) AS is_insert`,
-      [
-        s.state, s.state_name, s.overall_score, s.voter_id_score,
-        s.early_voting_score, s.mail_voting_score, s.registration_score,
-        s.felon_voting_score, s.restrictive_law_count, s.expansive_law_count,
-      ]
-    );
-
-    if (rows[0].is_insert) {
-      scoresInserted++;
-      console.log(`  INSERTED: ${s.state_name} (${s.overall_score})`);
-    } else {
-      scoresUpdated++;
-      console.log(`  UPDATED:  ${s.state_name} (${s.overall_score})`);
-    }
-  }
-
   // -- Voter access laws --
   let lawsInserted = 0;
   let lawsUpdated = 0;
@@ -526,11 +431,10 @@ async function main() {
 
   if (!dryRun) {
     console.log(`\n=== Seed Complete ===`);
-    console.log(`Scores  — Inserted: ${scoresInserted}  Updated: ${scoresUpdated}  Total: ${STATE_SCORES.length}`);
     console.log(`Laws    — Inserted: ${lawsInserted}  Updated: ${lawsUpdated}  Total: ${VOTER_ACCESS_LAWS.length}`);
     console.log(`Impacts — Inserted: ${impactsInserted}  Updated: ${impactsUpdated}  Total: ${VOTER_ACCESS_IMPACTS.length}`);
   } else {
-    console.log(`\n[DRY RUN] Would process ${STATE_SCORES.length} scores, ${VOTER_ACCESS_LAWS.length} laws, ${VOTER_ACCESS_IMPACTS.length} impacts`);
+    console.log(`\n[DRY RUN] Would process ${VOTER_ACCESS_LAWS.length} laws, ${VOTER_ACCESS_IMPACTS.length} impacts`);
   }
 
   await pool.end();

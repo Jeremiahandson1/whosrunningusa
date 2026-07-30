@@ -2,7 +2,27 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
-// GET /voter-access/states — all state scores ranked
+const STATE_NAMES = {
+  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
+  CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', DC: 'District of Columbia',
+  FL: 'Florida', GA: 'Georgia', HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois',
+  IN: 'Indiana', IA: 'Iowa', KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana',
+  ME: 'Maine', MD: 'Maryland', MA: 'Massachusetts', MI: 'Michigan',
+  MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri', MT: 'Montana',
+  NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey',
+  NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota',
+  OH: 'Ohio', OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania',
+  RI: 'Rhode Island', SC: 'South Carolina', SD: 'South Dakota',
+  TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont', VA: 'Virginia',
+  WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming',
+};
+
+// GET /voter-access/states — states with documented laws, ranked.
+// The state list is derived from the SOURCED voter_access_laws rows (real
+// per-record citations); voter_access_state_scores is LEFT JOINed and may be
+// empty — the hardcoded 1-100 rankings it used to hold were uncited invented
+// numbers and were removed (migration 042). Scores return only if computed
+// from sourced data.
 router.get('/states', async (req, res, next) => {
   try {
     const { sort = 'overall' } = req.query;
@@ -17,14 +37,33 @@ router.get('/states', async (req, res, next) => {
     const orderCol = allowedSorts[sort] || allowedSorts.overall;
 
     const result = await db.query(
-      `SELECT vas.*,
-              vas.state AS state_code,
-              vas.state_name AS name
-       FROM voter_access_state_scores vas
-       ORDER BY ${orderCol} DESC`
+      `SELECT law_states.state AS state_code,
+              law_states.state,
+              law_states.restrictive_law_count,
+              law_states.expansive_law_count,
+              vas.overall_score, vas.voter_id_score, vas.early_voting_score,
+              vas.mail_voting_score, vas.registration_score, vas.felon_voting_score
+       FROM (
+         SELECT state,
+                COUNT(*) FILTER (WHERE is_restrictive IS TRUE)::int AS restrictive_law_count,
+                COUNT(*) FILTER (WHERE is_restrictive IS FALSE)::int AS expansive_law_count
+         FROM voter_access_laws
+         GROUP BY state
+       ) law_states
+       LEFT JOIN voter_access_state_scores vas ON vas.state = law_states.state
+       ORDER BY ${orderCol} DESC NULLS LAST, law_states.restrictive_law_count DESC`
     );
 
-    res.json({ states: result.rows });
+    res.json({
+      states: result.rows.map(r => ({
+        ...r,
+        name: STATE_NAMES[r.state_code] || r.state_code,
+        state_name: STATE_NAMES[r.state_code] || r.state_code,
+        // The list card reads restrictive_count/expansive_count
+        restrictive_count: r.restrictive_law_count,
+        expansive_count: r.expansive_law_count,
+      })),
+    });
   } catch (error) {
     console.warn('/voter-access/states fallback:', error.message);
     res.json({ states: [] });

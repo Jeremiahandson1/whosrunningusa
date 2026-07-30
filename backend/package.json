@@ -62,8 +62,6 @@
     "auto-check:promises:dry": "node ../scripts/auto-check-promises.cjs --dry-run",
     "seed:cost-calculator": "node ../scripts/seed-cost-calculator.cjs",
     "seed:cost-calculator:dry": "node ../scripts/seed-cost-calculator.cjs --dry-run",
-    "seed:district-results": "node ../scripts/seed-district-results.cjs",
-    "seed:district-results:dry": "node ../scripts/seed-district-results.cjs --dry-run",
     "seed:voter-access": "node ../scripts/seed-voter-access.cjs",
     "seed:voter-access:dry": "node ../scripts/seed-voter-access.cjs --dry-run",
     "seed:local-offices": "node ../scripts/seed-local-offices.cjs",

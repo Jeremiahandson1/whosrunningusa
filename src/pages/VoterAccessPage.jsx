@@ -298,7 +298,9 @@ export default function VoterAccessPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {filteredStates.map(state => {
             const isExpanded = expandedState === state.state_code
-            const score = Math.round(Number(state.overall_score) || 0)
+            // null = no computed score for this state (the old hardcoded
+            // rankings were removed as unsourced); show a neutral badge, not 0
+            const score = state.overall_score != null ? Math.round(Number(state.overall_score)) : null
 
             return (
               <div key={state.state_code} style={{
@@ -314,15 +316,16 @@ export default function VoterAccessPage() {
                     cursor: 'pointer', textAlign: 'left',
                   }}
                 >
-                  {/* Score circle */}
+                  {/* Score circle — gray dash when no computed score exists */}
                   <div style={{
                     width: 48, height: 48, borderRadius: '50%',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: scoreBg(score), color: scoreColor(score),
+                    background: score != null ? scoreBg(score) : '#f1f5f9',
+                    color: score != null ? scoreColor(score) : '#94a3b8',
                     fontWeight: 800, fontSize: 16, flexShrink: 0,
-                    border: `2px solid ${scoreColor(score)}`,
+                    border: `2px solid ${score != null ? scoreColor(score) : '#cbd5e1'}`,
                   }}>
-                    {score}
+                    {score != null ? score : '—'}
                   </div>
 
                   <div style={{ flex: 1, minWidth: 0 }}>

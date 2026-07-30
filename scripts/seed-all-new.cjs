@@ -21,14 +21,16 @@ const seeds = [
   { name: 'Cost Calculator', file: 'seed-cost-calculator.cjs' },
   { name: 'Voter Access', file: 'seed-voter-access.cjs' },
   { name: 'Local Offices', file: 'seed-local-offices.cjs' },
-  { name: 'District Results', file: 'seed-district-results.cjs' },
+  // 'District Results' removed 2026-07-30: seed-district-results.cjs held
+  // fabricated sample vote counts (self-described "representative sample for
+  // development and demos") that fed real-looking gerrymandering metrics.
+  // Load real FEC bulk results before re-enabling compute-gerrymandering.
   { name: 'Transparency Requirements', file: 'seed-transparency-requirements.cjs' },
 ];
 
 const computes = [
   { name: 'Promise Scores', file: 'compute-promise-scores.cjs' },
   { name: 'Rubber Stamp Scores', file: 'compute-rubber-stamp.cjs' },
-  { name: 'Gerrymandering Metrics', file: 'compute-gerrymandering.cjs' },
   { name: 'PAC Violations', file: 'check-pac-violations.cjs' },
 ];
 
