@@ -157,12 +157,16 @@ async function seedRequirements() {
       continue;
     }
 
+    // ON CONFLICT target must name the uq_transparency_requirement index
+    // expressions exactly — a bare ON CONFLICT DO NOTHING matches no index,
+    // so every nightly run inserted a fresh copy of every requirement
+    // (migration 040 cleaned up 60 copies of each).
     await pool.query(
       `INSERT INTO transparency_requirements
          (jurisdiction, jurisdiction_type, state, requirement_type, title,
           description, enacted_date, effective_date, statute_reference)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       ON CONFLICT DO NOTHING`,
+       ON CONFLICT (jurisdiction_type, COALESCE(state, ''), requirement_type, title) DO NOTHING`,
       [req.jurisdiction, req.jurisdiction_type, req.state, req.requirement_type,
        req.title, req.description, req.enacted_date, req.effective_date || null, req.statute_reference]
     );
@@ -182,7 +186,7 @@ async function seedRequirements() {
          (jurisdiction, jurisdiction_type, state, requirement_type, title,
           description, enacted_date, statute_reference)
        VALUES ($1, 'state', $2, 'body_camera', $3, $4, $5, $6)
-       ON CONFLICT DO NOTHING`,
+       ON CONFLICT (jurisdiction_type, COALESCE(state, ''), requirement_type, title) DO NOTHING`,
       [`State of ${req.state}`, req.state, req.title, req.description,
        req.enacted_date, req.statute_reference]
     );
@@ -237,6 +241,10 @@ async function seedBaselineComplianceRecords() {
     return;
   }
 
+  // The conflict target matches uq_compliance_politician_requirement; the
+  // previous bare ON CONFLICT DO NOTHING had no unique index to hit, so this
+  // cross join re-inserted the full politicians × requirements product every
+  // night (18.5M rows / 5.3 GB before migration 040 cleaned it up).
   const result = await pool.query(
     `INSERT INTO compliance_records
        (politician_id, requirement_id, compliance_status, compliance_score, last_checked)
@@ -245,7 +253,7 @@ async function seedBaselineComplianceRecords() {
      CROSS JOIN transparency_requirements tr
      WHERE cp.fec_office_type IN ('H', 'S')
        AND tr.jurisdiction_type = 'federal'
-     ON CONFLICT DO NOTHING`
+     ON CONFLICT (politician_id, requirement_id) DO NOTHING`
   );
   console.log(`  Created ${result.rowCount} baseline compliance records`);
 }

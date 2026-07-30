@@ -1405,6 +1405,13 @@ CREATE TABLE IF NOT EXISTS compliance_records (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Unique keys the transparency seeder's ON CONFLICT clauses target — without
+-- these the nightly seeder re-inserts everything (see migration 040).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_transparency_requirement
+  ON transparency_requirements (jurisdiction_type, COALESCE(state, ''), requirement_type, title);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_compliance_politician_requirement
+  ON compliance_records (politician_id, requirement_id);
+
 -- Campaign Finance Source Mapping
 CREATE TABLE IF NOT EXISTS donor_vote_connections (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
