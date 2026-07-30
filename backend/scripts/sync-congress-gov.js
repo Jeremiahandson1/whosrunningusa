@@ -41,10 +41,26 @@ const stateAbbreviations = {
 /**
  * Upsert a Congress member
  */
+/**
+ * "Schiff, Adam B." → "Adam B. Schiff" (fallback when first/last are absent)
+ */
+function formatCommaName(name) {
+  if (!name) return name;
+  const i = name.indexOf(',');
+  if (i === -1) return name;
+  return `${name.slice(i + 1).trim()} ${name.slice(0, i).trim()}`;
+}
+
 async function upsertMember(member) {
   const transformed = client.transformMember(member);
   // Convert state name to abbreviation
   const stateAbbr = stateAbbreviations[transformed.state] || transformed.state;
+  // Congress.gov's firstName is the member's PREFERRED name ("Ted", "Ami"),
+  // and member.name is "Last, First" — never store the raw comma format:
+  // it silently undid migration 024's normalization on every nightly run.
+  const displayName = (transformed.firstName && transformed.lastName)
+    ? `${transformed.firstName} ${transformed.lastName}`
+    : formatCommaName(transformed.name);
   
   // Check if we have this member by bioguide ID. congress_gov_id is the
   // stable key — verification_source/external_id get overwritten when the
@@ -71,7 +87,7 @@ async function upsertMember(member) {
       WHERE id = $1
     `, [
       existing.rows[0].id,
-      transformed.name,
+      displayName,
       transformed.party,
       transformed.chamber === 'lower' ? 'U.S. Representative' : 'U.S. Senator',
       transformed.officialUrl,
@@ -96,7 +112,7 @@ async function upsertMember(member) {
       CASE WHEN fec_office_type = $2 THEN 0 ELSE 1 END,
       CASE WHEN LOWER(display_name) = LOWER($3) THEN 0 ELSE 1 END
     LIMIT 1
-  `, [stateAbbr, officeType, transformed.name]);
+  `, [stateAbbr, officeType, displayName]);
 
   if (fecMatch.rows.length > 0) {
     candidateId = fecMatch.rows[0].id;
@@ -119,7 +135,7 @@ async function upsertMember(member) {
         candidate_verified_at = COALESCE(candidate_verified_at, NOW()),
         updated_at = NOW()
       WHERE id = $1
-    `, [candidateId, transformed.name,
+    `, [candidateId, displayName,
         transformed.chamber === 'lower' ? 'U.S. Representative' : 'U.S. Senator',
         transformed.officialUrl, transformed.bioguideId, officeType]);
 
@@ -136,7 +152,7 @@ async function upsertMember(member) {
       AND o.state = $2
       AND o.office_level = 'federal'
     LIMIT 1
-  `, [transformed.name, stateAbbr]);
+  `, [displayName, stateAbbr]);
 
   if (nameMatch.rows.length > 0) {
     candidateId = nameMatch.rows[0].id;
@@ -166,7 +182,7 @@ async function upsertMember(member) {
     ) VALUES ($1, $2, $3, $4, 'congress_gov', $5, $5, NOW(), TRUE, NOW(), TRUE, TRUE)
     RETURNING id
   `, [
-    transformed.name,
+    displayName,
     transformed.party,
     transformed.chamber === 'lower' ? 'U.S. Representative' : 'U.S. Senator',
     transformed.officialUrl,
