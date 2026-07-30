@@ -172,6 +172,10 @@ async function mergeProfilesBulk(client, refCols, pairs, onProgress) {
      SELECT * FROM unnest($1::uuid[], $2::uuid[])`,
     [pairs.map(p => p.removeId), pairs.map(p => p.keepId)]
   );
+  // Without stats on the temp table the planner can pick a hash join that
+  // seq-scans a multi-GB referencing table (compliance_records is 18M rows)
+  // instead of probing its FK index per mapping row.
+  await client.query(`ANALYZE dedup_map`);
 
   // Fold profile columns into the keeper. With several duplicates per keeper
   // Postgres picks one source row arbitrarily per column set — same behavior
