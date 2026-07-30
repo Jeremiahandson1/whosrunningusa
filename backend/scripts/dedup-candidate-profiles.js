@@ -74,8 +74,9 @@ async function main() {
 
   const profiles = (await db.query(`
     SELECT id, display_name, fec_state, fec_district, fec_office_type,
-           user_id, open_states_id, congress_gov_id, twitter_handle,
-           campaign_website, fec_candidate_id, profile_photo_url, created_at,
+           user_id, open_states_id, congress_gov_id, vote_smart_candidate_id,
+           twitter_handle, campaign_website, fec_candidate_id,
+           profile_photo_url, created_at,
            normalize_candidate_name(display_name) AS norm_name
       FROM candidate_profiles
      WHERE normalize_candidate_name(display_name) IS NOT NULL
@@ -95,6 +96,50 @@ async function main() {
   }
 
   const groups = [...byNameState.values()].filter(g => g.length > 1);
+
+  // Put every profile in `members` into one shared group, coalescing any
+  // existing groups they belong to.
+  function unionIntoGroups(members) {
+    let target = null;
+    for (const p of members) {
+      const g = groups.find(x => x.includes(p));
+      if (g && target && g !== target) {
+        target.push(...g.filter(x => !target.includes(x)));
+        groups.splice(groups.indexOf(g), 1);
+      } else if (g && !target) {
+        target = g;
+      }
+    }
+    if (!target) { target = []; groups.push(target); }
+    for (const p of members) if (!target.includes(p)) target.push(p);
+    return target;
+  }
+
+  // ---- Tier 0: shared authoritative external id = same person --------------
+  // Names can't be trusted (nickname vs legal name: "Ami Bera" / "Amerish
+  // Bera"), but two profiles carrying the same bioguide / Open States /
+  // FEC / VoteSmart id are the same human by definition.
+  let externalIdGroups = 0;
+  for (const key of ['congress_gov_id', 'open_states_id', 'fec_candidate_id', 'vote_smart_candidate_id']) {
+    const byId = new Map();
+    for (const p of profiles) {
+      if (!p[key]) continue;
+      if (!byId.has(p[key])) byId.set(p[key], []);
+      byId.get(p[key]).push(p);
+    }
+    for (const members of byId.values()) {
+      if (members.length < 2) continue;
+      const before = groups.find(g => members.every(m => g.includes(m)));
+      if (!before) {
+        externalIdGroups++;
+        console.log(`  Same ${key}: ${members.map(p => `"${p.display_name}"`).join(' = ')}`);
+      }
+      unionIntoGroups(members);
+    }
+  }
+  if (externalIdGroups > 0) {
+    console.log(`  Cross-name duplicates found via shared external ids: ${externalIdGroups}`);
+  }
 
   // ---- Tier 2: NULL-state profile joins its name's only state group --------
   let ambiguousNullState = 0;
@@ -145,15 +190,7 @@ async function main() {
       console.log(`    ? "${a.display_name}" ~ "${b.display_name}" (${a.fec_state}${a.fec_district ? '-' + a.fec_district : ''})`);
     }
     if (fuzzy) {
-      for (const [a, b] of fuzzyPairs) {
-        const ga = groups.find(g => g.includes(a));
-        const gb = groups.find(g => g.includes(b));
-        if (ga && ga === gb) continue;
-        if (ga && gb) { ga.push(...gb); groups.splice(groups.indexOf(gb), 1); }
-        else if (ga) { if (!ga.includes(b)) ga.push(b); }
-        else if (gb) { if (!gb.includes(a)) gb.push(a); }
-        else groups.push([a, b]);
-      }
+      for (const [a, b] of fuzzyPairs) unionIntoGroups([a, b]);
     } else {
       console.log(`    (report only — rerun with --fuzzy to merge, or use the admin merge endpoint)`);
     }
