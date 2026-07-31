@@ -43,6 +43,7 @@ function RacesPage() {
     const params = new URLSearchParams()
     if (scopeFilter !== 'all') params.set('scope', scopeFilter)
     if (debouncedSearch) params.set('q', debouncedSearch)
+    params.set('upcoming', 'true')
     params.set('limit', String(PAGE_SIZE))
     Promise.all([
       api.get(`/races?${params.toString()}`).catch(() => ({ races: [] })),
@@ -63,6 +64,7 @@ function RacesPage() {
     const params = new URLSearchParams()
     if (scopeFilter !== 'all') params.set('scope', scopeFilter)
     if (debouncedSearch) params.set('q', debouncedSearch)
+    params.set('upcoming', 'true')
     params.set('limit', String(PAGE_SIZE))
     params.set('offset', String(races.length))
     api.get(`/races?${params.toString()}`)

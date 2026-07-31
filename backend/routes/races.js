@@ -6,7 +6,7 @@ const { authenticate, requireCandidate } = require('../middleware/auth');
 // Get races with filters
 router.get('/', async (req, res, next) => {
   try {
-    const { electionId, officeLevel, state, county, city, incumbent_id, upcoming, limit = 20, offset = 0 } = req.query;
+    const { electionId, officeLevel, scope, state, county, city, incumbent_id, upcoming, q, limit = 20, offset = 0 } = req.query;
 
     let query = `
       SELECT r.*, o.name as office_name, o.office_level, o.state, o.county, o.city,
@@ -30,6 +30,24 @@ router.get('/', async (req, res, next) => {
     if (officeLevel) {
       query += ` AND o.office_level = $${paramIndex}`;
       params.push(officeLevel);
+      paramIndex++;
+    }
+
+    // RacesPage level dropdown ('city' option covers all sub-county levels)
+    if (scope && scope !== 'all') {
+      if (scope === 'city') {
+        query += ` AND o.office_level IN ('city', 'township', 'district')`;
+      } else if (['federal', 'state', 'county'].includes(scope)) {
+        query += ` AND o.office_level = $${paramIndex}`;
+        params.push(scope);
+        paramIndex++;
+      }
+    }
+
+    // RacesPage search box — race, office, or election name
+    if (q) {
+      query += ` AND (r.name ILIKE $${paramIndex} OR o.name ILIKE $${paramIndex} OR e.name ILIKE $${paramIndex})`;
+      params.push(`%${q}%`);
       paramIndex++;
     }
 
