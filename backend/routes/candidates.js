@@ -738,10 +738,18 @@ router.get('/:id/voting-record', async (req, res) => {
         b.bill_number,
         b.status as bill_status,
         b.state as bill_state,
-        b.chamber as bill_chamber
+        b.chamber as bill_chamber,
+        vex.plain_language_title, vex.plain_language_summary, vex.what_it_means
        FROM voting_records vr
        JOIN vote_events ve ON vr.vote_event_id = ve.id
        LEFT JOIN bills b ON vr.bill_id = b.id
+       LEFT JOIN LATERAL (
+         SELECT plain_language_title, plain_language_summary, what_it_means
+           FROM vote_explanations
+          WHERE vote_event_id = vr.vote_event_id
+          ORDER BY created_at DESC
+          LIMIT 1
+       ) vex ON TRUE
        WHERE vr.candidate_id = $1
        ORDER BY ve.vote_date DESC NULLS LAST
        LIMIT $2 OFFSET $3`,

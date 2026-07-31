@@ -205,7 +205,12 @@ function PromiseTrackerPage() {
         {!loading && !error && politicians.length === 0 && (
           <div style={{ textAlign: 'center', padding: 64, color: '#475569' }}>
             <CheckCircle size={48} color="#94a3b8" />
-            <p style={{ fontSize: 18, marginTop: 12 }}>No promise data found.</p>
+            <p style={{ fontSize: 18, marginTop: 12, fontWeight: 600 }}>No tracked promises yet.</p>
+            <p style={{ fontSize: 14, marginTop: 8, maxWidth: 520, marginLeft: 'auto', marginRight: 'auto' }}>
+              Promises here are written and locked by candidates themselves — we don't
+              put words in anyone's mouth. This page fills in as candidates claim
+              their profiles and put their commitments on the record.
+            </p>
           </div>
         )}
 

@@ -994,6 +994,11 @@ function CandidatePage() {
                               {vote.bill_title && vote.bill_number && (
                                 <div style={{ fontSize: '0.8125rem', color: 'var(--slate-500)', marginTop: '0.125rem' }}>{vote.bill_title}</div>
                               )}
+                              {(vote.plain_language_summary || vote.what_it_means) && (
+                                <div style={{ fontSize: '0.8125rem', color: 'var(--slate-600)', marginTop: '0.375rem', padding: '0.5rem 0.625rem', background: 'var(--slate-50)', borderRadius: 6, borderLeft: '3px solid var(--navy-300, #93c5fd)' }}>
+                                  {vote.plain_language_summary || vote.what_it_means}
+                                </div>
+                              )}
                             </div>
                             <div style={{ width: 100, flexShrink: 0, fontSize: '0.875rem', color: 'var(--slate-700)' }}>
                               {(vote.vote || vote.position || 'N/A').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
