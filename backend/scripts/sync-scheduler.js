@@ -44,7 +44,7 @@ const ALL_STEPS = [
   // Dedup right after the profile-creating syncs, before committees/votes/
   // candidacy-linking attach data to what may be duplicate rows.
   'dedup-profiles',
-  'committees', 'votes', 'wikidata', 'votesmart',
+  'committees', 'votes', 'link-vote-bills', 'wikidata', 'votesmart',
   // Candidacy linking — after FEC sync populates candidate_profiles but
   // before any race-centric computation depends on it. cleanup-candidacies
   // then removes rows FEC data contradicts (e.g. senators not up this cycle).
@@ -101,6 +101,8 @@ function buildCommand(step) {
       return ['cleanup-stale-candidacies.js'];
     case 'votes':
       return ['sync-votes.js', '--chamber=both'];
+    case 'link-vote-bills':
+      return ['link-vote-bills.js'];
     case 'bills':
       return ['sync-open-states-bills.js', ...(state ? [state] : []), '--recent'];
     case 'congress-legislators':

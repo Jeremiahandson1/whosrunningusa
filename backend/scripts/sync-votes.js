@@ -60,6 +60,13 @@ function parseHouseVote(xml, url, year, roll) {
   const voteDate = (get('action-date') || '').trim(); // e.g. "3-Jan-2025"
   const question = get('vote-question');
   const result = get('vote-result');
+  // The bill identifier ("H R 22") lives in <legis-num>, not the question —
+  // append it so downstream bill linking and the AI analysis have the
+  // reference ("On Passage" alone identifies nothing).
+  const legisNum = get('legis-num');
+  const motion = legisNum && !/^\s*$/.test(legisNum) && question
+    ? `${question} — ${legisNum}`
+    : (question || legisNum);
 
   // Counts
   const yesCount = parseInt(xml.match(/<yea-total>\s*(\d+)\s*<\/yea-total>/)?.[1] || '0', 10);
@@ -93,7 +100,7 @@ function parseHouseVote(xml, url, year, roll) {
     externalId: `house-${year}-${roll}`,
     chamber: 'House',
     voteDate: isoDate,
-    motion: question,
+    motion,
     result,
     yesCount, noCount, abstainCount: presentCount, absentCount: notVotingCount,
     source: 'house-clerk',
