@@ -53,6 +53,9 @@ const ALL_STEPS = [
   'transparency-seed', 'trades', 'revolving-door', 'compliance',
   // Module 6 new syncs
   'foreign-aid', 'outside-spending', 'fara', 'think-tanks',
+  // Donor-industry aggregation from FEC receipts — must precede the AI steps
+  // (donor-map, gaps) that require politician_donor_industries rows.
+  'donor-industries',
   // Computation scripts (from existing data)
   'promise-scores', 'rubber-stamp', 'pac-violations',
   // ROI computation
@@ -97,7 +100,7 @@ function buildCommand(step) {
     case 'cleanup-candidacies':
       return ['cleanup-stale-candidacies.js'];
     case 'votes':
-      return ['sync-votes.js', '--chamber=house'];
+      return ['sync-votes.js', '--chamber=both'];
     case 'bills':
       return ['sync-open-states-bills.js', ...(state ? [state] : []), '--recent'];
     case 'congress-legislators':
@@ -127,6 +130,8 @@ function buildCommand(step) {
       return [path.join(ROOT_SCRIPTS_DIR, 'sync-foreign-aid.cjs')];
     case 'outside-spending':
       return [path.join(ROOT_SCRIPTS_DIR, 'sync-outside-spending.cjs')];
+    case 'donor-industries':
+      return [path.join(ROOT_SCRIPTS_DIR, 'sync-donor-industries.cjs'), `--cycle=${cycle}`];
     case 'fara':
       return [path.join(ROOT_SCRIPTS_DIR, 'sync-fara.cjs')];
     case 'promise-scores':
@@ -326,6 +331,7 @@ async function main() {
     'votesmart', 'wikidata', 'openstates', 'bills', 'finance',
     'transparency-seed', 'trades', 'revolving-door', 'compliance',
     'foreign-aid', 'outside-spending', 'fara', 'think-tanks',
+    'donor-industries',
     'promise-scores', 'rubber-stamp', 'pac-violations', 'political-roi',
     'explanations', 'donor-map', 'gaps', 'auto-check-promises', 'scan-conflicts',
     // Per-member API + DB upsert loop legitimately approaches the 30-min cap.
