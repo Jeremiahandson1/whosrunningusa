@@ -62,15 +62,22 @@ function ComparePage() {
     setManualComparison(null)
   }
 
-  const compareSelected = async () => {
-    if (selected.length < 2) return
+  const buildComparison = async (candidateIds) => {
     setComparingManual(true)
     try {
       // Fetch full candidate data with positions for each
       const results = await Promise.all(
-        selected.map(c => api.get(`/candidates/${c.id}`).catch(() => null))
+        candidateIds.map(id => api.get(`/candidates/${id}`).catch(() => null))
       )
-      const fullCandidates = results.filter(Boolean).map(r => r.candidate || r)
+      const responses = results.filter(Boolean)
+      const fullCandidates = responses.map(r => r.candidate || r).map((c, i) => ({
+        ...c,
+        positions: c.positions || responses[i].positions || [],
+      }))
+      if (fullCandidates.length < 2) {
+        setManualComparison(null)
+        return
+      }
 
       // Collect all unique issues across candidates
       const issueMap = new Map()
@@ -87,12 +94,30 @@ function ComparePage() {
         candidates: fullCandidates,
         issues: Array.from(issueMap.values()),
       })
+      setSelected(fullCandidates.map(c => ({
+        id: c.id, display_name: c.display_name, party_affiliation: c.party_affiliation,
+      })))
     } catch {
       alert('Failed to load comparison data')
     } finally {
       setComparingManual(false)
     }
   }
+
+  const compareSelected = () => {
+    if (selected.length < 2) return
+    buildComparison(selected.map(c => c.id))
+  }
+
+  // Candidates passed in the URL (e.g. Explore's "Compare Now" builds
+  // /compare?ids=a,b) — previously ignored, which landed users on an empty
+  // search screen despite having just picked candidates to compare.
+  const idsParam = searchParams.get('ids')
+  useEffect(() => {
+    if (!idsParam) return
+    const ids = idsParam.split(',').map(s => s.trim()).filter(Boolean).slice(0, 4)
+    if (ids.length >= 2) buildComparison(ids)
+  }, [idsParam])
 
   const handleExport = () => {
     window.print()

@@ -182,7 +182,11 @@ class IngestionService {
     // office/state/district straight from the API response. Fall back to
     // substring parsing of the candidate_id only if needed.
     const fecOfficeType = fecCandidate.office || fecCandidate.candidate_id?.[0] || null;
-    const fecState = fecCandidate.state || fecCandidate.candidate_id?.substring(2, 4) || null;
+    // The state embedded in the FEC candidate id (chars 3-4) is authoritative
+    // — prefer it over the record's mutable state field. A mismatch once put
+    // Maryland's sitting senator (S6MD03441) on DC ballots.
+    const idState = fecCandidate.candidate_id?.substring(2, 4);
+    const fecState = (/^[A-Z]{2}$/.test(idState || '') ? idState : null) || fecCandidate.state || null;
     const fecDistrict = fecCandidate.office === 'H'
       ? (fecCandidate.district || fecCandidate.candidate_id?.substring(4, 6) || null)
       : null;

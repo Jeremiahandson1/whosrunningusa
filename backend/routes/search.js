@@ -203,6 +203,11 @@ router.get('/candidates/by-location', async (req, res, next) => {
                cp.qa_response_rate, cp.total_questions_received, NULL as first_name, NULL as last_name,
                'federal' as office_level,
                CASE
+                 -- DC has no U.S. Senate seats and one non-voting delegate;
+                 -- its FEC 'S'/'H' filers are statehood shadow-delegation and
+                 -- delegate candidates and must not be labeled as real seats.
+                 WHEN cp.fec_state = 'DC' AND cp.fec_office_type = 'S' THEN 'DC Shadow Senator (statehood delegation)'
+                 WHEN cp.fec_state = 'DC' AND cp.fec_office_type = 'H' THEN 'DC Delegate to the U.S. House (non-voting)'
                  WHEN cp.fec_office_type = 'H' THEN 'U.S. House of Representatives'
                  WHEN cp.fec_office_type = 'S' THEN 'U.S. Senate'
                  WHEN cp.fec_office_type = 'P' THEN 'President'
@@ -227,6 +232,9 @@ router.get('/candidates/by-location', async (req, res, next) => {
                cp.qa_response_rate, cp.total_questions_received, NULL as first_name, NULL as last_name,
                'federal' as office_level,
                CASE
+                 WHEN cp.fec_state = 'DC' AND cp.fec_office_type = 'S' THEN 'DC Shadow Senator (statehood delegation)'
+                 WHEN cp.fec_state = 'DC' AND cp.fec_office_type = 'H' THEN 'DC Delegate to the U.S. House (non-voting)'
+                 WHEN cp.fec_office_type = 'H' AND cp.fec_district IN ('00', '98') THEN 'U.S. House At-Large'
                  WHEN cp.fec_office_type = 'H' THEN
                    'U.S. House District ' || TRIM(LEADING '0' FROM cp.fec_district)
                  WHEN cp.fec_office_type = 'S' THEN 'U.S. Senate'
@@ -276,7 +284,11 @@ router.get('/candidates/by-location', async (req, res, next) => {
                cp.identity_verified, cp.incumbent_verified, cp.is_shadow_profile,
                cp.qa_response_rate, cp.total_questions_received, NULL as first_name, NULL as last_name,
                'federal' as office_level,
-               'U.S. House District ' || TRIM(LEADING '0' FROM cp.fec_district) as office_name,
+               CASE
+                 WHEN cp.fec_state = 'DC' THEN 'DC Delegate to the U.S. House (non-voting)'
+                 WHEN cp.fec_district IN ('00', '98') THEN 'U.S. House At-Large'
+                 ELSE 'U.S. House District ' || TRIM(LEADING '0' FROM cp.fec_district)
+               END as office_name,
                'fec_district' as source
         FROM candidate_profiles cp
         WHERE cp.is_active = TRUE${nameFilter}
