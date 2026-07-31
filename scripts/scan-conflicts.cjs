@@ -147,8 +147,9 @@ Is there a potential conflict of interest? Return JSON only:
 }`;
 
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 1024,
+    model: 'claude-sonnet-5',
+    // Sonnet 5 thinks by default and max_tokens caps thinking + reply together
+    max_tokens: 4096,
     system: 'You are a nonpartisan financial conflict-of-interest analyst. Evaluate whether a politician\'s stock trade and vote suggest a conflict of interest. Be rigorous — only flag genuine concerns. Return JSON only, no markdown fences.',
     messages: [{ role: 'user', content: prompt }]
   });

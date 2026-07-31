@@ -78,8 +78,9 @@ async function main() {
 
     try {
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 512,
+        model: 'claude-sonnet-5',
+        // Sonnet 5 thinks by default and max_tokens caps thinking + reply together
+        max_tokens: 4096,
         messages: [{
           role: 'user',
           content: `You are analyzing whether a politician's voting record confirms or contradicts a campaign promise.

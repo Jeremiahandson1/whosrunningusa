@@ -7,11 +7,17 @@
  * industries and their specific votes. Determines whether votes align with,
  * contradict, or are neutral to donor interests.
  *
+ * Cost controls: requests go through the Message Batches API (50% of
+ * synchronous pricing), and each politician is marked in ai_analysis_state
+ * when submitted so a politician whose analysis found zero connections is
+ * not re-analyzed every night (re-analysis happens after 30 days, when new
+ * votes/donor data will have accumulated).
+ *
  * Usage:
- *   node scripts/generate-donor-vote-map.js
- *   node scripts/generate-donor-vote-map.js --dry-run
- *   node scripts/generate-donor-vote-map.js --politician-id <uuid>
- *   node scripts/generate-donor-vote-map.js --limit=20
+ *   node scripts/generate-donor-vote-map.cjs
+ *   node scripts/generate-donor-vote-map.cjs --dry-run
+ *   node scripts/generate-donor-vote-map.cjs --politician-id=<uuid>
+ *   node scripts/generate-donor-vote-map.cjs --limit=20 --poll-minutes=5
  *
  * Required env vars:
  *   DATABASE_URL
@@ -22,13 +28,18 @@ try { require('dotenv').config({ path: require('path').join(__dirname, '..', 'ba
 
 const { Pool } = require('pg');
 let Anthropic; try { Anthropic = require('@anthropic-ai/sdk'); } catch(_) { console.log('Skipping: @anthropic-ai/sdk not installed'); process.exit(0); }
+const { extractJson, collectPending, submitAndPoll, parsePollMs } = require('./lib/ai-batch.cjs');
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 if (!process.env.ANTHROPIC_API_KEY) { console.log("Skipping: ANTHROPIC_API_KEY not set"); process.exit(0); }
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+const MODEL = 'claude-sonnet-5';
+const JOB_TYPE = 'donor-map';
+const REANALYZE_AFTER = '30 days';
+
 function parseArgs() {
-  const args = { dryRun: false, politicianId: null, limit: 30 };
+  const args = { dryRun: false, politicianId: null, limit: 30, pollMs: parsePollMs(process.argv) };
   for (const arg of process.argv.slice(2)) {
     if (arg === '--dry-run') args.dryRun = true;
     else if (arg.startsWith('--politician-id=')) args.politicianId = arg.split('=')[1];
@@ -36,12 +47,6 @@ function parseArgs() {
   }
   return args;
 }
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-const BATCH_DELAY_MS = 2000;
 
 // ---------------------------------------------------------------------------
 // Data fetching
@@ -56,19 +61,30 @@ async function getPoliticiansWithDonorsAndVotes(args) {
     conditions.push(`cp.id = $${paramIndex}`);
     params.push(args.politicianId);
     paramIndex++;
+  } else {
+    // Skip anyone analyzed recently — a previous run that found zero
+    // connections still counts as analyzed (ai_analysis_state), otherwise
+    // the same politicians are re-analyzed (and re-billed) every night.
+    conditions.push(`NOT EXISTS (
+      SELECT 1 FROM donor_vote_connections dvc WHERE dvc.politician_id = cp.id
+    )`);
+    conditions.push(`NOT EXISTS (
+      SELECT 1 FROM ai_analysis_state s
+      WHERE s.politician_id = cp.id AND s.job_type = '${JOB_TYPE}'
+        AND s.analyzed_at > NOW() - INTERVAL '${REANALYZE_AFTER}'
+    )`);
   }
 
-  // Only politicians with both donor data and voting records
+  // Only politicians with both donor data and voting records; never-analyzed first
   const { rows } = await pool.query(
     `SELECT cp.id, cp.display_name, cp.party_affiliation, cp.fec_office_type, cp.fec_state
      FROM candidate_profiles cp
      WHERE ${conditions.join(' AND ')}
        AND EXISTS (SELECT 1 FROM politician_donor_industries pdi WHERE pdi.politician_id = cp.id)
        AND EXISTS (SELECT 1 FROM voting_records vr WHERE vr.candidate_id = cp.id)
-       AND NOT EXISTS (
-         SELECT 1 FROM donor_vote_connections dvc WHERE dvc.politician_id = cp.id
-       )
-     ORDER BY cp.display_name
+     ORDER BY (SELECT MAX(s.analyzed_at) FROM ai_analysis_state s
+               WHERE s.politician_id = cp.id AND s.job_type = '${JOB_TYPE}') ASC NULLS FIRST,
+              cp.display_name
      LIMIT $${paramIndex}`,
     [...params, args.limit]
   );
@@ -106,10 +122,10 @@ async function getVotingRecordWithBills(politicianId) {
 }
 
 // ---------------------------------------------------------------------------
-// Claude analysis
+// Batch request construction / result handling
 // ---------------------------------------------------------------------------
 
-async function analyzeConnections(politician, donors, votes) {
+function buildRequest(politician, donors, votes) {
   const payload = {
     politician: {
       name: politician.display_name,
@@ -133,14 +149,18 @@ async function analyzeConnections(politician, donors, votes) {
     })),
   };
 
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
-    system: `You are a nonpartisan campaign finance analyst. Analyze connections between campaign donors and votes. For each connection, determine if the vote aligned with, contradicted, or was neutral to the donor's likely interest. Use plain language. Return JSON only.`,
-    messages: [
-      {
-        role: 'user',
-        content: `Analyze the connections between this politician's donor industries and their specific votes. For each meaningful connection, return a JSON array of objects with:
+  return {
+    custom_id: politician.id,
+    params: {
+      model: MODEL,
+      // Sonnet 5 thinks by default and max_tokens caps thinking + reply
+      // together, so leave headroom or the JSON truncates.
+      max_tokens: 8192,
+      system: `You are a nonpartisan campaign finance analyst. Analyze connections between campaign donors and votes. For each connection, determine if the vote aligned with, contradicted, or was neutral to the donor's likely interest. Use plain language. Return JSON only.`,
+      messages: [
+        {
+          role: 'user',
+          content: `Analyze the connections between this politician's donor industries and their specific votes. For each meaningful connection, return a JSON array of objects with:
 - industry_name: the donor industry
 - bill_number: the bill voted on
 - vote_cast: how they voted (yes/no)
@@ -151,16 +171,61 @@ async function analyzeConnections(politician, donors, votes) {
 Only include connections where there's a plausible relationship between the donor industry and the bill. If no connections exist, return [].
 
 ${JSON.stringify(payload)}`
-      }
-    ]
-  });
+        }
+      ]
+    }
+  };
+}
 
-  const text = response.content[0].text.trim();
-  let jsonStr = text;
-  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fenceMatch) jsonStr = fenceMatch[1].trim();
+async function handleResult(politicianId, text) {
+  const connections = extractJson(text);
+  if (!Array.isArray(connections)) throw new Error('non-array response');
+  if (connections.length === 0) return;
 
-  return JSON.parse(jsonStr);
+  // Re-derive lookup context (batch results can arrive on a later run)
+  const [donors, votes] = await Promise.all([
+    getDonorIndustries(politicianId),
+    getVotingRecordWithBills(politicianId),
+  ]);
+
+  for (const conn of connections) {
+    const donorMatch = donors.find(d =>
+      d.industry_name.toLowerCase() === conn.industry_name?.toLowerCase()
+    );
+    const voteMatch = votes.find(v => v.bill_number === conn.bill_number);
+
+    await pool.query(
+      `INSERT INTO donor_vote_connections
+         (politician_id, donor_industry_id, industry_name, donation_total,
+          vote_event_id, bill_id, vote_cast, correlation_type,
+          description, ai_analysis, confidence_score)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      [
+        politicianId,
+        donorMatch?.id || null,
+        conn.industry_name,
+        donorMatch ? Number(donorMatch.total_amount) : null,
+        voteMatch?.vote_event_id || null,
+        voteMatch?.bill_id || null,
+        conn.vote_cast || null,
+        conn.correlation_type,
+        conn.description || null,
+        null,
+        conn.confidence_score || null,
+      ]
+    );
+  }
+  console.log(`    ${politicianId}: ${connections.length} connection(s)`);
+}
+
+async function markAnalyzed(politicianIds) {
+  if (politicianIds.length === 0) return;
+  await pool.query(
+    `INSERT INTO ai_analysis_state (politician_id, job_type, analyzed_at)
+     SELECT unnest($1::uuid[]), $2, NOW()
+     ON CONFLICT (politician_id, job_type) DO UPDATE SET analyzed_at = NOW()`,
+    [politicianIds, JOB_TYPE]
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -171,111 +236,65 @@ async function main() {
   const args = parseArgs();
 
   console.log('=== Donor-Vote Connection Map Generator ===');
+  console.log(`Model: ${MODEL} (batched)`);
   console.log(`Dry run: ${args.dryRun}`);
   console.log(`Limit: ${args.limit}`);
   if (args.politicianId) console.log(`Politician: ${args.politicianId}`);
   console.log('');
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error('ERROR: ANTHROPIC_API_KEY is required');
-    process.exit(1);
+  // 1. Collect batches from earlier runs
+  let collectedOk = 0;
+  if (!args.dryRun) {
+    const collected = await collectPending({ pool, anthropic, jobType: JOB_TYPE, onResult: handleResult });
+    collectedOk = collected.ok;
+    if (collected.ok || collected.failed) {
+      console.log(`Collected from earlier batches: ${collected.ok} ok, ${collected.failed} failed\n`);
+    }
   }
 
+  // 2. Build this run's requests
   const politicians = await getPoliticiansWithDonorsAndVotes(args);
   console.log(`Found ${politicians.length} politicians to process.\n`);
 
   if (politicians.length === 0) {
-    console.log('Nothing to process.');
+    console.log('Nothing to submit.');
+    console.log(`\n=== Summary ===\nCollected: ${collectedOk}\nSubmitted: 0`);
     return;
   }
 
-  let totalConnections = 0;
-  let totalProcessed = 0;
-  let totalErrors = 0;
-
+  const requests = [];
   for (const politician of politicians) {
-    try {
-      console.log(`Processing: ${politician.display_name}`);
-
-      const donors = await getDonorIndustries(politician.id);
-      const votes = await getVotingRecordWithBills(politician.id);
-
-      console.log(`  Donors: ${donors.length}, Votes: ${votes.length}`);
-
-      if (donors.length === 0 || votes.length === 0) {
-        console.log('  Skipped — insufficient data');
-        continue;
-      }
-
-      const connections = await analyzeConnections(politician, donors, votes);
-
-      if (!Array.isArray(connections)) {
-        console.log('  Skipped — non-array response');
-        totalErrors++;
-        continue;
-      }
-
-      console.log(`  Found ${connections.length} connections`);
-
-      for (const conn of connections) {
-        // Look up donor_industry_id
-        const donorMatch = donors.find(d =>
-          d.industry_name.toLowerCase() === conn.industry_name?.toLowerCase()
-        );
-
-        // Look up vote_event_id and bill_id by bill_number
-        const voteMatch = votes.find(v =>
-          v.bill_number === conn.bill_number
-        );
-
-        if (args.dryRun) {
-          console.log(`    [dry-run] ${conn.industry_name} → ${conn.bill_number}: ${conn.correlation_type} (${conn.confidence_score})`);
-          totalConnections++;
-          continue;
-        }
-
-        await pool.query(
-          `INSERT INTO donor_vote_connections
-             (politician_id, donor_industry_id, industry_name, donation_total,
-              vote_event_id, bill_id, vote_cast, correlation_type,
-              description, ai_analysis, confidence_score)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-          [
-            politician.id,
-            donorMatch?.id || null,
-            conn.industry_name,
-            donorMatch ? Number(donorMatch.total_amount) : null,
-            voteMatch?.vote_event_id || null,
-            voteMatch?.bill_id || null,
-            conn.vote_cast || null,
-            conn.correlation_type,
-            conn.description || null,
-            null,
-            conn.confidence_score || null,
-          ]
-        );
-
-        totalConnections++;
-      }
-
-      totalProcessed++;
-
-      // Rate limit between politicians
-      await sleep(BATCH_DELAY_MS);
-    } catch (err) {
-      if (err instanceof SyntaxError) {
-        console.warn(`  Skipped — invalid JSON from Claude`);
-      } else {
-        console.error(`  Error: ${err.message}`);
-      }
-      totalErrors++;
+    const [donors, votes] = await Promise.all([
+      getDonorIndustries(politician.id),
+      getVotingRecordWithBills(politician.id),
+    ]);
+    if (donors.length === 0 || votes.length === 0) {
+      console.log(`  ${politician.display_name}: skipped — insufficient data`);
+      continue;
     }
+    console.log(`  ${politician.display_name}: ${donors.length} donors, ${votes.length} votes`);
+    requests.push(buildRequest(politician, donors, votes));
   }
 
+  if (args.dryRun) {
+    console.log(`\n=== Summary ===\n[dry-run] Would submit ${requests.length} requests`);
+    return;
+  }
+
+  // 3. Submit, mark analyzed, poll
+  const { collected } = await submitAndPoll({
+    pool, anthropic, jobType: JOB_TYPE, requests, pollMs: args.pollMs, onResult: handleResult,
+  });
+  await markAnalyzed(requests.map(r => r.custom_id));
+
   console.log('\n=== Summary ===');
-  console.log(`Politicians processed: ${totalProcessed}`);
-  console.log(`Connections mapped: ${totalConnections}`);
-  console.log(`Errors: ${totalErrors}`);
+  console.log(`Collected from earlier batches: ${collectedOk}`);
+  console.log(`Submitted: ${requests.length}`);
+  if (collected) {
+    console.log(`Analyzed this run: ${collected.ok} (${collected.failed} failed)`);
+  } else {
+    console.log('Batch still processing — next run will collect the results.');
+  }
 }
 
 main()

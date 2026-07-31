@@ -7,11 +7,16 @@
  * vote event and bill in the database. Explanations cover what the bill does,
  * what the vote means, and who it affects.
  *
+ * Cost controls: requests go through the Message Batches API (50% of
+ * synchronous pricing) on claude-haiku-4-5 — this is a simple summarization
+ * task. A batch that doesn't finish within the poll budget is collected by
+ * the next run via ai_batch_jobs.
+ *
  * Usage:
- *   node scripts/generate-vote-explanations.js
- *   node scripts/generate-vote-explanations.js --dry-run
- *   node scripts/generate-vote-explanations.js --bill-id <uuid>
- *   node scripts/generate-vote-explanations.js --limit=50
+ *   node scripts/generate-vote-explanations.cjs
+ *   node scripts/generate-vote-explanations.cjs --dry-run
+ *   node scripts/generate-vote-explanations.cjs --bill-id=<uuid>
+ *   node scripts/generate-vote-explanations.cjs --limit=50 --poll-minutes=5
  *
  * Required env vars:
  *   DATABASE_URL
@@ -22,13 +27,17 @@ try { require('dotenv').config({ path: require('path').join(__dirname, '..', 'ba
 
 const { Pool } = require('pg');
 let Anthropic; try { Anthropic = require('@anthropic-ai/sdk'); } catch(_) { console.log('Skipping: @anthropic-ai/sdk not installed'); process.exit(0); }
+const { extractJson, collectPending, submitAndPoll, parsePollMs } = require('./lib/ai-batch.cjs');
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 if (!process.env.ANTHROPIC_API_KEY) { console.log("Skipping: ANTHROPIC_API_KEY not set"); process.exit(0); }
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+const MODEL = 'claude-haiku-4-5';
+const JOB_TYPE = 'explanations';
+
 function parseArgs() {
-  const args = { dryRun: false, billId: null, limit: 100 };
+  const args = { dryRun: false, billId: null, limit: 100, pollMs: parsePollMs(process.argv) };
   for (const arg of process.argv.slice(2)) {
     if (arg === '--dry-run') args.dryRun = true;
     else if (arg.startsWith('--bill-id=')) args.billId = arg.split('=')[1];
@@ -36,13 +45,6 @@ function parseArgs() {
   }
   return args;
 }
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-const BATCH_SIZE = 5;
-const BATCH_DELAY_MS = 2000;
 
 // ---------------------------------------------------------------------------
 // Fetch bills/votes that need explanations
@@ -58,10 +60,6 @@ async function getBillsNeedingExplanations(args) {
     params.push(args.billId);
     paramIndex++;
   }
-
-  const where = conditions.length > 0
-    ? `WHERE ${conditions.join(' AND ')}`
-    : '';
 
   const { rows } = await pool.query(
     `SELECT b.id as bill_id, b.title, b.bill_number, b.description, b.summary,
@@ -102,10 +100,10 @@ async function getVoteEventsNeedingExplanations(args) {
 }
 
 // ---------------------------------------------------------------------------
-// Claude explanation generator
+// Batch request construction / result handling
 // ---------------------------------------------------------------------------
 
-async function generateExplanation(item) {
+function buildRequest(item) {
   const hasBill = !!item.bill_number;
   const context = hasBill
     ? `Bill: ${item.bill_number} — ${item.title}\nDescription: ${item.description || item.summary || 'No description available'}\nCategories: ${(item.categories || []).join(', ') || 'N/A'}\nChamber: ${item.chamber || 'N/A'}`
@@ -115,30 +113,62 @@ async function generateExplanation(item) {
     ? `\nVote date: ${item.vote_date}\nResult: ${item.result || 'N/A'}\nYes: ${item.yes_count || 0}, No: ${item.no_count || 0}, Abstain: ${item.abstain_count || 0}`
     : '';
 
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 1024,
-    system: `You are a civic educator who explains government actions in plain English at an 8th-grade reading level. No jargon. No partisan language. Short sentences. Be specific about who this affects and how. Return JSON only.`,
-    messages: [
-      {
-        role: 'user',
-        content: `Explain this ${hasBill ? 'bill and vote' : 'vote'} in plain English. Return a JSON object with these fields:
+  // custom_id max is 64 chars, so only one uuid fits; the collect side
+  // re-derives bill_id for ve_ items from vote_events.
+  const customId = item.vote_event_id ? `ve_${item.vote_event_id}` : `b_${item.bill_id}`;
+
+  return {
+    custom_id: customId,
+    params: {
+      model: MODEL,
+      max_tokens: 1024,
+      system: `You are a civic educator who explains government actions in plain English at an 8th-grade reading level. No jargon. No partisan language. Short sentences. Be specific about who this affects and how. Return JSON only.`,
+      messages: [
+        {
+          role: 'user',
+          content: `Explain this ${hasBill ? 'bill and vote' : 'vote'} in plain English. Return a JSON object with these fields:
 - plain_language_title: A clear, simple title (under 100 characters)
 - plain_language_summary: 2-3 sentences explaining what this is about in simple terms
 - what_it_means: 1-2 sentences on what the practical impact is
 - who_it_affects: 1-2 sentences on which Americans are affected
 
 ${context}${voteContext}`
-      }
+        }
+      ]
+    }
+  };
+}
+
+async function handleResult(customId, text) {
+  const explanation = extractJson(text);
+  let voteEventId = null;
+  let billId = null;
+
+  if (customId.startsWith('ve_')) {
+    voteEventId = customId.slice(3);
+    const { rows } = await pool.query(`SELECT bill_id FROM vote_events WHERE id = $1`, [voteEventId]);
+    billId = rows[0]?.bill_id || null;
+  } else if (customId.startsWith('b_')) {
+    billId = customId.slice(2);
+  } else {
+    throw new Error(`Unrecognized custom_id: ${customId}`);
+  }
+
+  await pool.query(
+    `INSERT INTO vote_explanations
+       (vote_event_id, bill_id, plain_language_title, plain_language_summary,
+        what_it_means, who_it_affects, reading_level, generated_by)
+     VALUES ($1, $2, $3, $4, $5, $6, 8.0, 'ai')
+     ON CONFLICT DO NOTHING`,
+    [
+      voteEventId,
+      billId,
+      explanation.plain_language_title,
+      explanation.plain_language_summary,
+      explanation.what_it_means || null,
+      explanation.who_it_affects || null,
     ]
-  });
-
-  const text = response.content[0].text.trim();
-  let jsonStr = text;
-  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fenceMatch) jsonStr = fenceMatch[1].trim();
-
-  return JSON.parse(jsonStr);
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -149,90 +179,68 @@ async function main() {
   const args = parseArgs();
 
   console.log('=== Plain Language Vote Explanation Generator ===');
+  console.log(`Model: ${MODEL} (batched)`);
   console.log(`Dry run: ${args.dryRun}`);
   console.log(`Limit: ${args.limit}`);
   if (args.billId) console.log(`Bill ID: ${args.billId}`);
   console.log('');
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error('ERROR: ANTHROPIC_API_KEY is required');
-    process.exit(1);
+  // 1. Collect batches submitted by earlier runs
+  let collectedOk = 0;
+  if (!args.dryRun) {
+    const collected = await collectPending({ pool, anthropic, jobType: JOB_TYPE, onResult: handleResult });
+    collectedOk = collected.ok;
+    if (collected.ok || collected.failed) {
+      console.log(`Collected from earlier batches: ${collected.ok} ok, ${collected.failed} failed\n`);
+    }
   }
 
-  // Fetch items needing explanations
+  // 2. Fetch items still needing explanations (collect above may have shrunk this)
   const billItems = await getBillsNeedingExplanations(args);
   const voteOnlyItems = await getVoteEventsNeedingExplanations(args);
-  const allItems = [...billItems, ...voteOnlyItems];
+  const allItems = [...billItems, ...voteOnlyItems].slice(0, args.limit);
 
   console.log(`Found ${billItems.length} bills and ${voteOnlyItems.length} standalone votes needing explanations.`);
-  console.log(`Total to process: ${allItems.length}\n`);
+  console.log(`Submitting: ${allItems.length}\n`);
 
   if (allItems.length === 0) {
-    console.log('Nothing to process. All votes have explanations.');
+    console.log('Nothing to submit.');
+    console.log(`\n=== Summary ===\nCollected: ${collectedOk}\nSubmitted: 0`);
     return;
   }
 
-  let generated = 0;
-  let errors = 0;
-
-  for (let i = 0; i < allItems.length; i += BATCH_SIZE) {
-    const batch = allItems.slice(i, i + BATCH_SIZE);
-    const batchNum = Math.floor(i / BATCH_SIZE) + 1;
-    const totalBatches = Math.ceil(allItems.length / BATCH_SIZE);
-
-    console.log(`Batch ${batchNum}/${totalBatches} (${batch.length} items)`);
-
-    for (const item of batch) {
-      const label = item.bill_number || item.motion_text?.slice(0, 60) || item.vote_event_id;
-      try {
-        console.log(`  Processing: ${label}`);
-
-        const explanation = await generateExplanation(item);
-
-        if (args.dryRun) {
-          console.log(`    [dry-run] Title: ${explanation.plain_language_title}`);
-          console.log(`    [dry-run] Summary: ${explanation.plain_language_summary?.slice(0, 100)}...`);
-          generated++;
-          continue;
-        }
-
-        await pool.query(
-          `INSERT INTO vote_explanations
-             (vote_event_id, bill_id, plain_language_title, plain_language_summary,
-              what_it_means, who_it_affects, reading_level, generated_by)
-           VALUES ($1, $2, $3, $4, $5, $6, 8.0, 'ai')
-           ON CONFLICT DO NOTHING`,
-          [
-            item.vote_event_id || null,
-            item.bill_id || null,
-            explanation.plain_language_title,
-            explanation.plain_language_summary,
-            explanation.what_it_means || null,
-            explanation.who_it_affects || null,
-          ]
-        );
-
-        generated++;
-        console.log(`    Done: "${explanation.plain_language_title}"`);
-      } catch (err) {
-        if (err instanceof SyntaxError) {
-          console.warn(`    Skipped — invalid JSON from Claude for: ${label}`);
-        } else {
-          console.error(`    Error: ${err.message}`);
-        }
-        errors++;
-      }
-    }
-
-    if (i + BATCH_SIZE < allItems.length) {
-      console.log(`  Waiting ${BATCH_DELAY_MS}ms...`);
-      await sleep(BATCH_DELAY_MS);
-    }
+  // Dedupe by custom_id (a bill with several unexplained votes yields one row per vote)
+  const seen = new Set();
+  const requests = [];
+  for (const item of allItems) {
+    const req = buildRequest(item);
+    if (seen.has(req.custom_id)) continue;
+    seen.add(req.custom_id);
+    requests.push(req);
   }
 
+  if (args.dryRun) {
+    for (const req of requests.slice(0, 10)) {
+      console.log(`  [dry-run] Would submit: ${req.custom_id}`);
+    }
+    if (requests.length > 10) console.log(`  [dry-run] ...and ${requests.length - 10} more`);
+    console.log(`\n=== Summary ===\n[dry-run] Would submit ${requests.length} requests`);
+    return;
+  }
+
+  // 3. Submit and poll
+  const { collected } = await submitAndPoll({
+    pool, anthropic, jobType: JOB_TYPE, requests, pollMs: args.pollMs, onResult: handleResult,
+  });
+
   console.log('\n=== Summary ===');
-  console.log(`Explanations generated: ${generated}`);
-  console.log(`Errors: ${errors}`);
+  console.log(`Collected from earlier batches: ${collectedOk}`);
+  console.log(`Submitted: ${requests.length}`);
+  if (collected) {
+    console.log(`Generated this run: ${collected.ok} (${collected.failed} failed)`);
+  } else {
+    console.log('Batch still processing — next run will collect the results.');
+  }
 }
 
 main()

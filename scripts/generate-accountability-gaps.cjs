@@ -7,33 +7,43 @@
  * statements using Claude to identify genuine inconsistencies. Results are
  * stored in the accountability_gaps table and scores are recomputed.
  *
+ * Cost controls: requests go through the Message Batches API (50% of
+ * synchronous pricing), each politician is marked in ai_analysis_state when
+ * submitted and not re-analyzed for 30 days (previously this script
+ * re-analyzed every eligible politician every night), and a nightly cap
+ * (--limit, default 60) bounds the worst case.
+ *
  * Usage:
- *   node scripts/generate-accountability-gaps.js
- *   node scripts/generate-accountability-gaps.js --dry-run
- *   node scripts/generate-accountability-gaps.js --politician-id <uuid>
+ *   node scripts/generate-accountability-gaps.cjs
+ *   node scripts/generate-accountability-gaps.cjs --dry-run
+ *   node scripts/generate-accountability-gaps.cjs --politician-id <uuid>
+ *   node scripts/generate-accountability-gaps.cjs --limit=20 --poll-minutes=5
  */
 
 try { require('dotenv').config({ path: require('path').join(__dirname, '..', 'backend', '.env') }); } catch(_) {}
 
 const { Pool } = require('pg');
 let Anthropic; try { Anthropic = require('@anthropic-ai/sdk'); } catch(_) { console.log('Skipping: @anthropic-ai/sdk not installed'); process.exit(0); }
+const { extractJson, collectPending, submitAndPoll, parsePollMs } = require('./lib/ai-batch.cjs');
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 if (!process.env.ANTHROPIC_API_KEY) { console.log("Skipping: ANTHROPIC_API_KEY not set"); process.exit(0); }
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+const MODEL = 'claude-sonnet-5';
+const JOB_TYPE = 'gaps';
+const REANALYZE_AFTER = '30 days';
+
 // Parse CLI flags
-const args = process.argv.slice(2);
-const dryRun = args.includes('--dry-run');
-const politicianIdIdx = args.indexOf('--politician-id');
-const singlePoliticianId = politicianIdIdx !== -1 ? args[politicianIdIdx + 1] : null;
+const argv = process.argv.slice(2);
+const dryRun = argv.includes('--dry-run');
+const politicianIdIdx = argv.indexOf('--politician-id');
+const singlePoliticianId = politicianIdIdx !== -1 ? argv[politicianIdIdx + 1] : null;
+const limitArg = argv.find(a => a.startsWith('--limit='));
+const limit = limitArg ? parseInt(limitArg.split('=')[1], 10) : 60;
+const pollMs = parsePollMs(argv);
 
-const BATCH_SIZE = 5;
-const BATCH_DELAY_MS = 2000;
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+let gapsInserted = 0;
 
 async function getFederalPoliticians() {
   const params = [];
@@ -43,18 +53,26 @@ async function getFederalPoliticians() {
     whereClause += ' AND cp.id = $1';
     params.push(singlePoliticianId);
   } else {
-    // Only iterate politicians with the minimum data needed for analysis.
-    // Without this, ~6k profiles get loaded and skipped one-by-one, and the
-    // 2s inter-batch sleep alone blows past the 30-min cron timeout.
+    // Only iterate politicians with the minimum data needed for analysis,
+    // skipping anyone analyzed within the re-analysis window — without that
+    // gate this script re-analyzed (and re-billed) all ~450 every night.
     whereClause += ` AND EXISTS (SELECT 1 FROM politician_donor_industries WHERE politician_id = cp.id)
-                     AND EXISTS (SELECT 1 FROM voting_records WHERE candidate_id = cp.id)`;
+                     AND EXISTS (SELECT 1 FROM voting_records WHERE candidate_id = cp.id)
+                     AND NOT EXISTS (
+                       SELECT 1 FROM ai_analysis_state s
+                       WHERE s.politician_id = cp.id AND s.job_type = '${JOB_TYPE}'
+                         AND s.analyzed_at > NOW() - INTERVAL '${REANALYZE_AFTER}'
+                     )`;
   }
 
   const { rows } = await pool.query(
     `SELECT cp.id, cp.display_name, cp.party_affiliation, cp.fec_office_type, cp.fec_state, cp.fec_district
      FROM candidate_profiles cp
      ${whereClause}
-     ORDER BY cp.display_name`,
+     ORDER BY (SELECT MAX(s.analyzed_at) FROM ai_analysis_state s
+               WHERE s.politician_id = cp.id AND s.job_type = '${JOB_TYPE}') ASC NULLS FIRST,
+              cp.display_name
+     LIMIT ${limit}`,
     params
   );
   return rows;
@@ -101,7 +119,11 @@ async function getPublicStatements(politicianId) {
   return rows;
 }
 
-async function analyzeWithClaude(politician, donors, votes, statements) {
+// ---------------------------------------------------------------------------
+// Batch request construction / result handling
+// ---------------------------------------------------------------------------
+
+function buildRequest(politician, donors, votes, statements) {
   const userMessage = JSON.stringify({
     politician: {
       name: politician.display_name,
@@ -129,33 +151,29 @@ async function analyzeWithClaude(politician, donors, votes, statements) {
     }))
   });
 
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
-    system:
-      'You are a nonpartisan accountability analyst. Identify genuine inconsistencies between this politician\'s donor funding, voting record, and public statements. Only flag what the data actually shows. No partisan language. Rate severity 1-10. Return JSON only.',
-    messages: [
-      {
-        role: 'user',
-        content: `Analyze the following politician data for accountability gaps. Return a JSON array of gaps. Each gap object must have: gap_type ("donor_vote" | "statement_vote" | "statement_donor"), stated_position (string), actual_action (string), gap_severity (integer 1-10), analysis (string), topic_tag (string). If no genuine gaps exist, return an empty array [].\n\n${userMessage}`
-      }
-    ]
-  });
-
-  const text = response.content[0].text.trim();
-
-  // Extract JSON from response — handle possible markdown fences
-  let jsonStr = text;
-  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fenceMatch) {
-    jsonStr = fenceMatch[1].trim();
-  }
-
-  return JSON.parse(jsonStr);
+  return {
+    custom_id: politician.id,
+    params: {
+      model: MODEL,
+      // Sonnet 5 thinks by default and max_tokens caps thinking + reply
+      // together, so leave headroom or the JSON truncates.
+      max_tokens: 8192,
+      system:
+        'You are a nonpartisan accountability analyst. Identify genuine inconsistencies between this politician\'s donor funding, voting record, and public statements. Only flag what the data actually shows. No partisan language. Rate severity 1-10. Return JSON only.',
+      messages: [
+        {
+          role: 'user',
+          content: `Analyze the following politician data for accountability gaps. Return a JSON array of gaps. Each gap object must have: gap_type ("donor_vote" | "statement_vote" | "statement_donor"), stated_position (string), actual_action (string), gap_severity (integer 1-10), analysis (string), topic_tag (string). If no genuine gaps exist, return an empty array [].\n\n${userMessage}`
+        }
+      ]
+    }
+  };
 }
 
-async function insertGaps(politicianId, gaps) {
-  let inserted = 0;
+async function handleResult(politicianId, text) {
+  const gaps = extractJson(text);
+  if (!Array.isArray(gaps)) throw new Error('non-array response');
+
   for (const gap of gaps) {
     await pool.query(
       `INSERT INTO accountability_gaps
@@ -171,9 +189,19 @@ async function insertGaps(politicianId, gaps) {
         gap.topic_tag
       ]
     );
-    inserted++;
+    gapsInserted++;
   }
-  return inserted;
+  if (gaps.length > 0) console.log(`    ${politicianId}: ${gaps.length} gap(s)`);
+}
+
+async function markAnalyzed(politicianIds) {
+  if (politicianIds.length === 0) return;
+  await pool.query(
+    `INSERT INTO ai_analysis_state (politician_id, job_type, analyzed_at)
+     SELECT unnest($1::uuid[]), $2, NOW()
+     ON CONFLICT (politician_id, job_type) DO UPDATE SET analyzed_at = NOW()`,
+    [politicianIds, JOB_TYPE]
+  );
 }
 
 async function recomputeScores() {
@@ -236,98 +264,75 @@ async function recomputeScores() {
 
 async function main() {
   console.log('=== Accountability Gap Generator ===');
+  console.log(`Model: ${MODEL} (batched)`);
+  console.log(`Limit: ${limit}`);
   if (dryRun) console.log('DRY RUN — no database writes will occur.');
   if (singlePoliticianId) console.log(`Processing single politician: ${singlePoliticianId}`);
 
+  // 1. Collect batches from earlier runs
+  let collectedOk = 0;
+  if (!dryRun) {
+    const collected = await collectPending({ pool, anthropic, jobType: JOB_TYPE, onResult: handleResult });
+    collectedOk = collected.ok;
+    if (collected.ok || collected.failed) {
+      console.log(`Collected from earlier batches: ${collected.ok} ok, ${collected.failed} failed\n`);
+    }
+  }
+
+  // 2. Build this run's requests
   const politicians = await getFederalPoliticians();
   console.log(`Found ${politicians.length} federal politician(s) to process.`);
 
-  if (politicians.length === 0) {
-    console.log('No politicians to process. Exiting.');
+  const requests = [];
+  let totalSkipped = 0;
+  for (const politician of politicians) {
+    const [donors, votes, statements] = await Promise.all([
+      getDonorIndustries(politician.id),
+      getVotingRecords(politician.id),
+      getPublicStatements(politician.id)
+    ]);
+
+    // Must have both donor data AND voting records to analyze
+    if (donors.length === 0 || votes.length === 0) {
+      totalSkipped++;
+      continue;
+    }
+    console.log(`  ${politician.display_name}: ${donors.length} donors, ${votes.length} votes, ${statements.length} statements`);
+    requests.push(buildRequest(politician, donors, votes, statements));
+  }
+
+  if (dryRun) {
+    console.log(`\n=== Summary ===\n[dry-run] Would submit ${requests.length} requests (${totalSkipped} skipped)`);
     process.exit(0);
   }
 
-  let totalProcessed = 0;
-  let totalGapsFound = 0;
-  let totalSkipped = 0;
-  let totalErrors = 0;
-
-  // Process in batches
-  for (let i = 0; i < politicians.length; i += BATCH_SIZE) {
-    const batch = politicians.slice(i, i + BATCH_SIZE);
-    const batchNum = Math.floor(i / BATCH_SIZE) + 1;
-    const totalBatches = Math.ceil(politicians.length / BATCH_SIZE);
-    console.log(`\nBatch ${batchNum}/${totalBatches} (${batch.length} politicians)`);
-
-    for (const politician of batch) {
-      try {
-        console.log(`  Processing: ${politician.display_name} (${politician.id})`);
-
-        const [donors, votes, statements] = await Promise.all([
-          getDonorIndustries(politician.id),
-          getVotingRecords(politician.id),
-          getPublicStatements(politician.id)
-        ]);
-
-        console.log(`    Donors: ${donors.length}, Votes: ${votes.length}, Statements: ${statements.length}`);
-
-        // Must have both donor data AND voting records to analyze
-        if (donors.length === 0 || votes.length === 0) {
-          console.log('    Skipped — insufficient data (need both donors and votes).');
-          totalSkipped++;
-          continue;
-        }
-
-        const gaps = await analyzeWithClaude(politician, donors, votes, statements);
-
-        if (!Array.isArray(gaps)) {
-          console.log('    Skipped — Claude returned non-array response.');
-          totalErrors++;
-          continue;
-        }
-
-        console.log(`    Found ${gaps.length} gap(s).`);
-
-        if (!dryRun && gaps.length > 0) {
-          const inserted = await insertGaps(politician.id, gaps);
-          console.log(`    Inserted ${inserted} gap(s) into database.`);
-        } else if (dryRun && gaps.length > 0) {
-          for (const gap of gaps) {
-            console.log(`    [DRY RUN] Would insert: ${gap.gap_type} (severity ${gap.gap_severity}) — ${gap.topic_tag}`);
-          }
-        }
-
-        totalProcessed++;
-        totalGapsFound += gaps.length;
-      } catch (err) {
-        if (err instanceof SyntaxError) {
-          console.log(`    Skipped — Claude returned invalid JSON: ${err.message}`);
-        } else {
-          console.error(`    Error processing ${politician.display_name}: ${err.message}`);
-        }
-        totalErrors++;
-      }
-    }
-
-    // Delay between batches to respect rate limits
-    if (i + BATCH_SIZE < politicians.length) {
-      console.log(`  Waiting ${BATCH_DELAY_MS}ms before next batch...`);
-      await sleep(BATCH_DELAY_MS);
-    }
+  if (requests.length === 0 && gapsInserted === 0) {
+    console.log('Nothing to submit.');
+    console.log(`\n=== Summary ===\nCollected: ${collectedOk}\nSubmitted: 0`);
+    process.exit(0);
   }
 
-  // Recompute scores
-  if (!dryRun && totalGapsFound > 0) {
+  // 3. Submit, mark analyzed, poll
+  let collected = null;
+  if (requests.length > 0) {
+    ({ collected } = await submitAndPoll({
+      pool, anthropic, jobType: JOB_TYPE, requests, pollMs, onResult: handleResult,
+    }));
+    await markAnalyzed(requests.map(r => r.custom_id));
+  }
+
+  // 4. Recompute scores if anything landed (this run or collected from earlier)
+  if (gapsInserted > 0) {
     await recomputeScores();
-  } else if (dryRun) {
-    console.log('\n[DRY RUN] Skipping score recomputation.');
   }
 
   console.log('\n=== Summary ===');
-  console.log(`Processed: ${totalProcessed}`);
-  console.log(`Skipped (insufficient data): ${totalSkipped}`);
-  console.log(`Errors: ${totalErrors}`);
-  console.log(`Total gaps found: ${totalGapsFound}`);
+  console.log(`Collected from earlier batches: ${collectedOk}`);
+  console.log(`Submitted: ${requests.length} (${totalSkipped} skipped for insufficient data)`);
+  console.log(`Gaps inserted this run: ${gapsInserted}`);
+  if (requests.length > 0 && !collected) {
+    console.log('Batch still processing — next run will collect the results.');
+  }
 
   process.exit(0);
 }
