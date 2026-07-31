@@ -14,6 +14,18 @@ const scopeLevels = [
   { value: 'city', label: 'City/Local' },
 ]
 
+const STATE_NAMES = {
+  AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',
+  CT:'Connecticut',DE:'Delaware',DC:'District of Columbia',FL:'Florida',GA:'Georgia',
+  HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',
+  LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',
+  MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',
+  NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',
+  OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',
+  SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',
+  WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming'
+}
+
 function RacesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [races, setRaces] = useState([])
@@ -140,9 +152,19 @@ function RacesPage() {
 
         {!loading && elections.length > 0 && (() => {
           const now = new Date()
+          // Respect the page's search box: without this, a search that
+          // correctly narrows the race list below still shows all 50 states'
+          // election cards up top, making the whole page look unfiltered.
+          const q = debouncedSearch.trim().toLowerCase()
           const upcoming = elections.filter(el => {
-            if (!el.election_date) return true
-            return new Date(el.election_date) >= now
+            if (el.election_date && new Date(el.election_date) < now) return false
+            if (!q) return true
+            const stateName = el.state ? (STATE_NAMES[el.state] || '') : ''
+            return (
+              (el.name || '').toLowerCase().includes(q) ||
+              (el.state || '').toLowerCase() === q ||
+              stateName.toLowerCase().includes(q)
+            )
           })
           if (upcoming.length === 0) return null
           return (
