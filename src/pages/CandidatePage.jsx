@@ -213,7 +213,7 @@ function CandidatePage() {
       // etc.) often lack race_id on the candidate row, so fall back to
       // /races?incumbent_id=... to find their upcoming race.
       if (c?.race_id) {
-        api.get(`/candidates?raceId=${c.race_id}`).then(data => {
+        api.get(`/candidates?raceId=${c.race_id}&limit=200`).then(data => {
           const others = (data.candidates || []).filter(rc => rc.id !== c.id)
           setRelatedCandidates(others)
         }).catch(() => setRelatedCandidates([]))

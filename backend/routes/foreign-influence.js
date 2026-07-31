@@ -5,12 +5,16 @@ const db = require('../db');
 // GET / — overview stats for foreign influence tracking
 router.get('/', async (req, res, next) => {
   try {
+    // Contract dollar values and itemized congressional contacts are NOT in
+    // the FARA eFile JSON API (they live in supplemental-statement PDFs), so
+    // don't present zeroed stats for them — report what we actually ingest.
     const statsQuery = `
       SELECT
         (SELECT COUNT(*) FROM fara_registrants) as total_registrants,
         (SELECT COUNT(*) FROM fara_principals) as total_principals,
-        (SELECT COALESCE(SUM(contract_amount), 0) FROM fara_contracts) as total_contract_value,
-        (SELECT COUNT(*) FROM fara_contacts) as total_contacts
+        (SELECT COUNT(DISTINCT country) FROM fara_principals
+          WHERE country IS NOT NULL AND country <> '') as countries_represented,
+        (SELECT COUNT(DISTINCT registrant_id) FROM fara_contracts) as registrants_with_principals
     `;
     const statsResult = await db.query(statsQuery);
 
@@ -28,8 +32,8 @@ router.get('/', async (req, res, next) => {
       stats: {
         totalRegistrants: parseInt(row.total_registrants),
         totalPrincipals: parseInt(row.total_principals),
-        totalContractValue: parseFloat(row.total_contract_value),
-        totalContacts: parseInt(row.total_contacts),
+        countriesRepresented: parseInt(row.countries_represented),
+        registrantsWithPrincipals: parseInt(row.registrants_with_principals),
       },
       topCountries: topCountriesResult.rows,
     });

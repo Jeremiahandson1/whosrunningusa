@@ -21,7 +21,7 @@ function RaceDetailPage() {
     setLoading(true)
     const fetches = [
       api.get(`/races/${id}`).catch(() => null),
-      api.get(`/candidates?raceId=${id}`).catch(() => ({ candidates: [] })),
+      api.get(`/candidates?raceId=${id}&limit=200`).catch(() => ({ candidates: [] })),
     ]
 
     // Check if user is watching this race

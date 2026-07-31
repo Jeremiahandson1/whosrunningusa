@@ -132,7 +132,7 @@ function VotingGuidePage() {
   const openPicker = async (raceId) => {
     setPickingRace(raceId)
     try {
-      const data = await api.get(`/candidates?raceId=${raceId}`)
+      const data = await api.get(`/candidates?raceId=${raceId}&limit=200`)
       setRaceCandidates(data.candidates || [])
     } catch {
       setRaceCandidates([])

@@ -653,7 +653,7 @@ function ForeignInfluencePage() {
           <Globe size={36} /> Foreign Influence Tracker
         </h1>
         <p style={{ fontSize: 'clamp(1rem, 2.5vw, 1.2rem)', color: '#94a3b8', margin: 0, maxWidth: 700, marginLeft: 'auto', marginRight: 'auto' }}>
-          Every foreign agent registered under FARA. Every dollar spent lobbying Congress. Every contact with your representatives.
+          Every foreign agent registered under FARA — who they work for, and which countries they represent.
         </p>
       </section>
 
@@ -663,9 +663,9 @@ function ForeignInfluencePage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 24 }}>
             {[
               { label: 'Total Registrants', value: stats.totalRegistrants, icon: <Building2 size={20} /> },
-              { label: 'Foreign Principals', value: stats.totalPrincipals, icon: <Globe size={20} /> },
-              { label: 'Contract Value', value: formatDollars(stats.totalContractValue), icon: <DollarSign size={20} />, raw: true },
-              { label: 'Congressional Contacts', value: stats.totalContacts, icon: <Users size={20} /> },
+              { label: 'Foreign Principals', value: stats.totalPrincipals, icon: <Users size={20} /> },
+              { label: 'Countries Represented', value: stats.countriesRepresented, icon: <Globe size={20} /> },
+              { label: 'Registrants w/ Foreign Clients', value: stats.registrantsWithPrincipals, icon: <DollarSign size={20} /> },
             ].map((s, i) => (
               <div key={i} style={{ background: '#fff', borderRadius: 12, padding: '16px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', textAlign: 'center' }}>
                 <div style={{ color: '#475569', marginBottom: 6 }}>{s.icon}</div>
