@@ -54,6 +54,8 @@
     "compute:promises": "node ../scripts/compute-promise-scores.cjs",
     "compute:rubber-stamp": "node ../scripts/compute-rubber-stamp.cjs",
     "compute:gerrymandering": "node ../scripts/compute-gerrymandering.cjs",
+    "import:district-results": "node ../scripts/import-district-results.cjs",
+    "import:district-results:dry": "node ../scripts/import-district-results.cjs --dry-run",
     "check:pac-violations": "node ../scripts/check-pac-violations.cjs",
     "check:pac-violations:dry": "node ../scripts/check-pac-violations.cjs --dry-run",
     "scan:conflicts": "node ../scripts/scan-conflicts.cjs",
