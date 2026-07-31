@@ -75,13 +75,18 @@ async function getPoliticiansWithDonorsAndVotes(args) {
     )`);
   }
 
-  // Only politicians with both donor data and voting records; never-analyzed first
+  // Only politicians with donor data and BILL-LINKED votes — unlinked
+  // procedural votes ("On Passage" with no bill) carry no subject matter, so
+  // the model correctly returns [] for them and the state marker then blocks
+  // re-analysis for 30 days. Don't burn a slot until there's real input.
   const { rows } = await pool.query(
     `SELECT cp.id, cp.display_name, cp.party_affiliation, cp.fec_office_type, cp.fec_state
      FROM candidate_profiles cp
      WHERE ${conditions.join(' AND ')}
        AND EXISTS (SELECT 1 FROM politician_donor_industries pdi WHERE pdi.politician_id = cp.id)
-       AND EXISTS (SELECT 1 FROM voting_records vr WHERE vr.candidate_id = cp.id)
+       AND EXISTS (SELECT 1 FROM voting_records vr
+                   JOIN vote_events ve ON ve.id = vr.vote_event_id
+                   WHERE vr.candidate_id = cp.id AND ve.bill_id IS NOT NULL)
      ORDER BY (SELECT MAX(s.analyzed_at) FROM ai_analysis_state s
                WHERE s.politician_id = cp.id AND s.job_type = '${JOB_TYPE}') ASC NULLS FIRST,
               cp.display_name
@@ -111,9 +116,9 @@ async function getVotingRecordWithBills(politicianId) {
             b.bill_number, b.categories, b.description
      FROM voting_records vr
      JOIN vote_events ve ON vr.vote_event_id = ve.id
-     LEFT JOIN bills b ON ve.bill_id = b.id
+     JOIN bills b ON ve.bill_id = b.id
      WHERE vr.candidate_id = $1
-       AND COALESCE(b.title, ve.motion_text) IS NOT NULL
+       AND b.title IS NOT NULL
      ORDER BY ve.vote_date DESC
      LIMIT 30`,
     [politicianId]

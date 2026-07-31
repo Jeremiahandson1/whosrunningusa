@@ -57,7 +57,9 @@ async function getFederalPoliticians() {
     // skipping anyone analyzed within the re-analysis window — without that
     // gate this script re-analyzed (and re-billed) all ~450 every night.
     whereClause += ` AND EXISTS (SELECT 1 FROM politician_donor_industries WHERE politician_id = cp.id)
-                     AND EXISTS (SELECT 1 FROM voting_records WHERE candidate_id = cp.id)
+                     AND EXISTS (SELECT 1 FROM voting_records vr
+                                 JOIN vote_events ve ON ve.id = vr.vote_event_id
+                                 WHERE vr.candidate_id = cp.id AND ve.bill_id IS NOT NULL)
                      AND NOT EXISTS (
                        SELECT 1 FROM ai_analysis_state s
                        WHERE s.politician_id = cp.id AND s.job_type = '${JOB_TYPE}'
@@ -92,14 +94,14 @@ async function getDonorIndustries(politicianId) {
 
 async function getVotingRecords(politicianId) {
   const { rows } = await pool.query(
-    `SELECT COALESCE(b.title, ve.motion_text) AS bill_title,
+    `SELECT b.title AS bill_title,
             b.categories AS bill_categories,
             vr.vote, ve.vote_date
      FROM voting_records vr
      JOIN vote_events ve ON ve.id = vr.vote_event_id
-     LEFT JOIN bills b ON b.id = ve.bill_id
+     JOIN bills b ON b.id = ve.bill_id
      WHERE vr.candidate_id = $1
-       AND COALESCE(b.title, ve.motion_text) IS NOT NULL
+       AND b.title IS NOT NULL
      ORDER BY ve.vote_date DESC
      LIMIT 50`,
     [politicianId]

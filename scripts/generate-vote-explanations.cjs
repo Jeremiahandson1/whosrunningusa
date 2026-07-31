@@ -82,12 +82,15 @@ async function getBillsNeedingExplanations(args) {
 }
 
 async function getVoteEventsNeedingExplanations(args) {
-  // Get vote events that don't have a bill (procedural votes, etc.)
+  // Bill-less vote events — but only ones whose motion text names a bill or
+  // has some substance. Bare "On Passage" / "On Agreeing to the Amendment"
+  // rows have nothing to explain and produce "details not available" filler.
   const { rows } = await pool.query(
     `SELECT ve.id as vote_event_id, ve.motion_text, ve.vote_date, ve.result,
             ve.yes_count, ve.no_count, ve.abstain_count, ve.chamber
      FROM vote_events ve
      WHERE ve.bill_id IS NULL
+       AND ve.motion_text ~* '\\m(H|S)\\.?\\s?(J|CON)?\\.?\\s?(R|RES)|\\mH\\s?R\\s?\\d|nomination'
        AND NOT EXISTS (
          SELECT 1 FROM vote_explanations ex WHERE ex.vote_event_id = ve.id
        )

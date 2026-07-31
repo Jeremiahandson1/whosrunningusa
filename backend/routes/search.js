@@ -304,8 +304,23 @@ router.get('/candidates/by-location', async (req, res, next) => {
     // candidate matching both Query 1 (local office chain) and Query 2/3
     // (FEC lookups) gets a different office_name/source and slips through.
     // Wrap in a subquery and keep the single best row per candidate id.
-    const wrapped = `
-      SELECT * FROM (
+    // Level filter applies to the deduped output (office_level is 'federal'
+    // for the FEC branches and the real offices.office_level for the local
+    // chain). Values are whitelisted per branch — no user input interpolated.
+    let levelClause = '';
+    if (officeLevel === 'federal') levelClause = ` WHERE office_level = 'federal'`;
+    else if (officeLevel === 'state') levelClause = ` WHERE office_level = 'state'`;
+    else if (officeLevel === 'county') levelClause = ` WHERE office_level = 'county'`;
+    else if (officeLevel === 'local') levelClause = ` WHERE office_level IN ('city', 'township', 'district')`;
+
+    const SORT_ORDERS = {
+      response_rate: 'qa_response_rate DESC NULLS LAST, display_name',
+      questions_answered: 'total_questions_received DESC NULLS LAST, display_name',
+      alphabetical: 'display_name',
+    };
+    const orderBy = SORT_ORDERS[req.query.sort] || 'display_name';
+
+    const dedupedBody = `
         SELECT DISTINCT ON (id) *
         FROM ( ${query} ) raw
         ORDER BY id,
@@ -314,15 +329,23 @@ router.get('/candidates/by-location', async (req, res, next) => {
                    WHEN 'fec_district' THEN 1
                    ELSE 2
                  END
-      ) deduped
-      ORDER BY display_name
+    `;
+    const countWrapped = `SELECT COUNT(*)::int AS total FROM ( ${dedupedBody} ) deduped${levelClause}`;
+    const countParams = params.slice();
+
+    const wrapped = `
+      SELECT * FROM ( ${dedupedBody} ) deduped${levelClause}
+      ORDER BY ${orderBy}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
     params.push(parseInt(limit));
     params.push(parseInt(offset));
 
-    const result = await db.query(wrapped, params);
-    res.json({ candidates: result.rows });
+    const [result, countResult] = await Promise.all([
+      db.query(wrapped, params),
+      db.query(countWrapped, countParams).catch(() => ({ rows: [{ total: null }] })),
+    ]);
+    res.json({ candidates: result.rows, total: countResult.rows[0]?.total ?? null });
   } catch (error) {
     console.error('Error in candidates by-location:', error);
     next(error);

@@ -65,14 +65,14 @@ router.get('/endorsements/list', async (req, res, next) => {
 // Get all candidates with filters
 router.get('/', optionalAuth, async (req, res, next) => {
   try {
-    const { 
-      state, county, city, 
-      officeLevel, 
+    const {
+      state, county, city,
+      officeLevel,
       electionId, raceId,
-      search,
-      limit = 20, offset = 0 
+      search, issues, sort,
+      limit = 20, offset = 0
     } = req.query;
-    
+
     let query = `
       SELECT cp.*, u.username, u.first_name, u.last_name,
              COUNT(DISTINCT f.id) as follower_count
@@ -83,7 +83,7 @@ router.get('/', optionalAuth, async (req, res, next) => {
     `;
     const params = [];
     let paramIndex = 1;
-    
+
     // Filter by candidacy/race
     if (raceId) {
       query += ` AND cp.id IN (SELECT candidate_id FROM candidacies WHERE race_id = $${paramIndex})`;
@@ -91,25 +91,75 @@ router.get('/', optionalAuth, async (req, res, next) => {
       paramIndex++;
     } else if (electionId) {
       query += ` AND cp.id IN (
-        SELECT candidate_id FROM candidacies c 
-        JOIN races r ON c.race_id = r.id 
+        SELECT candidate_id FROM candidacies c
+        JOIN races r ON c.race_id = r.id
         WHERE r.election_id = $${paramIndex}
       )`;
       params.push(electionId);
       paramIndex++;
     }
-    
+
+    // Level of government. Most profiles come from source syncs, so the
+    // source IDs are the primary signal (fec_office_type = federal filer,
+    // open_states_id = state legislator); the office chain via candidacies
+    // covers manually-built local/county races.
+    const officeChain = `SELECT 1 FROM candidacies lc
+        JOIN races lr ON lr.id = lc.race_id
+        JOIN offices lo ON lo.id = lr.office_id
+        WHERE lc.candidate_id = cp.id`;
+    if (officeLevel === 'federal') {
+      query += ` AND (cp.fec_office_type IS NOT NULL OR EXISTS (${officeChain} AND lo.office_level = 'federal'))`;
+    } else if (officeLevel === 'state') {
+      query += ` AND cp.fec_office_type IS NULL
+                 AND (cp.open_states_id IS NOT NULL OR EXISTS (${officeChain} AND lo.office_level = 'state'))`;
+    } else if (officeLevel === 'county') {
+      query += ` AND EXISTS (${officeChain} AND lo.office_level = 'county')`;
+    } else if (officeLevel === 'local') {
+      query += ` AND EXISTS (${officeChain} AND lo.office_level IN ('city', 'township', 'district'))`;
+    }
+
+    // Location
+    if (state) {
+      query += ` AND (cp.fec_state = $${paramIndex} OR EXISTS (${officeChain} AND lo.state = $${paramIndex}))`;
+      params.push(String(state).toUpperCase());
+      paramIndex++;
+    }
+    if (county) {
+      query += ` AND EXISTS (${officeChain} AND lo.county ILIKE $${paramIndex})`;
+      params.push(county);
+      paramIndex++;
+    }
+    if (city) {
+      query += ` AND EXISTS (${officeChain} AND lo.city ILIKE $${paramIndex})`;
+      params.push(city);
+      paramIndex++;
+    }
+
+    // Issue chips — match the issue itself or its category by name
+    const issueList = issues ? String(issues).split(',').map(s => s.trim()).filter(Boolean) : [];
+    if (issueList.length > 0) {
+      query += ` AND EXISTS (
+        SELECT 1 FROM candidate_positions cpos
+        JOIN issues i ON i.id = cpos.issue_id
+        LEFT JOIN issue_categories ic ON ic.id = i.category_id
+        WHERE cpos.candidate_id = cp.id
+          AND (i.name ILIKE ANY($${paramIndex}) OR ic.name ILIKE ANY($${paramIndex}))
+      )`;
+      params.push(issueList);
+      paramIndex++;
+    }
+
     // Search
     if (search) {
       query += ` AND (
-        cp.display_name ILIKE $${paramIndex} OR 
-        u.first_name ILIKE $${paramIndex} OR 
+        cp.display_name ILIKE $${paramIndex} OR
+        u.first_name ILIKE $${paramIndex} OR
         u.last_name ILIKE $${paramIndex}
       )`;
       params.push(`%${search}%`);
       paramIndex++;
     }
-    
+
     // Count total before pagination — drop the aggregation to avoid GROUP BY overhead
     const countQuery = query.replace(
       /SELECT cp\.\*, u\.username, u\.first_name, u\.last_name,[\s\S]*?LEFT JOIN follows f ON cp\.id = f\.candidate_id/,
@@ -117,7 +167,17 @@ router.get('/', optionalAuth, async (req, res, next) => {
     );
     const countParams = params.slice();
 
-    query += ` GROUP BY cp.id, u.id ORDER BY cp.display_name LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    // Whitelisted sort map — never interpolate user input into ORDER BY
+    const SORT_ORDERS = {
+      response_rate: 'cp.qa_response_rate DESC NULLS LAST, cp.display_name',
+      questions_answered: 'cp.total_questions_answered DESC NULLS LAST, cp.display_name',
+      recently_joined: 'cp.created_at DESC NULLS LAST, cp.display_name',
+      alphabetical: 'cp.display_name',
+      most_followed: 'follower_count DESC, cp.display_name',
+    };
+    const orderBy = SORT_ORDERS[sort] || 'cp.display_name';
+
+    query += ` GROUP BY cp.id, u.id ORDER BY ${orderBy} LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     params.push(parseInt(limit), parseInt(offset));
 
     const [result, countResult] = await Promise.all([
