@@ -620,8 +620,9 @@ function CandidatePage() {
                             <Award size={20} style={{ color: 'var(--navy-600)' }} />
                           </div>
                           <div>
-                            <div style={{ fontWeight: 600, color: 'var(--navy-800)' }}>{edu.degree || 'Degree'}</div>
-                            <div style={{ color: 'var(--slate-600)', fontSize: '0.9375rem' }}>{edu.institution_name || edu.institution || edu.school}</div>
+                            {/* Wikidata rows often lack a degree name — lead with the school instead of a placeholder */}
+                            <div style={{ fontWeight: 600, color: 'var(--navy-800)' }}>{edu.degree || edu.institution_name || edu.institution || edu.school}</div>
+                            {edu.degree && <div style={{ color: 'var(--slate-600)', fontSize: '0.9375rem' }}>{edu.institution_name || edu.institution || edu.school}</div>}
                             {edu.field_of_study && <div style={{ color: 'var(--slate-500)', fontSize: '0.875rem' }}>{edu.field_of_study}</div>}
                             {(edu.graduation_year || edu.year) && <div style={{ color: 'var(--slate-500)', fontSize: '0.8125rem' }}>{edu.graduation_year || edu.year}</div>}
                           </div>

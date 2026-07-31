@@ -144,7 +144,12 @@ async function main() {
         await db.query(
           `INSERT INTO committee_memberships
             (candidate_id, committee_id, role, is_chair, is_ranking_member, is_current, source)
-           VALUES ($1, $2, $3, $4, $5, TRUE, 'congress-legislators')`,
+           VALUES ($1, $2, $3, $4, $5, TRUE, 'congress-legislators')
+           ON CONFLICT (candidate_id, committee_id) DO UPDATE SET
+             role = EXCLUDED.role,
+             is_chair = EXCLUDED.is_chair,
+             is_ranking_member = EXCLUDED.is_ranking_member,
+             is_current = TRUE`,
           [candidateId, committeeId, role, isChair, isRanking]
         );
       }
