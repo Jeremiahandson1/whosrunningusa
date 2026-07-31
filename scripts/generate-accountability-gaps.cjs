@@ -74,12 +74,14 @@ async function getDonorIndustries(politicianId) {
 
 async function getVotingRecords(politicianId) {
   const { rows } = await pool.query(
-    `SELECT b.title AS bill_title, b.categories AS bill_categories,
+    `SELECT COALESCE(b.title, ve.motion_text) AS bill_title,
+            b.categories AS bill_categories,
             vr.vote, ve.vote_date
      FROM voting_records vr
      JOIN vote_events ve ON ve.id = vr.vote_event_id
-     JOIN bills b ON b.id = ve.bill_id
+     LEFT JOIN bills b ON b.id = ve.bill_id
      WHERE vr.candidate_id = $1
+       AND COALESCE(b.title, ve.motion_text) IS NOT NULL
      ORDER BY ve.vote_date DESC
      LIMIT 50`,
     [politicianId]
