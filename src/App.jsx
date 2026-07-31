@@ -37,6 +37,7 @@ const AdminElections = lazy(() => import('./pages/admin/ElectionsPage'))
 const AdminUsers = lazy(() => import('./pages/admin/UsersPage'))
 const AdminSyncLogs = lazy(() => import('./pages/admin/SyncLogsPage'))
 const AdminCriminalRecords = lazy(() => import('./pages/admin/CriminalRecordsPage'))
+const AdminReviewQueue = lazy(() => import('./pages/admin/ReviewQueuePage'))
 const EndorsementsPage = lazy(() => import('./pages/EndorsementsPage'))
 const ConnectionsPage = lazy(() => import('./pages/ConnectionsPage'))
 const PostFeedPage = lazy(() => import('./pages/PostFeedPage'))
@@ -219,6 +220,7 @@ function App() {
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/admin/criminal-records" element={<AdminCriminalRecords />} />
             <Route path="/admin/sync-logs" element={<AdminSyncLogs />} />
+            <Route path="/admin/review-queue" element={<AdminReviewQueue />} />
 
             {/* 404 catch-all */}
             <Route path="*" element={<NotFoundPage />} />

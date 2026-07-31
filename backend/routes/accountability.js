@@ -274,6 +274,44 @@ router.get('/mirror', async (req, res, next) => {
   }
 });
 
+// GET /accountability/admin/pending — Unpublished gaps awaiting human review
+router.get('/admin/pending', adminAuth, async (req, res, next) => {
+  try {
+    const { page = 1 } = req.query;
+    const limit = 20;
+    const offset = (Math.max(1, parseInt(page)) - 1) * limit;
+
+    const countResult = await db.query(
+      `SELECT COUNT(*) as total
+       FROM accountability_gaps
+       WHERE published = false`
+    );
+    const total = parseInt(countResult.rows[0].total);
+
+    const result = await db.query(
+      `SELECT ag.id, ag.politician_id, ag.gap_type, ag.stated_position,
+              ag.actual_action, ag.gap_severity, ag.ai_analysis, ag.topic_tag,
+              ag.verified, ag.verified_at, ag.created_at,
+              cp.display_name as politician_name, cp.party_affiliation, cp.official_title
+       FROM accountability_gaps ag
+       JOIN candidate_profiles cp ON ag.politician_id = cp.id
+       WHERE ag.published = false
+       ORDER BY ag.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+
+    res.json({
+      data: result.rows,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / limit)
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post('/admin/gaps/:id/verify', adminAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
