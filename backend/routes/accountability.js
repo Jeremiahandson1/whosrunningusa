@@ -96,7 +96,8 @@ router.get('/politicians/:id/donors', async (req, res, next) => {
 
     const result = await db.query(query, params);
 
-    res.json({ data: result.rows });
+    // CandidatePage reads .donors; keep .data as a compat alias
+    res.json({ donors: result.rows, data: result.rows });
   } catch (error) {
     next(error);
   }

@@ -621,9 +621,9 @@ function CandidatePage() {
                           </div>
                           <div>
                             <div style={{ fontWeight: 600, color: 'var(--navy-800)' }}>{edu.degree || 'Degree'}</div>
-                            <div style={{ color: 'var(--slate-600)', fontSize: '0.9375rem' }}>{edu.institution || edu.school}</div>
+                            <div style={{ color: 'var(--slate-600)', fontSize: '0.9375rem' }}>{edu.institution_name || edu.institution || edu.school}</div>
                             {edu.field_of_study && <div style={{ color: 'var(--slate-500)', fontSize: '0.875rem' }}>{edu.field_of_study}</div>}
-                            {edu.year && <div style={{ color: 'var(--slate-500)', fontSize: '0.8125rem' }}>{edu.year}</div>}
+                            {(edu.graduation_year || edu.year) && <div style={{ color: 'var(--slate-500)', fontSize: '0.8125rem' }}>{edu.graduation_year || edu.year}</div>}
                           </div>
                         </div>
                       ))}
