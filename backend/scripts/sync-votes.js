@@ -68,11 +68,17 @@ function parseHouseVote(xml, url, year, roll) {
     ? `${question} — ${legisNum}`
     : (question || legisNum);
 
-  // Counts
-  const yesCount = parseInt(xml.match(/<yea-total>\s*(\d+)\s*<\/yea-total>/)?.[1] || '0', 10);
-  const noCount = parseInt(xml.match(/<nay-total>\s*(\d+)\s*<\/nay-total>/)?.[1] || '0', 10);
-  const presentCount = parseInt(xml.match(/<present-total>\s*(\d+)\s*<\/present-total>/)?.[1] || '0', 10);
-  const notVotingCount = parseInt(xml.match(/<not-voting-total>\s*(\d+)\s*<\/not-voting-total>/)?.[1] || '0', 10);
+  // Counts — MUST come from the <totals-by-vote> chamber-totals block. The
+  // document lists <totals-by-party> (Republican first) before it, so a bare
+  // first-match regex returns one party's tally, not the floor total — that
+  // bug stored "212-0" for votes that were really 232-188.
+  const totalsBlock = xml.match(/<totals-by-vote>[\s\S]*?<\/totals-by-vote>/)?.[0] || '';
+  const countOf = (tag) =>
+    parseInt(totalsBlock.match(new RegExp(`<${tag}>\\s*(\\d+)\\s*</${tag}>`))?.[1] || '0', 10);
+  const yesCount = countOf('yea-total');
+  const noCount = countOf('nay-total');
+  const presentCount = countOf('present-total');
+  const notVotingCount = countOf('not-voting-total');
 
   // Per-member votes
   const members = [];

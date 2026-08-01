@@ -824,7 +824,11 @@ router.get('/:id/voting-record', async (req, res) => {
         COUNT(*) as total_votes,
         COUNT(*) FILTER (WHERE vote = 'yes') as yes_votes,
         COUNT(*) FILTER (WHERE vote = 'no') as no_votes,
-        COUNT(*) FILTER (WHERE vote IN ('not_voting', 'not voting', 'absent', 'present')) as missed_votes
+        COUNT(*) FILTER (WHERE vote IN ('not_voting', 'not voting', 'absent', 'present')) as missed_votes,
+        CASE WHEN COUNT(*) > 0 THEN ROUND(
+          (COUNT(*) FILTER (WHERE vote NOT IN ('not_voting', 'not voting', 'absent')))::numeric
+            / COUNT(*) * 100, 1)
+        END as attendance_rate
        FROM voting_records
        WHERE candidate_id = $1`,
       [id]
