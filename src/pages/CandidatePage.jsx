@@ -990,10 +990,15 @@ function CandidatePage() {
                             </div>
                             <div style={{ flex: 1 }}>
                               <div style={{ fontWeight: 500, color: 'var(--navy-800)', fontSize: '0.9375rem' }}>
-                                {vote.bill_number || vote.bill_title || 'Unknown Bill'}
+                                {vote.bill_number || vote.bill_title || vote.motion_text || 'Procedural vote'}
                               </div>
                               {vote.bill_title && vote.bill_number && (
                                 <div style={{ fontSize: '0.8125rem', color: 'var(--slate-500)', marginTop: '0.125rem' }}>{vote.bill_title}</div>
+                              )}
+                              {/* Same bill can rack up several roll calls in a day (amendments,
+                                  recommit, passage) — the motion is what tells them apart */}
+                              {vote.motion_text && (vote.bill_number || vote.bill_title) && (
+                                <div style={{ fontSize: '0.75rem', color: 'var(--slate-500)', marginTop: '0.125rem', fontStyle: 'italic' }}>{vote.motion_text}</div>
                               )}
                               {(vote.plain_language_summary || vote.what_it_means) && (
                                 <div style={{ fontSize: '0.8125rem', color: 'var(--slate-600)', marginTop: '0.375rem', padding: '0.5rem 0.625rem', background: 'var(--slate-50)', borderRadius: 6, borderLeft: '3px solid var(--navy-300, #93c5fd)' }}>
@@ -1017,12 +1022,18 @@ function CandidatePage() {
                         <div key={idx} className="card mobile-record-card">
                           <div className="mobile-record-row">
                             <span className="mobile-record-label">Bill</span>
-                            <span className="mobile-record-value primary">{vote.bill_number || vote.bill_title || 'Unknown Bill'}</span>
+                            <span className="mobile-record-value primary">{vote.bill_number || vote.bill_title || vote.motion_text || 'Procedural vote'}</span>
                           </div>
                           {vote.bill_title && vote.bill_number && (
                             <div className="mobile-record-row">
                               <span className="mobile-record-label">Title</span>
                               <span className="mobile-record-value">{vote.bill_title}</span>
+                            </div>
+                          )}
+                          {vote.motion_text && (vote.bill_number || vote.bill_title) && (
+                            <div className="mobile-record-row">
+                              <span className="mobile-record-label">Motion</span>
+                              <span className="mobile-record-value">{vote.motion_text}</span>
                             </div>
                           )}
                           <div className="mobile-record-row">
