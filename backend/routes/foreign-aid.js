@@ -289,7 +289,7 @@ router.get('/countries/:countryCode/influence', async (req, res, next) => {
       ) donor_totals ON true
       WHERE fp.country_code = $1
         AND fcon.candidate_id IS NOT NULL
-      ORDER BY donor_totals.total_donated DESC NULLS LAST
+      ORDER BY total_donated DESC NULLS LAST
     `, [countryCode]);
 
     // Relevant votes those politicians cast

@@ -80,6 +80,8 @@ const NAME_TO_ISO3 = {
   'REPUBLIC OF THE CONGO': 'COG',
   'CONGO BRAZZAVILLE': 'COG',
   'CONGO DEMOCRATIC REPUBLIC': 'COD',
+  'CONGO DEMOCRATIC REPUBLIC OF THE': 'COD',
+  'CONGO REPUBLIC OF THE': 'COG',
   'DEMOCRATIC REPUBLIC OF THE CONGO': 'COD',
   'DEMOCRATIC REPUBLIC OF CONGO': 'COD',
   'CONGO KINSHASA': 'COD',
@@ -89,6 +91,7 @@ const NAME_TO_ISO3 = {
   'COTE D IVOIRE': 'CIV',
   'COTE DIVOIRE': 'CIV',
   'IVORY COAST': 'CIV',
+  'COTE DIVOIRE IVORY COAST': 'CIV',
   'CROATIA': 'HRV',
   'CUBA': 'CUB',
   'CYPRUS': 'CYP',
@@ -293,6 +296,31 @@ const NAME_TO_ISO3 = {
   'YEMEN': 'YEM',
   'ZAMBIA': 'ZMB',
   'ZIMBABWE': 'ZWE',
+  // Territories and dependencies that appear in FARA data
+  'ARUBA': 'ABW',
+  'BERMUDA': 'BMU',
+  'BRITISH VIRGIN ISLANDS': 'VGB',
+  'CAYMAN ISLANDS': 'CYM',
+  'FRENCH POLYNESIA': 'PYF',
+  'GIBRALTAR': 'GIB',
+  'GREENLAND': 'GRL',
+  'GUERNSEY': 'GGY',
+  'ISLE OF MAN': 'IMN',
+  'JERSEY': 'JEY',
+  'NEW CALEDONIA': 'NCL',
+  'PUERTO RICO': 'PRI',
+  'CURACAO': 'CUW',
+  'FAROE ISLANDS': 'FRO',
+  'TURKS AND CAICOS ISLANDS': 'TCA',
+  'ANGUILLA': 'AIA',
+  'MONTSERRAT': 'MSR',
+  // Partially-recognized states with ISO codes
+  'SAHARAWI ARAB DEMOCRATIC REPUBLIC': 'ESH',
+  'WESTERN SAHARA': 'ESH',
+  // Somaliland has no ISO code of its own; USAspending files its aid under
+  // Somalia, so map it there for linkage purposes.
+  'SOMALILAND': 'SOM',
+  // Deliberately unmapped (no ISO country to link): INTERNATIONAL, TIBET
 };
 
 /**
