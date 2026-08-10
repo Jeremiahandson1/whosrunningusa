@@ -52,7 +52,7 @@ const ALL_STEPS = [
   // Platform feature syncs (root scripts/ dir)
   'transparency-seed', 'trades', 'revolving-door', 'compliance',
   // Module 6 new syncs
-  'foreign-aid', 'outside-spending', 'fara', 'think-tanks',
+  'foreign-aid', 'outside-spending', 'fara', 'think-tanks', 'lda',
   // Donor-industry aggregation from FEC receipts — must precede the AI steps
   // (donor-map, gaps) that require politician_donor_industries rows.
   'donor-industries',
@@ -152,6 +152,8 @@ function buildCommand(step) {
       return [path.join(ROOT_SCRIPTS_DIR, 'compute-political-roi.cjs')];
     case 'think-tanks':
       return [path.join(ROOT_SCRIPTS_DIR, 'sync-think-tanks.cjs')];
+    case 'lda':
+      return [path.join(ROOT_SCRIPTS_DIR, 'sync-lda.cjs')];
     default:
       return null;
   }
@@ -332,7 +334,7 @@ async function main() {
   const NON_CRITICAL_STEPS = new Set([
     'votesmart', 'wikidata', 'openstates', 'bills', 'finance',
     'transparency-seed', 'trades', 'revolving-door', 'compliance',
-    'foreign-aid', 'outside-spending', 'fara', 'think-tanks',
+    'foreign-aid', 'outside-spending', 'fara', 'think-tanks', 'lda',
     'donor-industries',
     'promise-scores', 'rubber-stamp', 'pac-violations', 'political-roi',
     'explanations', 'donor-map', 'gaps', 'auto-check-promises', 'scan-conflicts',

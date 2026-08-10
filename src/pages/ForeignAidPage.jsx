@@ -331,9 +331,9 @@ function CountryDetail({ countryCode }) {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
                   {[
                     { label: 'Registered Agents', value: influence.registered_agents?.length || 0 },
-                    { label: 'Politicians Contacted', value: influence.politicians_contacted?.length || 0 },
-                    { label: 'Total Donations', value: formatAmount(influence.total_donations) },
-                    { label: 'Votes Cast', value: influence.votes?.length || 0 },
+                    { label: 'Linked Politicians', value: influence.politicians_contacted?.length || 0 },
+                    { label: 'Linked Donations', value: formatAmount(influence.total_donations) },
+                    { label: 'Lobbying Spend (LDA)', value: influence.lda_spend != null ? formatAmount(influence.lda_spend) : 'Not disclosed' },
                   ].map((s, i) => (
                     <div key={i} style={{ background: '#fff', borderRadius: 12, padding: '16px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', textAlign: 'center' }}>
                       <div style={{ fontSize: 22, fontWeight: 800, color: '#1e293b' }}>{s.value}</div>
@@ -363,7 +363,8 @@ function CountryDetail({ countryCode }) {
                 {/* Politicians contacted */}
                 {influence.politicians_contacted && influence.politicians_contacted.length > 0 && (
                   <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
-                    <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', margin: '0 0 16px' }}>Politicians Contacted</h3>
+                    <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', margin: '0 0 16px' }}>Politicians Linked by FEC Donations</h3>
+                    <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 12px' }}>Received FEC-reported contributions from donors whose name or employer matches a registered foreign agent for this country.</p>
                     {influence.politicians_contacted.map((pol, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < influence.politicians_contacted.length - 1 ? '1px solid #f1f5f9' : 'none', fontSize: 14 }}>
                         <Link to={`/candidate/${pol.politician_id}`} style={{ fontWeight: 600, color: '#1e293b', textDecoration: 'none' }}>
@@ -371,7 +372,7 @@ function CountryDetail({ countryCode }) {
                           <span style={{ fontSize: 12, color: '#475569', fontWeight: 400, marginLeft: 8 }}>{pol.party_affiliation} · {pol.state}</span>
                         </Link>
                         {pol.contact_count && (
-                          <span style={{ fontSize: 12, color: '#475569' }}>{pol.contact_count} contact{pol.contact_count !== 1 ? 's' : ''}</span>
+                          <span style={{ fontSize: 12, color: '#475569' }}>{pol.contact_count} donation{pol.contact_count !== 1 ? 's' : ''}</span>
                         )}
                       </div>
                     ))}

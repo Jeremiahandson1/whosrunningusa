@@ -246,91 +246,108 @@ router.get('/countries/:countryCode/influence', async (req, res, next) => {
   try {
     const { countryCode } = req.params;
 
-    // FARA agents registered for this country
+    // Registered FARA agents for this country. DOJ's API publishes no
+    // compensation amounts, so compensation is null (UI hides it).
     const agents = await db.query(`
-      SELECT
-        fr.id AS registrant_id,
-        fr.registrant_name,
-        fc.contract_date,
-        fc.contract_amount,
-        fp.principal_name,
-        fp.country_code
+      SELECT DISTINCT fr.id, fr.registrant_name AS name, fr.source_url,
+             fp.principal_name
       FROM fara_principals fp
       JOIN fara_contracts fc ON fc.principal_id = fp.id
       JOIN fara_registrants fr ON fr.id = fc.registrant_id
       WHERE fp.country_code = $1
-      ORDER BY fc.contract_amount DESC NULLS LAST
+      ORDER BY fr.registrant_name
     `, [countryCode]);
 
-    // Politicians those agents contacted, with donation totals
-    const fundedPoliticians = await db.query(`
-      SELECT DISTINCT
-        cp.id AS candidate_id,
-        cp.display_name,
-        cp.party_affiliation,
-        cp.official_title,
-        fcon.contact_date,
-        fcon.contact_type,
-        fcon.description AS contact_description,
-        COALESCE(donor_totals.total_donated, 0) AS total_donated
-      FROM fara_contacts fcon
-      JOIN fara_principals fp ON fp.id = fcon.principal_id
-      JOIN candidate_profiles cp ON cp.id = fcon.candidate_id
-      LEFT JOIN LATERAL (
-        SELECT SUM(amount) AS total_donated
-        FROM contributions
-        WHERE candidate_id = cp.id
-          AND contributor_id IN (
-            SELECT fr.id FROM fara_registrants fr
-            JOIN fara_contracts fc2 ON fc2.registrant_id = fr.id
-            JOIN fara_principals fp2 ON fp2.id = fc2.principal_id
-            WHERE fp2.country_code = $1
-          )
-      ) donor_totals ON true
-      WHERE fp.country_code = $1
-        AND fcon.candidate_id IS NOT NULL
-      ORDER BY total_donated DESC NULLS LAST
-    `, [countryCode]);
+    // FEC linkage: DOJ removed its agent-contacts endpoint, so instead match
+    // FEC contributions whose donor employer (firms) or donor name (individual
+    // "Last, First" registrants) equals a FARA registrant for this country.
+    // Exact normalized matches only — conservative on purpose.
+    const firmNames = new Set();
+    const personNames = new Set();
+    const SUFFIXES = /\s+(LLC|LLP|L L P|INC|CORP|CO|COMPANY|GROUP|USA|PLLC|LTD|PC)$/;
+    for (const a of agents.rows) {
+      const raw = a.name || '';
+      if (raw.includes(',')) {
+        const [last, rest] = raw.split(',', 2)
+          .map(s => s.toUpperCase().replace(/[^A-Za-z ]/g, ' ').replace(/\s+/g, ' ').trim());
+        if (last && rest) personNames.add(`${rest} ${last}`);
+      } else {
+        let n = raw.toUpperCase().replace(/[^A-Za-z ]/g, ' ').replace(/\s+/g, ' ').trim();
+        if (n.length >= 5) firmNames.add(n);
+        for (;;) { const s = n.replace(SUFFIXES, ''); if (s === n) break; n = s; }
+        if (n.length >= 5) firmNames.add(n);
+      }
+    }
+    const normSql = (col) =>
+      `TRIM(regexp_replace(UPPER(regexp_replace(COALESCE(${col}, ''), '[^A-Za-z ]', ' ', 'g')), '\\s+', ' ', 'g'))`;
+    let donations = { rows: [] };
+    if (firmNames.size > 0 || personNames.size > 0) {
+      donations = await db.query(`
+        SELECT c.contributor_name AS donor_name, c.amount, c.contribution_date,
+               c.source_url, cp.id AS recipient_id, cp.display_name AS recipient_name,
+               cp.party_affiliation, cp.fec_state AS state
+        FROM contributions c
+        JOIN candidate_profiles cp ON cp.id = c.candidate_id
+        WHERE ${normSql('c.contributor_employer')} = ANY($1)
+           OR ${normSql('c.contributor_name')} = ANY($2)
+        ORDER BY c.amount DESC NULLS LAST
+        LIMIT 100
+      `, [[...firmNames], [...personNames]]);
+    }
 
-    // Relevant votes those politicians cast
-    const relatedVotes = await db.query(`
-      SELECT
-        vr.candidate_id,
-        cp.display_name,
-        vr.vote AS vote_position,
-        ve.vote_date,
-        ve.motion_text AS vote_question,
-        ve.result AS vote_result,
-        b.title AS bill_title,
-        b.bill_number
-      FROM voting_records vr
-      JOIN vote_events ve ON ve.id = vr.vote_event_id
-      JOIN bills b ON b.id = ve.bill_id
-      JOIN candidate_profiles cp ON cp.id = vr.candidate_id
-      WHERE vr.candidate_id IN (
-        SELECT DISTINCT fcon.candidate_id
-        FROM fara_contacts fcon
-        JOIN fara_principals fp ON fp.id = fcon.principal_id
-        WHERE fp.country_code = $1
-          AND fcon.candidate_id IS NOT NULL
-      )
-      ORDER BY ve.vote_date DESC
-      LIMIT 50
-    `, [countryCode]);
+    const politicians = new Map();
+    let totalDonations = 0;
+    for (const d of donations.rows) {
+      totalDonations += parseFloat(d.amount) || 0;
+      const p = politicians.get(d.recipient_id) || {
+        politician_id: d.recipient_id, display_name: d.recipient_name,
+        party_affiliation: d.party_affiliation, state: d.state, contact_count: 0,
+      };
+      p.contact_count++;
+      politicians.set(d.recipient_id, p);
+    }
 
-    // Total lobbying spend for this country
-    const lobbyResult = await db.query(`
-      SELECT COALESCE(SUM(fc.contract_amount), 0) AS total_lobbying_spend
-      FROM fara_contracts fc
-      JOIN fara_principals fp ON fp.id = fc.principal_id
-      WHERE fp.country_code = $1
-    `, [countryCode]);
+    // Recent votes cast by the linked politicians
+    let votes = { rows: [] };
+    if (politicians.size > 0) {
+      votes = await db.query(`
+        SELECT vr.candidate_id AS politician_id, cp.display_name AS politician_name,
+               vr.vote, ve.vote_date AS date, b.title AS bill_title,
+               b.bill_number AS bill_id
+        FROM voting_records vr
+        JOIN vote_events ve ON ve.id = vr.vote_event_id
+        JOIN candidate_profiles cp ON cp.id = vr.candidate_id
+        LEFT JOIN bills b ON b.id = ve.bill_id
+        WHERE vr.candidate_id = ANY($1)
+        ORDER BY ve.vote_date DESC
+        LIMIT 50
+      `, [[...politicians.keys()]]);
+    }
+
+    // Disclosed lobbying dollars from Senate LDA filings (synced by
+    // sync-lda.cjs). Null — not zero — when nothing is synced/disclosed.
+    let ldaSpend = null;
+    try {
+      const lda = await db.query(
+        `SELECT SUM(COALESCE(income, expenses)) AS total
+         FROM lda_filings WHERE client_country_code = $1`,
+        [countryCode]
+      );
+      if (lda.rows[0].total != null) ldaSpend = parseFloat(lda.rows[0].total);
+    } catch (_) { /* lda_filings may not exist yet */ }
 
     res.json({
-      agents: agents.rows,
-      fundedPoliticians: fundedPoliticians.rows,
-      relatedVotes: relatedVotes.rows,
-      totalLobbyingSpend: parseFloat(lobbyResult.rows[0].total_lobbying_spend),
+      registered_agents: agents.rows.map(a => ({
+        name: a.name, firm: a.principal_name || null, compensation: null,
+        source_url: a.source_url, source_label: 'FARA Registration',
+      })),
+      politicians_contacted: [...politicians.values()]
+        .sort((a, b) => b.contact_count - a.contact_count),
+      donations: donations.rows.slice(0, 25),
+      votes: votes.rows,
+      total_donations: totalDonations,
+      lda_spend: ldaSpend,
+      donation_method: 'FEC contributions whose donor name or employer matches a registered FARA agent for this country',
     });
   } catch (error) {
     next(error);
