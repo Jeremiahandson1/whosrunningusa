@@ -53,6 +53,8 @@ const ALL_STEPS = [
   'transparency-seed', 'trades', 'revolving-door', 'compliance',
   // Module 6 new syncs
   'foreign-aid', 'outside-spending', 'fara', 'think-tanks', 'lda',
+  // Itemized Schedule A receipts into contributions (capped per run; converges nightly)
+  'fec-receipts',
   // Donor-industry aggregation from FEC receipts — must precede the AI steps
   // (donor-map, gaps) that require politician_donor_industries rows.
   'donor-industries',
@@ -154,6 +156,8 @@ function buildCommand(step) {
       return [path.join(ROOT_SCRIPTS_DIR, 'sync-think-tanks.cjs')];
     case 'lda':
       return [path.join(ROOT_SCRIPTS_DIR, 'sync-lda.cjs')];
+    case 'fec-receipts':
+      return [path.join(ROOT_SCRIPTS_DIR, 'sync-fec-receipts.cjs')];
     default:
       return null;
   }
@@ -335,7 +339,7 @@ async function main() {
     'votesmart', 'wikidata', 'openstates', 'bills', 'finance',
     'transparency-seed', 'trades', 'revolving-door', 'compliance',
     'foreign-aid', 'outside-spending', 'fara', 'think-tanks', 'lda',
-    'donor-industries',
+    'fec-receipts', 'donor-industries',
     'promise-scores', 'rubber-stamp', 'pac-violations', 'political-roi',
     'explanations', 'donor-map', 'gaps', 'auto-check-promises', 'scan-conflicts',
     // Per-member API + DB upsert loop legitimately approaches the 30-min cap.
